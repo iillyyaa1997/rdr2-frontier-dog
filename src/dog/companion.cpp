@@ -66,12 +66,13 @@ void Companion::start() {
     spawn(true);
 }
 
-void Companion::spawn(bool outOfView) {
+void Companion::spawn(bool outOfView, const Vector3* fixed) {
     DogRecord* d = record();
     if (!d) return;
     Vector3 at;
     Vector3 p = pos(player());
-    if (!(outOfView && hiddenSpotNear(p, 30, 60, at)) && !safeCoord(add(p, Vector3(-3, -3, 0)), at)) at = p;
+    if (fixed) at = *fixed;
+    else if (!(outOfView && hiddenSpotNear(p, 30, 60, at)) && !safeCoord(add(p, Vector3(-3, -3, 0)), at)) at = p;
     std::string model = d->model.empty() ? "a_c_doghobo_01" : d->model;
     Ped dog = spawnPed(model, at, 0);
     if (!dog && model != "a_c_doghobo_01") dog = spawnPed("a_c_doghobo_01", at, 0);  // a model that always loads
@@ -166,6 +167,47 @@ void Companion::sendHome(bool runOff) {
     releasePed(runOff);
     slot_ = -1;
 }
+
+void Companion::callFromHomeAt(int slot, const Vector3& at) {
+    if (slot < 0 || !ctx().store.used(slot)) return;
+    if (slot_ >= 0) sendHome(true);
+    slot_ = slot;
+    ctx().store.at(slot).where = Where::WithArthur;
+    save();
+    spawn(false, &at);
+}
+
+bool Companion::adopt(Ped ped, DogRecord d) {
+    auto& c = ctx();
+    if (slot_ < 0 && c.store.count() >= DogStore::kSlots) {
+        helpText(c.t("help.kennel_full"));
+        return false;
+    }
+    if (slot_ >= 0) sendHome(true);  // the dog that was with Arthur goes home (D98)
+    if (c.store.count() >= DogStore::kSlots) {
+        helpText(c.t("help.kennel_full"));
+        return false;
+    }
+    d.where = Where::WithArthur;
+    int s = c.store.put(d);
+    if (s < 0) return false;
+    slot_ = s;
+    ENTITY::FREEZE_ENTITY_POSITION(ped, false);
+    ENTITY::SET_ENTITY_INVINCIBLE(ped, false);
+    setup(ped);
+    return true;
+}
+
+void Companion::releaseForSale() {
+    DogRecord* d = record();
+    if (!d) return;
+    int s = slot_;
+    releasePed(true);
+    ctx().store.remove(s);
+    slot_ = -1;
+}
+
+bool Companion::isShopOrHomeDog(Ped p) const { return p && DECORATOR::DECOR_GET_INT(p, "FD_shop") == 1; }
 
 void Companion::callFromHome(int slot) {
     if (slot < 0 || !ctx().store.used(slot)) return;
@@ -505,6 +547,15 @@ void Companion::updateAway() {
         DogRecord& d = ctx().store.at(i);
         if (d.where != Where::Away || m < d.awayUntil) continue;
         std::string reason = d.awayReason;
+        if (reason.rfind("training:", 0) == 0) {
+            std::string sk = reason.substr(9);
+            d.skillLevel[sk] = std::min(3, d.skill(sk) + 1);
+            d.skillUses[sk] = 0;
+        } else if (reason == "cure") {
+            cure(d, ctx().breeds, ctx().rng, ctx().chances);
+        } else if (reason == "pedigree") {
+            makePedigree(d, ctx().breeds);
+        }
         d.where = Where::Home;  // picked up at the stable comes with the stable module; until then it walks home
         d.awayReason.clear();
         d.awayUntil = 0;
@@ -559,7 +610,7 @@ void Companion::onEvent(Hash type, int index) {
         if (!SCRIPT::GET_EVENT_DATA(0, index, (Any*)&ev, 3) || ev.a != player() || ev.c != int(kPatting)) return;
         if (present() && ev.b == ped_) {
             addBond(ctx().tunef("bond.pat", 4), "pat", ctx().tune("bond.pat_cooldown_ms", 120000));
-        } else if (alive(ev.b) && ev.b != ped_ && ctx().breeds.byAnimalType(ENTITY::_GET_PED_ANIMAL_TYPE(ev.b))) {
+        } else if (alive(ev.b) && ev.b != ped_ && !isShopOrHomeDog(ev.b) && ctx().breeds.byAnimalType(ENTITY::_GET_PED_ANIMAL_TYPE(ev.b))) {
             tameCandidate_ = ev.b;  // patted a stray: offer to take it along (old flow, own code)
             tameCandidateUntil_ = now() + 30000;
             tamePrompt_.setTarget(ev.b);
@@ -599,15 +650,7 @@ void Companion::tame(Ped stray) {
     d.female = !PED::IS_PED_MALE(stray);
     d.name = c.t("dog.default_name");
     d.where = Where::WithArthur;
-    if (c.store.count() >= DogStore::kSlots) {
-        helpText(c.t("help.kennel_full"));
-        return;
-    }
-    if (slot_ >= 0) sendHome(true);  // the dog that was with Arthur goes home (D98)
-    int s = c.store.put(d);
-    if (s < 0) return;
-    slot_ = s;
-    setup(stray);
+    if (!adopt(stray, d)) return;
     FD_INFO("tamed a stray %s: grade %d, stats %d", b->id.c_str(), int(d.grade), d.statSum());
     helpText(c.f("help.tamed", {{"grade", c.gradeText(d)}, {"breed", c.breedText(d)}}, d.female), 7000);
 }

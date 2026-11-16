@@ -8,6 +8,7 @@
 #include "dog/care.h"
 #include "dog/companion.h"
 #include "dog/hunting.h"
+#include "dog/stables.h"
 #include "game/game.h"
 #include "mod/context.h"
 #include "mod/testhooks.h"
@@ -70,6 +71,8 @@ static void scriptMain() {
     companion().start();
     behaviour::start();
     care::start();
+    stables::start();
+    DECORATOR::DECOR_REGISTER("FD_shop", 3);
     while (true) {
         int n = SCRIPT::GET_NUMBER_OF_EVENTS(0);
         for (int i = 0; i < n; ++i) {
@@ -83,6 +86,7 @@ static void scriptMain() {
         behaviour::tick();
         hunting::tick();
         care::tick();
+        stables::tick();
         ui::coreTick();
         ui::cardTick();
 #ifdef FD_TEST

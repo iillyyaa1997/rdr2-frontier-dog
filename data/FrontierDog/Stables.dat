@@ -1,0 +1,27 @@
+# Frontier Dog stables (coordinates from the open bcc-stables config): the stable hand's place and where the dogs for
+# sale stand, and the regional breeds (old D19: each stable shows 3 of its 4, a new pick every 3 in-game days)
+stables=valentine,strawberry,vanhorn,emerald,stdenis,blackwater,armadillo,tumbleweed
+valentine.pos=-367.87,784.27,115.95
+valentine.dogs=-371.35,786.71,116.17
+valentine.breeds=collie,australian,foxhound,mutt
+strawberry.pos=-1817.85,-564.86,156.06
+strawberry.dogs=-1823.94,-560.85,156.06
+strawberry.breeds=husky,bluetick,bloodhound,collie
+vanhorn.pos=2967.53,792.71,51.40
+vanhorn.dogs=2971.66,796.82,51.40
+vanhorn.breeds=chesapeake,labrador,mutt,catahoula
+emerald.pos=1210.73,-189.78,101.39
+emerald.dogs=1210.50,-196.25,101.38
+emerald.breeds=australian,foxhound,bluetick,mutt
+stdenis.pos=2505.53,-1453.93,46.32
+stdenis.dogs=2502.59,-1438.62,46.32
+stdenis.breeds=poodle,labrador,catahoula,shiba
+blackwater.pos=-871.00,-1369.63,43.53
+blackwater.dogs=-864.70,-1366.19,43.55
+blackwater.breeds=collie,labrador,australian,bloodhound
+armadillo.pos=-3706.91,-2539.68,-13.78
+armadillo.dogs=-3702.17,-2534.99,-14.02
+armadillo.breeds=catahoula,mutt,bluetick,foxhound
+tumbleweed.pos=-5515.20,-3040.17,-2.39
+tumbleweed.dogs=-5524.48,-3044.31,-2.39
+tumbleweed.breeds=catahoula,bloodhound,mutt,husky
