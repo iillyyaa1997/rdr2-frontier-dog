@@ -45,6 +45,7 @@ private:
     void pullCarcass(float scale);
     void stepBack(int t, Ped to);
     void deliver();
+    void stowOnHorse();
     void fail(const char* why);
 
     Ped dog_ = 0;

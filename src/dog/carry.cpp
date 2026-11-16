@@ -1,5 +1,6 @@
 #include "dog/carry.h"
 
+#include <cctype>
 #include <cmath>
 
 #include "core/log.h"
@@ -279,8 +280,37 @@ void CarryTask::deliver() {
         FD_INFO("carry: delivered (%s)", job_.body ? "a body" : "a pelt");
     }
     TASK::TASK_TURN_PED_TO_FACE_ENTITY(dog_, player(), 1500, 0, 0, 0);
+    if (job_.horse && dist(dog_, job_.horse) < 4.0f && ctx().ini.getBool("CarryStowOnHorse", true)) stowOnHorse();
     lastDelivered_ = true;
     ++deliveries_;
+}
+
+// The game's own way, read in its ambient scripts (av_walk_horse_carry_deer.c, av_animal_carry_ride.c 2026-11-16):
+// TASK_CARRIABLE(carcass, joaat("DEAD_CARRIABLE_<SPECIES>"), horse, slot 0, flags 0) after requesting that config.
+// Our 15.11 windows tried slots 7/4 with the entity's own config only (never worked). Unverified: if it does not take,
+// the carcass simply stays by the horse.
+void CarryTask::stowOnHorse() {
+    std::string model;
+    for (const auto& b : {"deer", "buck", "goat", "pronghorn", "bighornram", "duck", "elk", "moose", "boar", "fox", "coyote",
+                          "wolf", "cougar", "panther", "bear", "beaver", "rabbit", "raccoon", "turkey", "goosecanada", "pheasant"}) {
+        std::string m = std::string("a_c_") + b + "_01";
+        if (ENTITY::GET_ENTITY_MODEL(job_.carcass) == MISC::GET_HASH_KEY(m.c_str())) model = b;
+    }
+    Hash cfg = 0;
+    if (!model.empty()) {
+        std::string up = model;
+        for (char& ch : up) ch = char(std::toupper((unsigned char)ch));
+        cfg = MISC::GET_HASH_KEY(("DEAD_CARRIABLE_" + up).c_str());
+    }
+    if (!cfg) cfg = ENTITY::_GET_ENTITY_CARRY_CONFIG(job_.carcass);
+    if (!cfg) {
+        FD_INFO("carry: no carry config for this carcass, left by the horse");
+        return;
+    }
+    TASK::_REQUEST_CARRIABLE_CONFIG(cfg);
+    for (int i = 0; i < 50 && !TASK::_HAS_REQUESTED_CARRIABLE_CONFIG_LOADED(cfg); ++i) scriptWait(20);
+    TASK::TASK_CARRIABLE(job_.carcass, cfg, job_.horse, int(ctx().tune("carry.stow_slot", 0)), int(ctx().tune("carry.stow_flags", 0)));
+    FD_INFO("carry: puts it on the horse (config 0x%08X %s, slot %d)", cfg, model.c_str(), ctx().tune("carry.stow_slot", 0));
 }
 
 void CarryTask::fail(const char* why) {
