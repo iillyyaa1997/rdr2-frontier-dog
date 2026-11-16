@@ -147,6 +147,16 @@ static void run(const std::vector<std::string>& a) {
         }
     } else if (cmd == "wanted") {
         PLAYER::SET_PLAYER_WANTED_LEVEL(PLAYER::PLAYER_ID(), int(num(1, 1)), false);
+    } else if (cmd == "woundexpire" && comp.record()) {
+        comp.record()->woundedUntil = unixNow();  // not saved in time, now
+    } else if (cmd == "revive" && comp.present()) {
+        PED::_INCAPACITATED_REVIVE(comp.ped(), comp.ped());
+        comp.record()->woundedUntil = 0;
+        ENTITY::SET_ENTITY_INVINCIBLE(comp.ped(), false);
+        ENTITY::SET_ENTITY_HEALTH(comp.ped(), ENTITY::GET_ENTITY_MAX_HEALTH(comp.ped(), false) / 2, 0);
+        TASK::CLEAR_PED_TASKS(comp.ped(), true, true);
+    } else if (cmd == "help") {
+        helpText(a.size() > 1 ? a[1] : "Frontier Dog test", 5000);
     } else if (cmd == "pos") {
         FD_INFO("test: Arthur %.2f %.2f %.2f, district 0x%08X, town %d", p.x, p.y, p.z, districtHash(p), int(inTown(p)));
     } else {

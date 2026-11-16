@@ -73,7 +73,7 @@ void Companion::spawn(bool outOfView, const Vector3* fixed) {
     Vector3 at;
     Vector3 p = pos(player());
     if (fixed) at = *fixed;
-    else if (!(outOfView && hiddenSpotNear(p, 30, 60, at)) && !safeCoord(add(p, Vector3(-3, -3, 0)), at)) at = p;
+    else if (!(outOfView && hiddenSpotNear(p, 30, 60, at)) && !safeCoord(add(p, Vector3(-3, -3, 0)), at)) at = add(p, Vector3(-3, -3, 0));
     std::string model = d->model.empty() ? "a_c_doghobo_01" : d->model;
     Ped dog = spawnPed(model, at, 0);
     if (!dog && model != "a_c_doghobo_01") dog = spawnPed("a_c_doghobo_01", at, 0);  // a model that always loads
@@ -352,6 +352,7 @@ void Companion::whistle() {
 bool Companion::arriveOutOfView() {
     Vector3 spot;
     if (!hiddenSpotNear(pos(player()), 25, 60, spot)) {
+        lastArrival_ = now();  // try again in 15 s, not every frame (16.11 log flood)
         FD_INFO("no spot out of view for the dog");
         return false;
     }
@@ -516,7 +517,7 @@ bool Companion::updateWounded() {
             return false;
         }
     }
-    if (now() < nextWoundedCheck_) return !living;
+    if (now() < nextWoundedCheck_) return true;
     nextWoundedCheck_ = now() + 1000;
     if (unixNow() >= d->woundedUntil) {
         endWounded(false);
@@ -526,7 +527,7 @@ bool Companion::updateWounded() {
     if (living) {
         ENTITY::SET_ENTITY_INVINCIBLE(ped_, true);
         if (TASK::IS_PED_IN_WRITHE(ped_)) PED::SET_PAUSE_PED_WRITHE_BLEEDOUT(ped_, true);
-        return false;
+        return true;  // a wounded dog gets no follow orders or prompts of the healthy dog
     }
     if (there) return false;  // dead outright: the normal death path
     // the ped is gone (Arthur died far away, a reload): the dog still lies where it fell

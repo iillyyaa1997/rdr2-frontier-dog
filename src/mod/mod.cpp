@@ -23,6 +23,26 @@
 namespace fd {
 
 static HMODULE g_module = nullptr;
+// watchdog: which module the script is in and since when (a plain thread, no natives; 16.11 the script stopped silently)
+static volatile const char* g_module_name = "start";
+static volatile ULONGLONG g_module_at = 0;
+
+static DWORD WINAPI watchdog(LPVOID) {
+    const char* reported = nullptr;
+    for (;;) {
+        Sleep(1000);
+        ULONGLONG at = g_module_at;
+        const char* name = (const char*)g_module_name;
+        if (at && GetTickCount64() - at > 5000) {
+            if (reported != name) {
+                FD_WARN("watchdog: the script is in module %s for %llu ms (game paused or stuck)", name, GetTickCount64() - at);
+                reported = name;
+            }
+        } else {
+            reported = nullptr;
+        }
+    }
+}
 
 static std::string moduleDir() {
     wchar_t buf[MAX_PATH];
@@ -80,29 +100,47 @@ static void scriptMain() {
     delivery::start();
     abilities::start();
     DECORATOR::DECOR_REGISTER("FD_shop", 3);
+    int heartbeat = 0;
+    if (HANDLE w = CreateThread(nullptr, 0, watchdog, nullptr, 0, nullptr)) CloseHandle(w);
     while (true) {
-        int n = SCRIPT::GET_NUMBER_OF_EVENTS(0);
-        for (int i = 0; i < n; ++i) {
-            Hash type = SCRIPT::GET_EVENT_AT_INDEX(0, i);
-            companion().onEvent(type, i);
-            hunting::onEvent(type, i);
+        // a module that takes long or never returns shows in the log (16.11: the script stopped after a teleport)
+        auto step = [](const char* name, auto&& fn) {
+            g_module_name = name;
+            g_module_at = GetTickCount64();
+            int t0 = game::now();
+            fn();
+            int dt = game::now() - t0;
+            if (dt > 300) FD_WARN("slow module %s: %d ms", name, dt);
+        };
+        if (game::now() >= heartbeat) {
+            heartbeat = game::now() + 30000;
+            FD_INFO("alive");
         }
-        int n1 = SCRIPT::GET_NUMBER_OF_EVENTS(1);
-        for (int i = 0; i < n1; ++i) behaviour::onScriptEvent(i);
-        companion().tick();
-        behaviour::tick();
-        hunting::tick();
-        care::tick();
-        stables::tick();
-        home::tick();
-        delivery::tick();
-        strays::tick();
-        abilities::tick();
-        ui::coreTick();
-        ui::cardTick();
+        step("events", [] {
+            int n = SCRIPT::GET_NUMBER_OF_EVENTS(0);
+            for (int i = 0; i < n; ++i) {
+                Hash type = SCRIPT::GET_EVENT_AT_INDEX(0, i);
+                companion().onEvent(type, i);
+                hunting::onEvent(type, i);
+            }
+            int n1 = SCRIPT::GET_NUMBER_OF_EVENTS(1);
+            for (int i = 0; i < n1; ++i) behaviour::onScriptEvent(i);
+        });
+        step("companion", [] { companion().tick(); });
+        step("behaviour", [] { behaviour::tick(); });
+        step("hunting", [] { hunting::tick(); });
+        step("care", [] { care::tick(); });
+        step("stables", [] { stables::tick(); });
+        step("home", [] { home::tick(); });
+        step("delivery", [] { delivery::tick(); });
+        step("strays", [] { strays::tick(); });
+        step("abilities", [] { abilities::tick(); });
+        step("ui", [] { ui::coreTick(); ui::cardTick(); });
 #ifdef FD_TEST
-        testhooks::tick();
+        step("test", [] { testhooks::tick(); });
 #endif
+        g_module_name = "wait";
+        g_module_at = GetTickCount64();
         scriptWait(0);
     }
 }

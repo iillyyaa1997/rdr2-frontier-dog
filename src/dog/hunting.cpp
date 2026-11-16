@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <deque>
+#include <vector>
 
 #include "core/log.h"
 #include "dog/behaviour.h"
@@ -110,6 +111,26 @@ static void onKill(Ped carcass) {
     comp.markActive();
 }
 
+// dead animals Arthur killed near him, once a second: arrows, knives and scripted kills give no bullet-impact event
+static void scanKills() {
+    static int next = 0;
+    static std::vector<Ped> seen;
+    if (now() < next) return;
+    next = now() + 1000;
+    int peds[256];
+    int n = worldGetAllPeds(peds, 256);
+    for (int i = 0; i < n; ++i) {
+        Ped e = peds[i];
+        if (!exists(e) || !ENTITY::IS_ENTITY_DEAD(e) || !ENTITY::GET_IS_ANIMAL(e) || dist(e, player()) > 130.0f) continue;
+        if (PED::_IS_THIS_MODEL_A_HORSE(ENTITY::GET_ENTITY_MODEL(e)) || ENTITY::_GET_IS_PREDATOR(e)) continue;
+        if (PED::GET_PED_SOURCE_OF_DEATH(e) != player()) continue;
+        if (std::find(seen.begin(), seen.end(), e) != seen.end()) continue;
+        seen.push_back(e);
+        if (seen.size() > 64) seen.erase(seen.begin());
+        onKill(e);
+    }
+}
+
 void onEvent(Hash type, int index) {
     static const Hash kImpact = MISC::GET_HASH_KEY("EVENT_SHOT_FIRED_BULLET_IMPACT");
     if (type != kImpact) return;
@@ -167,6 +188,7 @@ bool bring(Ped carcass, bool keepQuality, bool body, bool pelt, bool toHorse) {
 
 void tick() {
     auto& comp = companion();
+    scanKills();
     if (!comp.present()) {
         if (g_carry.active()) g_carry.release();
         return;

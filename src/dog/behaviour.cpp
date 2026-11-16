@@ -9,6 +9,7 @@
 #include "core/strutil.h"
 #include "dog/companion.h"
 #include "dog/abilities.h"
+#include "dog/home.h"
 #include "dog/hunting.h"
 #include "game/game.h"
 #include "game/prompt.h"
@@ -47,7 +48,7 @@ void start() {
     g_leave.create("INPUT_INTERACT_OPTION2", c.t("prompt.leave"), 1500);
 }
 
-bool autonomyAllowed() { return !onMission() && !inCutscene() && !g_leaveMeAlone; }
+bool autonomyAllowed() { return !onMission() && !inCutscene() && !g_leaveMeAlone && !home::inCamp(); }
 
 bool feedOffered() { return g_feedOffered; }
 bool trackOffered() { return g_trackOffered; }

@@ -62,7 +62,7 @@ void deletePed(Ped& ped) {
 }
 
 bool safeCoord(const Vector3& around, Vector3& out) {
-    return PATH::GET_SAFE_COORD_FOR_PED(around.x, around.y, around.z, true, &out, 16) != 0;
+    return PATH::GET_SAFE_COORD_FOR_PED(around.x, around.y, around.z, false, &out, 16) != 0;  // onGround false as in 0.14 (tested)
 }
 
 bool hiddenSpotNear(const Vector3& around, float minDist, float maxDist, Vector3& out) {
@@ -88,11 +88,8 @@ bool hiddenSpotNear(const Vector3& around, float minDist, float maxDist, Vector3
 const char* literal(const std::string& text) { return MISC::VAR_STRING(10, "LITERAL_STRING", text.c_str()); }
 
 // _UI_FEED_POST_HELP_TEXT takes a duration block and a text block (layouts as used by other ScriptHook mods)
-struct FeedDuration {
-    alignas(8) int duration;
-    alignas(8) const char* soundSet;
-    alignas(8) const char* sound;
-    alignas(8) int unk;
+struct FeedDuration {  // as in 0.14 (help texts shown in its windows); a 4-slot layout failed in the native (16.11)
+    alignas(16) int duration;
 };
 struct FeedText {
     alignas(8) int unk;
@@ -100,7 +97,7 @@ struct FeedText {
 };
 
 void helpText(const std::string& text, int ms) {
-    FeedDuration d{ms, nullptr, nullptr, 0};
+    FeedDuration d{ms};
     FeedText t{0, literal(text)};
     UIFEED::_UI_FEED_POST_HELP_TEXT((Any*)&d, (Any*)&t, true);
 }
