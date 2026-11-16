@@ -4,4 +4,5 @@
 #pragma once
 namespace fd::ui {
 void coreTick();
+void coreForce(int untilMs);  // test builds: show the core regardless of the game's cores until that game time
 }

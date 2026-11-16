@@ -16,6 +16,7 @@
 #include "game/prompt.h"
 #include "mod/context.h"
 #include "ui/card.h"
+#include "ui/core.h"
 #include "ui/draw.h"
 
 namespace fd::testhooks {
@@ -230,6 +231,9 @@ static void run(const std::vector<std::string>& a) {
         std::string line;
         for (int i = 0; i < 100; ++i) line += std::to_string(i) + ":" + std::to_string(HUD::_GET_HUD_VISIBILITY_SLOT_STATE(i)) + " ";
         FD_INFO("test: slots %s", line.c_str());
+    } else if (cmd == "coreshow") {
+        // coreshow [seconds]: the dog's core on screen whatever the game's cores do
+        ui::coreForce(now() + int(num(1, 20) * 1000));
     } else if (cmd == "sprites" && a.size() >= 3) {
         // sprites <seconds> dict:name ...: draws those textures in a row on black (checks streamed add-on .ytd)
         g_sprites.clear();

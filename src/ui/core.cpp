@@ -26,6 +26,9 @@ static bool pawTexturesReady() {
     return false;
 }
 
+static int g_forceUntil = 0;
+void coreForce(int untilMs) { g_forceUntil = untilMs; }
+
 void coreTick() {
     auto& c = ctx();
     if (!c.ini.getBool("ShowCore", true)) return;
@@ -43,7 +46,7 @@ void coreTick() {
     // the horse's two cores stay on screen through the hide delay and fade too
     bool horseCores = t - horseSeenAt < c.ini.getInt("CoreHideDelayMs", 2000) + c.ini.getInt("CoreHideEaseMs", 250);
     // shown together with Arthur's or the horse's cores and only then (no timer of our own: it showed before the radar)
-    bool wanted = comp.present() && d && !HUD::IS_HUD_HIDDEN() && (slotShown(player) || slotShown(horse));
+    bool wanted = comp.present() && d && !HUD::IS_HUD_HIDDEN() && (slotShown(player) || slotShown(horse) || t < g_forceUntil);
     if (wanted) {
         hiddenSince = -1;
         alpha += float(dt) / showEase;
