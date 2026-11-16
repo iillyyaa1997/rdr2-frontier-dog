@@ -65,6 +65,7 @@ Ped CarryTask::dest() {
 }
 
 void CarryTask::update() {
+    if (stowCheckAt_ && now() >= stowCheckAt_) checkStow();
     if (!active()) return;
     int t = now();
     if (!exists(job_.carcass) || !alive(dog_)) {
@@ -321,6 +322,23 @@ void CarryTask::stowOnHorse() {
     for (int i = 0; i < 50 && !TASK::_HAS_REQUESTED_CARRIABLE_CONFIG_LOADED(cfg); ++i) scriptWait(20);
     TASK::TASK_CARRIABLE(job_.carcass, cfg, job_.horse, int(ctx().tune("carry.stow_slot", 0)), int(ctx().tune("carry.stow_flags", 0)));
     FD_INFO("carry: puts it on the horse (config 0x%08X %s, slot %d)", cfg, model.c_str(), ctx().tune("carry.stow_slot", 0));
+    stowCarcass_ = job_.carcass;
+    stowHorse_ = job_.horse;
+    stowCheckAt_ = now() + 3000;
+}
+
+void CarryTask::checkStow() {
+    stowCheckAt_ = 0;
+    if (!exists(stowCarcass_) || !exists(stowHorse_)) {
+        FD_INFO("carry: stow check - carcass %d / horse %d gone", int(exists(stowCarcass_)), int(exists(stowHorse_)));
+        return;
+    }
+    Vector3 c = pos(stowCarcass_), h = pos(stowHorse_);
+    FD_INFO("carry: stow check - attached %d, carrier mount %d, carriable state %d, %.1f m from the horse (dz %.1f), horse "
+            "speed %.2f, horse task 0x%08X",
+            int(ENTITY::IS_ENTITY_ATTACHED_TO_ENTITY(stowCarcass_, stowHorse_)), PED::_GET_CARRIER_AS_MOUNT(stowCarcass_),
+            ENTITY::GET_CARRIABLE_ENTITY_STATE(stowCarcass_), dist(c, h), c.z - h.z, ENTITY::GET_ENTITY_SPEED(stowHorse_),
+            TASK::GET_SCRIPT_TASK_STATUS(stowHorse_, MISC::GET_HASH_KEY("SCRIPT_TASK_CARRIABLE"), false));
 }
 
 void CarryTask::fail(const char* why) {

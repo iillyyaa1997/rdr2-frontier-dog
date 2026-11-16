@@ -23,6 +23,10 @@ public:
     void setGroup(int group);
     void show(bool visible, bool enabled = true);
     bool fired();                    // completed press/hold this frame (once)
+#ifdef FD_TEST
+    bool visibleForTest() const { return handle_ && visible_; }
+    const std::string& textForTest() const { return text_; }
+#endif
 
 private:
     Prompt handle_ = 0;
@@ -32,5 +36,10 @@ private:
     int group_ = 0;
     bool visible_ = false, enabled_ = false;
 };
+
+#ifdef FD_TEST
+void testListPrompts();
+void testPress(const std::string& part);
+#endif
 
 }  // namespace fd::game

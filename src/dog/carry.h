@@ -56,6 +56,12 @@ private:
     int rope_ = 0;
     bool attached_ = false, walkForward_ = true, straight_ = false, lastDelivered_ = false;
     int deliveries_ = 0;
+    // after a stow onto the horse: look 3 s later whether it really sits there and the horse still moves (window 16.11
+    // 03:58: the horse froze mid-step after TASK_CARRIABLE with slot 0)
+    Ped stowCarcass_ = 0, stowHorse_ = 0;
+    int stowCheckAt_ = 0;
+    void checkStow();
 };
+
 
 }  // namespace fd

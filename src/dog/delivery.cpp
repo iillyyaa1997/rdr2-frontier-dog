@@ -155,9 +155,27 @@ static void riding() {
     }
     if (t - g_progressAt > 30000) {
         bool stuck = g_lastDist - d < 10.0f;
+        FD_INFO("delivery: rider %.0f m from Arthur (was %.0f), mounted %d, speed %.1f", d, g_lastDist,
+                int(PED::IS_PED_ON_MOUNT(g_rider)), ENTITY::GET_ENTITY_SPEED(g_horse));
         g_lastDist = d;
         g_progressAt = t;
-        if (stuck && d < 140.0f) {
+        if (stuck && d >= 140.0f) {
+            // far and not moving (window 16.11: stood 2 min at 222 m): move the party to a road closer, out of sight
+            Vector3 spot, road;
+            Vector3 pp = pos(player());
+            if (hiddenSpotNear(pp, 70, 110, spot)) {
+                if (PATH::GET_CLOSEST_VEHICLE_NODE(spot.x, spot.y, spot.z, &road, 0, 3.0f, 0.0f) && dist(road, pp) > 50.0f &&
+                    !CAMERA::IS_SPHERE_VISIBLE(road.x, road.y, road.z + 1.0f, 2.0f))
+                    spot = road;
+                ENTITY::SET_ENTITY_COORDS(g_horse, spot.x, spot.y, spot.z, false, false, false, true);
+                if (!PED::IS_PED_ON_MOUNT(g_rider)) PED::SET_PED_ONTO_MOUNT(g_rider, g_horse, -1, true);
+                ENTITY::SET_ENTITY_COORDS(g_dog, spot.x - 1.5f, spot.y - 1.5f, spot.z, false, false, false, true);
+                TASK::TASK_FOLLOW_TO_OFFSET_OF_ENTITY(g_dog, g_horse, 1.5f, -1.0f, 0, 3.0f, -1, 2.0f, true, false, false, false, false, false);
+                g_orderedAt = 0;
+                g_lastDist = dist(spot, pp);
+                FD_INFO("delivery: the rider was stuck far away, now on the way %.0f m out of sight", g_lastDist);
+            }
+        } else if (stuck && d < 140.0f) {
             // where a horse cannot get through (a cliff, a house): the dog runs the last stretch (D115)
             FD_INFO("delivery: the rider cannot get closer, the dog runs the rest");
             g_stage = Stage::Handover;

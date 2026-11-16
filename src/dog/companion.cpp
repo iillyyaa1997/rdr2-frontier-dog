@@ -373,6 +373,7 @@ void Companion::updateFollow() {
     bool jumped = lastPosAt_ && t - lastPosAt_ < 3000 && dist(pp, lastPlayerPos_) > 150.0f;  // fast travel, train, cutscene
     lastPlayerPos_ = pp;
     lastPosAt_ = t;
+    if (jumped) jumpPending_ = true;  // kept until handled: the jump frame may fall while the dog is busy (window 16.11)
     float dd = dist(ped_, pl);
     float range = whistleRange();
     bool busy = PED::IS_PED_IN_COMBAT(ped_, 0) || TASK::IS_PED_IN_WRITHE(ped_) || behaviour::busy();
@@ -381,10 +382,11 @@ void Companion::updateFollow() {
         stuckSince_ = 0;
         return;
     }
-    if ((jumped || dd > range * 2) && !onMission() && t - lastArrival_ > 15000) {
-        if (arriveOutOfView()) return;
+    if (((jumpPending_ && dd > 25.0f) || dd > range * 2) && !onMission() && t - lastArrival_ > 15000) {
+        if (arriveOutOfView()) { jumpPending_ = false; return; }
     }
     if (dd <= kFollowGap) {
+        jumpPending_ = false;
         stuckSince_ = 0;
         return;
     }

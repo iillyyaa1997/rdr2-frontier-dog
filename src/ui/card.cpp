@@ -21,6 +21,15 @@ void cardShow(const DogRecord& d, Ped ped) {
     if (!g_page) g_page = 1;
 }
 
+void cardPage(int page) {
+    if (g_page) g_page = page == 2 ? 2 : 1;
+}
+
+void cardHide() {
+    g_page = 0;
+    g_ped = 0;
+}
+
 static void header(const std::string& t, float x, float y, float w) {
     text(t, x, y, 0.32f, 190, 182, 165, 255, "$title");
     sprite("generic_textures", "list_item_h_line_narrow", x, y + 0.030f, w, 0.0025f, 233, 228, 216, 90);

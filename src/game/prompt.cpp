@@ -2,12 +2,39 @@
 
 #include "game/game.h"
 
+#ifdef FD_TEST
+#include <algorithm>
+#include <vector>
+
+#include "core/log.h"
+#endif
+
 namespace fd::game {
 
-UiPrompt::~UiPrompt() { destroy(); }
+#ifdef FD_TEST
+// test hooks: 'prompts' lists the visible prompts, 'press <text part>' fires the first visible one whose text contains it
+// (checks the logic behind a prompt; the game input binding itself still needs a real button)
+static std::vector<UiPrompt*> g_all;
+static std::string g_press;
+void testListPrompts() {
+    for (UiPrompt* p : g_all)
+        if (p->visibleForTest()) FD_INFO("test: prompt '%s'", p->textForTest().c_str());
+}
+void testPress(const std::string& part) { g_press = part; }
+#endif
+
+UiPrompt::~UiPrompt() {
+    destroy();
+#ifdef FD_TEST
+    g_all.erase(std::remove(g_all.begin(), g_all.end(), this), g_all.end());
+#endif
+}
 
 void UiPrompt::create(const std::string& control, const std::string& text, int holdMs, int priority) {
     destroy();
+#ifdef FD_TEST
+    if (std::find(g_all.begin(), g_all.end(), this) == g_all.end()) g_all.push_back(this);
+#endif
     holdMs_ = holdMs;
     handle_ = HUD::_UI_PROMPT_REGISTER_BEGIN();
     HUD::_UI_PROMPT_SET_CONTROL_ACTION(handle_, MISC::GET_HASH_KEY(control.c_str()));
@@ -61,6 +88,13 @@ bool UiPrompt::fired() {
     if (!handle_ || !visible_ || !enabled_) return false;
     bool done = holdMs_ > 0 ? HUD::_UI_PROMPT_HAS_HOLD_MODE_COMPLETED(handle_) != 0
                             : HUD::_UI_PROMPT_HAS_STANDARD_MODE_COMPLETED(handle_, 0) != 0;
+#ifdef FD_TEST
+    if (!done && !g_press.empty() && text_.find(g_press) != std::string::npos) {
+        FD_INFO("test: pressed '%s'", text_.c_str());
+        g_press.clear();
+        return true;
+    }
+#endif
     if (done) {
         // re-arm: a completed prompt stays 'completed' until it is toggled
         HUD::_UI_PROMPT_SET_ENABLED(handle_, false);

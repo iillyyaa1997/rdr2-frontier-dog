@@ -8,4 +8,6 @@
 namespace fd::ui {
 void cardTick();
 void cardShow(const DogRecord& d, Ped ped);  // test hook / strays
+void cardHide();
+void cardPage(int page);  // test hook
 }

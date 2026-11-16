@@ -67,6 +67,7 @@ private:
     bool dirty_ = false;
     Vector3 lastPlayerPos_;
     int lastPosAt_ = 0;
+    bool jumpPending_ = false;  // Arthur jumped far while the dog was busy (carry): arrive out of view once it is free
     int stuckSince_ = 0;
     int lastArrival_ = 0;
     int nextFollowCheck_ = 0;

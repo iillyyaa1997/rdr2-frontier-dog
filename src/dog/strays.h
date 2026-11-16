@@ -11,4 +11,5 @@ void tick();
 DogRecord cardFor(Ped dog);       // rolled once per ped
 bool wary(Ped dog);               // street-hardened and not trusting Arthur yet
 void forget(Ped dog);             // tamed or gone
+void spawnNow();                  // test hook: a stray encounter now (ignores the timer, keeps the cap)
 }

@@ -9,8 +9,12 @@
 #include "core/log.h"
 #include "core/strutil.h"
 #include "dog/companion.h"
+#include "dog/delivery.h"
+#include "dog/strays.h"
 #include "game/game.h"
+#include "game/prompt.h"
 #include "mod/context.h"
+#include "ui/card.h"
 
 namespace fd::testhooks {
 
@@ -160,6 +164,53 @@ static void run(const std::vector<std::string>& a) {
     } else if (cmd == "pos") {
         FD_INFO("test: Arthur %.2f %.2f %.2f, district 0x%08X, town %d, interior %d", p.x, p.y, p.z, districtHash(p), int(inTown(p)), INTERIOR::GET_INTERIOR_FROM_ENTITY(pl));
         if (comp.present()) { Vector3 dp = pos(comp.ped()); FD_INFO("test: dog %.2f %.2f %.2f, %.1f m, in group %d", dp.x, dp.y, dp.z, dist(dp, p), int(PED::IS_PED_GROUP_MEMBER(comp.ped(), PED::GET_PED_GROUP_INDEX(pl), false))); }
+    } else if (cmd == "tpg" && a.size() >= 3) {
+        // tpg <x> <y>: Arthur to the ground at x,y (collision streamed first), the dog and the horse beside him
+        float x = float(num(1, 0)), y = float(num(2, 0)), z = 0;
+        STREAMING::REQUEST_COLLISION_AT_COORD(x, y, 100.0f);
+        ENTITY::SET_ENTITY_COORDS(pl, x, y, 1000.0f, false, false, false, true);
+        ENTITY::FREEZE_ENTITY_POSITION(pl, true);
+        bool ok = false;
+        for (int i = 0; i < 100 && !ok; ++i) {
+            STREAMING::REQUEST_COLLISION_AT_COORD(x, y, 100.0f);
+            scriptWait(50);
+            ok = MISC::GET_GROUND_Z_FOR_3D_COORD(x, y, 1000.0f, &z, false) && z > -100.0f;
+        }
+        ENTITY::FREEZE_ENTITY_POSITION(pl, false);
+        if (!ok) z = 120.0f;
+        ENTITY::SET_ENTITY_COORDS(pl, x, y, z + 0.5f, false, false, false, true);
+        FD_INFO("test: tpg %.1f %.1f -> ground %.2f (%s)", x, y, z, ok ? "found" : "NOT found, z 120");
+        Vector3 fwd2 = ENTITY::GET_ENTITY_FORWARD_VECTOR(pl);
+        if (comp.present()) {
+            Vector3 d = add(Vector3(x, y, z + 0.5f), scale(fwd2, -3));
+            ENTITY::SET_ENTITY_COORDS(comp.ped(), d.x, d.y, d.z, false, false, false, true);
+        }
+        Ped horse = PLAYER::_GET_SADDLE_HORSE_FOR_PLAYER(PLAYER::PLAYER_ID());
+        if (alive(horse) && a.size() > 3 && a[3] == "horse") {
+            Vector3 h = add(Vector3(x, y, z + 0.5f), Vector3(4, 0, 0));
+            ENTITY::SET_ENTITY_COORDS(horse, h.x, h.y, h.z, false, false, false, true);
+        }
+    } else if (cmd == "horsehere") {
+        Ped horse = PLAYER::_GET_SADDLE_HORSE_FOR_PLAYER(PLAYER::PLAYER_ID());
+        if (alive(horse)) {
+            Vector3 h = add(p, Vector3(4, 0, 0));
+            ENTITY::SET_ENTITY_COORDS(horse, h.x, h.y, h.z, false, false, false, true);
+        }
+        FD_INFO("test: horse %d %s", horse, alive(horse) ? "moved beside Arthur" : "not found");
+    } else if (cmd == "prompts") {
+        testListPrompts();
+    } else if (cmd == "press" && a.size() >= 2) {
+        std::string part = a[1];
+        for (size_t i = 2; i < a.size(); ++i) part += " " + a[i];
+        testPress(part);
+    } else if (cmd == "card") {
+        // card [off|2]: the companion's card without a focus (stays until 'card off'); 2 = page two
+        if (a.size() > 1 && a[1] == "off") ui::cardHide();
+        else if (comp.record()) { ui::cardShow(*comp.record(), 0); ui::cardPage(a.size() > 1 && a[1] == "2" ? 2 : 1); }
+    } else if (cmd == "strays") {
+        strays::spawnNow();
+    } else if (cmd == "deliver") {
+        FD_INFO("test: delivery order -> %d", int(delivery::order(int(num(1, 2)) - 1, a.size() > 2 ? a[2].c_str() : "telegraph")));
     } else {
         FD_INFO("test: unknown command %s", cmd.c_str());
         return;

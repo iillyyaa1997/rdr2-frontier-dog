@@ -149,6 +149,8 @@ static void spawnMutts() {
     FD_INFO("strays: %d mutt(s) queued %.0f m away%s", pack, dist(at, pp), nearTown ? " near a town" : "");
 }
 
+void spawnNow() { spawnMutts(); }
+
 void tick() {
     if (!ctx().feature("Strays")) return;
     auto& c = ctx();
