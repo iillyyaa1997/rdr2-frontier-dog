@@ -76,6 +76,7 @@ static bool startCarry(Ped dog, DogRecord& d, Ped carcass) {
     bool keeps = (job.size == CarrySize::Small && soft >= 2) || (job.size == CarrySize::Large && soft >= 3) ||
                  (job.size == CarrySize::Medium && soft >= 2 && ctx().hasTrait(d, "soft_mouth"));
     job.losesQuality = !keeps;
+    job.tenacious = tenacious;
     job.staminaSeconds = float(ctx().tunef("carry.stamina_seconds", 45)) * staminaFactor(d.stats[Stamina]) *
                          (ctx().hasTrait(d, "hauler") ? 2.0f : 1.0f);
     job.speed = job.size == CarrySize::Small ? 3.0f : 1.0f;

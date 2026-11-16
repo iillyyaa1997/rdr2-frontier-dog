@@ -39,6 +39,9 @@ bond.treat_cooldown_ms=60000
 carry.small_max=0.8
 carry.medium_max=1.6
 carry.pull_force=20
+; a large carcass that will not move: the pull grows x1.3 per 8 s up to these caps (Tenacious never gives up)
+carry.pull_boost_max=1.5
+carry.pull_boost_max_tenacious=3.0
 carry.stamina_seconds=45
 carry.core_cost=8
 carry.to_horse_range=60

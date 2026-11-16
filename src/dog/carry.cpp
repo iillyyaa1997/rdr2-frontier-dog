@@ -1,5 +1,6 @@
 #include "dog/carry.h"
 
+#include <algorithm>
 #include <cctype>
 #include <cmath>
 
@@ -36,6 +37,7 @@ void CarryTask::start(Ped dog, const CarryJob& job) {
     stageAt_ = now();
     orderedAt_ = progressAt_ = restUntil_ = effortAt_ = stepAt_ = steps_ = stuckTries_ = 0;
     effort_ = 0;
+    pullBoost_ = 1.0f;
     rope_ = 0;
     attached_ = false;
     lastDelivered_ = false;
@@ -144,6 +146,8 @@ void CarryTask::update() {
                     bool stuck = lastGap_ - d < 1.5f;
                     progressAt_ = t;
                     lastGap_ = d;
+                    if (stuck && boostPull()) stuck = false;  // a large carcass: pull harder first
+                    if (stuck && job_.tenacious) stuckTries_ = 0;   // Tenacious never drops it, keeps trying straight
                     if (stuck) {
                         if (++stuckTries_ == 1) {  // first: small game rigid, go straight
                             if (job_.size == CarrySize::Small && rope_) {
@@ -164,7 +168,7 @@ void CarryTask::update() {
             } else {
                 stepBack(t, to);
             }
-            int limit = job_.size == CarrySize::Large ? 240000 : 120000;
+            int limit = job_.size == CarrySize::Large ? (job_.tenacious ? 480000 : 240000) : 120000;
             if (dist(dog_, player()) > 90.0f || t - stageAt_ > limit)
                 fail(dist(dog_, player()) > 90.0f ? "Arthur is too far" : "took too long");
             return;
@@ -223,8 +227,17 @@ void CarryTask::attachRigid() {
     attached_ = true;
 }
 
+bool CarryTask::boostPull() {
+    if (job_.size != CarrySize::Large) return false;
+    float cap = float(job_.tenacious ? ctx().tunef("carry.pull_boost_max_tenacious", 3.0) : ctx().tunef("carry.pull_boost_max", 1.5));
+    if (pullBoost_ >= cap) return false;
+    pullBoost_ = std::min(cap, pullBoost_ * 1.3f);
+    FD_INFO("carry: it barely moves, pulls harder (x%.2f, pull %.0f)", pullBoost_, job_.pull * pullBoost_);
+    return true;
+}
+
 void CarryTask::pullCarcass(float scale) {
-    float force = job_.pull * scale;
+    float force = job_.pull * pullBoost_ * scale;
     if (force <= 0) return;
     int head = PED::GET_PED_BONE_INDEX(job_.carcass, kHead);
     Vector3 h = head >= 0 ? ENTITY::GET_WORLD_POSITION_OF_ENTITY_BONE(job_.carcass, head) : pos(job_.carcass);
@@ -254,7 +267,12 @@ void CarryTask::stepBack(int t, Ped to) {
             progressAt_ = t;
             lastGap_ = d;
         } else if (t - progressAt_ > 8000) {
-            if (lastGap_ - d < 0.8f) {  // backing up gets nowhere: walk forward with the pull instead
+            if (lastGap_ - d < 0.8f && boostPull()) {
+                progressAt_ = t;
+                lastGap_ = d;
+                return;
+            }
+            if (lastGap_ - d < 0.8f) {  // backing up gets nowhere even at the full pull: walk forward with it instead
                 walkForward_ = true;
                 orderedAt_ = progressAt_ = 0;
                 TASK::CLEAR_PED_TASKS(dog_, true, true);

@@ -20,6 +20,7 @@ struct CarryJob {
     bool pelt = false;
     Ped horse = 0;            // bring it to Arthur's horse instead of Arthur
     float staminaSeconds = 45;
+    bool tenacious = false;   // Tenacious trait: drags a large carcass however slowly, never gives up on it (D143)
 };
 
 class CarryTask {
@@ -53,6 +54,8 @@ private:
     Stage stage_ = Stage::Idle;
     int stageAt_ = 0, orderedAt_ = 0, progressAt_ = 0, restUntil_ = 0, effortAt_ = 0, stepAt_ = 0, steps_ = 0, stuckTries_ = 0;
     float lastGap_ = 0, effort_ = 0;
+    float pullBoost_ = 1.0f;  // grows while a large carcass will not move (window 16.11: the Shiba stalled on a deer)
+    bool boostPull();         // true if the pull could still grow
     int rope_ = 0;
     bool attached_ = false, walkForward_ = true, straight_ = false, lastDelivered_ = false;
     int deliveries_ = 0;
