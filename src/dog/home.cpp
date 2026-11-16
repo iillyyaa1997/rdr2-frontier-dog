@@ -18,6 +18,8 @@ using namespace game;
 struct HomeDog {
     int slot = -1;
     Ped ped = 0;
+    bool spawning = false;  // the model streams in (stepSpawn), never a blocking wait
+    SpawnRequest req;
 };
 
 static bool g_inCamp = false, g_known = false, g_hidden = false;
@@ -55,7 +57,7 @@ void start() {
 static void despawnAll() {
     for (auto& h : g_dogs) {
         deletePed(h.ped);
-        h.slot = -1;
+        h = HomeDog{};
     }
     for (int i = 0; i < 3; ++i) { g_take[i].show(false); g_free[i].show(false); }
 }
@@ -96,6 +98,31 @@ static void scanCamp() {
     }
 }
 
+static void setupHomeDog(int idx, Ped p) {
+    auto& c = ctx();
+    HomeDog& h = g_dogs[idx];
+    h.spawning = false;
+    h.ped = p;
+    if (h.slot < 0 || !c.store.used(h.slot)) { deletePed(h.ped); h = HomeDog{}; return; }
+    const DogRecord& d = c.store.at(h.slot);
+    ENTITY::SET_ENTITY_AS_MISSION_ENTITY(p, true, true);
+    ENTITY::SET_ENTITY_INVINCIBLE(p, true);
+    DECORATOR::DECOR_SET_INT(p, "FD_shop", 1);
+    if (d.preset >= 0) PED::_EQUIP_META_PED_OUTFIT_PRESET(p, d.preset, false);
+    if (d.scale > 0 && d.scale != 100) {
+        PED::_SET_PED_SCALE(p, d.scale / 100.0f);
+        PED::SET_PED_CAPSULE(p, 0.6f);
+    }
+    const BreedDef* b = c.breeds.find(d.breed);
+    const char* scen = (b && b->habits.getBool("camp_sleep_curled", false)) ? "WORLD_ANIMAL_DOG_SLEEPING"
+                      : (idx == 1 ? "WORLD_ANIMAL_DOG_SITTING" : "WORLD_ANIMAL_DOG_RESTING");
+    TASK::TASK_START_SCENARIO_IN_PLACE_HASH(p, MISC::GET_HASH_KEY(scen), -1, true, 0, -1.0f, false);
+    PED::_SET_PED_PROMPT_NAME(p, literal(d.name));
+    if (g_hidden) ENTITY::SET_ENTITY_VISIBLE(p, false);
+    FD_INFO("home dog %s in camp", d.name.c_str());
+}
+
+// queues the dogs at home; they appear over the next frames (stepHomeDogs)
 static void spawnHomeDogs() {
     auto& c = ctx();
     int k = 0;
@@ -103,34 +130,36 @@ static void spawnHomeDogs() {
         if (!c.store.used(s) || c.store.at(s).where != Where::Home) continue;
         bool shown = false;
         for (auto& h : g_dogs)
-            if (h.slot == s && exists(h.ped)) shown = true;
+            if (h.slot == s && (exists(h.ped) || h.spawning)) shown = true;
         if (shown) { ++k; continue; }
         int idx = -1;
         for (int i = 0; i < 3; ++i)
-            if (g_dogs[i].slot < 0 || !exists(g_dogs[i].ped)) { idx = i; break; }
+            if (g_dogs[i].slot < 0 || (!exists(g_dogs[i].ped) && !g_dogs[i].spawning)) { idx = i; break; }
         if (idx < 0) break;
         const DogRecord& d = c.store.at(s);
         float a = 0.9f + idx * 0.8f;
         Vector3 want = add(g_camp, Vector3(std::cos(a) * 12.0f, std::sin(a) * 12.0f, 0)), at;
         if (!safeCoord(want, at)) at = want;
-        Ped p = spawnPed(d.model.empty() ? "a_c_doghobo_01" : d.model, at, 0, 2500);
-        if (!p) continue;
-        ENTITY::SET_ENTITY_AS_MISSION_ENTITY(p, true, true);
-        ENTITY::SET_ENTITY_INVINCIBLE(p, true);
-        DECORATOR::DECOR_SET_INT(p, "FD_shop", 1);
-        if (d.preset >= 0) PED::_EQUIP_META_PED_OUTFIT_PRESET(p, d.preset, false);
-        if (d.scale > 0 && d.scale != 100) {
-            PED::_SET_PED_SCALE(p, d.scale / 100.0f);
-            PED::SET_PED_CAPSULE(p, 0.6f);
-        }
-        const BreedDef* b = c.breeds.find(d.breed);
-        const char* scen = (b && b->habits.getBool("camp_sleep_curled", false)) ? "WORLD_ANIMAL_DOG_SLEEPING"
-                          : (idx == 1 ? "WORLD_ANIMAL_DOG_SITTING" : "WORLD_ANIMAL_DOG_RESTING");
-        TASK::TASK_START_SCENARIO_IN_PLACE_HASH(p, MISC::GET_HASH_KEY(scen), -1, true, 0, -1.0f, false);
-        PED::_SET_PED_PROMPT_NAME(p, literal(d.name));
-        g_dogs[idx] = {s, p};
+        HomeDog& h = g_dogs[idx];
+        h = HomeDog{};
+        h.slot = s;
+        h.spawning = true;
+        h.req.model = d.model.empty() ? "a_c_doghobo_01" : d.model;
+        h.req.fallback = "a_c_doghobo_01";
+        h.req.at = at;
         ++k;
-        FD_INFO("home dog %s in camp", d.name.c_str());
+    }
+}
+
+static void stepHomeDogs() {
+    for (int i = 0; i < 3; ++i) {
+        HomeDog& h = g_dogs[i];
+        if (!h.spawning) continue;
+        if (Ped p = stepSpawn(h.req)) {
+            setupHomeDog(i, p);
+            return;  // at most one ped per frame
+        }
+        if (h.req.done) h = HomeDog{};
     }
 }
 
@@ -169,6 +198,7 @@ void tick() {
         homeCare();
     }
     if (!g_inCamp) return;
+    stepHomeDogs();
     bool hide = inCutscene();
     if (hide != g_hidden) {
         g_hidden = hide;

@@ -53,6 +53,35 @@ Ped spawnPed(const std::string& modelName, const Vector3& at, float heading, int
     return p;
 }
 
+Ped stepSpawn(SpawnRequest& r) {
+    if (r.done) return 0;
+    const std::string& name = r.onFallback ? r.fallback : r.model;
+    Hash model = MISC::GET_HASH_KEY(name.c_str());
+    if (!r.startedAt) r.startedAt = now();
+    bool valid = STREAMING::IS_MODEL_VALID(model);
+    if (valid) {
+        STREAMING::REQUEST_MODEL(model, false);
+        if (STREAMING::HAS_MODEL_LOADED(model)) {
+            Ped p = PED::CREATE_PED(model, r.at.x, r.at.y, r.at.z, r.heading, false, false, false, false);
+            STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(model);
+            if (!p) FD_WARN("CREATE_PED %s returned 0 (ped pool full?)", name.c_str());
+            r.done = true;
+            return p;
+        }
+    }
+    if (!valid || now() - r.startedAt > r.timeoutMs) {
+        FD_WARN("model %s %s", name.c_str(), valid ? "did not load in time" : "is not valid");
+        if (valid) STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(model);
+        if (!r.onFallback && !r.fallback.empty() && r.fallback != r.model) {
+            r.onFallback = true;
+            r.startedAt = now();
+        } else {
+            r.done = true;
+        }
+    }
+    return 0;
+}
+
 void deletePed(Ped& ped) {
     if (exists(ped)) {
         ENTITY::SET_ENTITY_AS_MISSION_ENTITY(ped, true, true);

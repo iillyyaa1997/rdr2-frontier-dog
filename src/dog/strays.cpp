@@ -71,17 +71,57 @@ bool wary(Ped dog) {
 
 void forget(Ped dog) { g_known.erase(dog); }
 
+struct PendingStray {
+    SpawnRequest req;
+    DogRecord card;
+    Vector3 area;
+};
+static std::vector<PendingStray> g_pending;  // streams in over frames (stepSpawn), never a blocking wait
+
 static int oursAround() {
-    int n = 0;
+    int n = int(g_pending.size());
     for (auto& [p, k] : g_known)
         if (k.ours && exists(p)) ++n;
     return n;
 }
 
+static void setupStray(Ped p, DogRecord card, const Vector3& at) {
+    auto& c = ctx();
+    ENTITY::SET_ENTITY_AS_MISSION_ENTITY(p, true, true);
+    int presets = PED::GET_NUM_META_PED_OUTFITS(p);
+    if (presets > 0) {
+        card.preset = c.rng.range(0, presets - 1);
+        PED::_EQUIP_META_PED_OUTFIT_PRESET(p, card.preset, false);
+    }
+    if (card.scale != 100) {
+        PED::_SET_PED_SCALE(p, card.scale / 100.0f);
+        if (card.scale < 100) PED::SET_PED_CAPSULE(p, 0.6f);
+    }
+    card.female = !PED::IS_PED_MALE(p);
+    TASK::TASK_WANDER_IN_AREA(p, at.x, at.y, at.z, 25.0f, 2.0f, 4.0f, 0);
+    Known k;
+    k.card = card;
+    k.ours = true;
+    k.bornAt = now();
+    g_known[p] = k;
+}
+
+static void stepStrays() {
+    for (auto it = g_pending.begin(); it != g_pending.end();) {
+        if (Ped p = stepSpawn(it->req)) {
+            PendingStray ps = *it;
+            g_pending.erase(it);
+            setupStray(p, ps.card, ps.area);
+            return;  // at most one ped per frame
+        }
+        it = it->req.done ? g_pending.erase(it) : it + 1;
+    }
+}
+
 static void spawnMutts() {
     auto& c = ctx();
     int cap = c.tune("strays.cap", 3);
-    if (oursAround() >= cap || onMission() || INTERIOR::GET_INTERIOR_FROM_ENTITY(player())) return;
+    if (!g_pending.empty() || oursAround() >= cap || onMission() || INTERIOR::GET_INTERIOR_FROM_ENTITY(player())) return;
     Vector3 pp = pos(player());
     const BreedDef* mutt = c.breeds.find("mutt");
     if (!mutt) return;
@@ -98,28 +138,15 @@ static void spawnMutts() {
             card = makeDog(*mutt, c.breeds, Grade::Pedigree, c.rng, c.chances, bias);
             card.papers = false;
         }
-        Ped p = spawnPed(card.model.empty() ? "a_c_doghobo_01" : card.model, add(at, Vector3(float(i) * 1.5f, 0, 0)), 0, 2500);
-        if (!p) p = spawnPed("a_c_doghobo_01", add(at, Vector3(float(i) * 1.5f, 0, 0)), 0, 2500);
-        if (!p) return;
-        ENTITY::SET_ENTITY_AS_MISSION_ENTITY(p, true, true);
-        int presets = PED::GET_NUM_META_PED_OUTFITS(p);
-        if (presets > 0) {
-            card.preset = c.rng.range(0, presets - 1);
-            PED::_EQUIP_META_PED_OUTFIT_PRESET(p, card.preset, false);
-        }
-        if (card.scale != 100) {
-            PED::_SET_PED_SCALE(p, card.scale / 100.0f);
-            if (card.scale < 100) PED::SET_PED_CAPSULE(p, 0.6f);
-        }
-        card.female = !PED::IS_PED_MALE(p);
-        TASK::TASK_WANDER_IN_AREA(p, at.x, at.y, at.z, 25.0f, 2.0f, 4.0f, 0);
-        Known k;
-        k.card = card;
-        k.ours = true;
-        k.bornAt = now();
-        g_known[p] = k;
+        PendingStray ps;
+        ps.req.model = card.model.empty() ? "a_c_doghobo_01" : card.model;
+        ps.req.fallback = "a_c_doghobo_01";
+        ps.req.at = add(at, Vector3(float(i) * 1.5f, 0, 0));
+        ps.card = card;
+        ps.area = at;
+        g_pending.push_back(ps);
     }
-    FD_INFO("strays: %d mutt(s) %.0f m away%s", pack, dist(at, pp), nearTown ? " near a town" : "");
+    FD_INFO("strays: %d mutt(s) queued %.0f m away%s", pack, dist(at, pp), nearTown ? " near a town" : "");
 }
 
 void tick() {
@@ -148,6 +175,7 @@ void tick() {
             }
         }
     }
+    stepStrays();
     if (t >= g_nextSpawn) {
         g_nextSpawn = t + c.tune("strays.spawn_every_ms", 240000);
         if (c.rng.chance(c.tunef("strays.spawn_chance", 0.5))) spawnMutts();

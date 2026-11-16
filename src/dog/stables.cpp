@@ -57,37 +57,64 @@ void start() {
     FD_INFO("stables: %zu", g_stables.size());
 }
 
+struct PendingSale {
+    SpawnRequest req;
+    StockDog stock;
+};
+static std::vector<PendingSale> g_pending;
+
 static void clearSale() {
     for (auto& s : g_sale) deletePed(s.ped);
     g_sale.clear();
+    g_pending.clear();
     for (auto& p : g_buyPrompts) p.show(false);
 }
 
+// Queues the period's stock; the dogs appear over the next frames (stepSale), never blocking the script.
 static void spawnSale(const Stable& st) {
     clearSale();
     auto& c = ctx();
     long long day = gameDay();
     auto stock = stableStock(st.id, st.breeds, day, c.breeds, c.econ, c.chances, c.disabledBreeds());
     for (size_t i = 0; i < stock.size() && i < 3; ++i) {
-        Vector3 at = add(st.dogs, Vector3(float(i) * 1.6f, 0, 0));
-        const std::string& model = stock[i].dog.model;
-        Ped p = spawnPed(model, at, 180, 2500);
-        if (!p) p = spawnPed("a_c_doghobo_01", at, 180, 2500);  // a model that always loads (the mutt freeze of 15.11)
-        if (!p) continue;
+        PendingSale ps;
+        ps.req.model = stock[i].dog.model;
+        ps.req.fallback = "a_c_doghobo_01";  // a model that always loads (the mutt freeze of 15.11)
+        ps.req.at = add(st.dogs, Vector3(float(i) * 1.6f, 0, 0));
+        ps.req.heading = 180;
+        ps.stock = stock[i];
+        g_pending.push_back(ps);
+    }
+    FD_INFO("stable %s: %zu dogs for sale queued (period %lld)", st.id.c_str(), g_pending.size(), day / c.econ.rotationDays);
+}
+
+// All models stream in parallel; at most one dog is created per frame.
+static void stepSale() {
+    if (g_pending.empty()) return;
+    auto& c = ctx();
+    for (auto it = g_pending.begin(); it != g_pending.end();) {
+        Ped p = stepSpawn(it->req);
+        if (!p) {
+            it = it->req.done ? g_pending.erase(it) : it + 1;
+            continue;
+        }
+        StockDog stock = it->stock;
+        g_pending.erase(it);
         ENTITY::SET_ENTITY_AS_MISSION_ENTITY(p, true, true);
         ENTITY::SET_ENTITY_INVINCIBLE(p, true);
         DECORATOR::DECOR_SET_INT(p, "FD_shop", 1);
         int presets = PED::GET_NUM_META_PED_OUTFITS(p);
-        if (stock[i].dog.preset < 0 && presets > 0) stock[i].dog.preset = c.rng.range(0, presets - 1);
-        if (stock[i].dog.preset >= 0) PED::_EQUIP_META_PED_OUTFIT_PRESET(p, stock[i].dog.preset, false);
-        if (stock[i].dog.scale != 100) PED::_SET_PED_SCALE(p, stock[i].dog.scale / 100.0f);
+        if (stock.dog.preset < 0 && presets > 0) stock.dog.preset = c.rng.range(0, presets - 1);
+        if (stock.dog.preset >= 0) PED::_EQUIP_META_PED_OUTFIT_PRESET(p, stock.dog.preset, false);
+        if (stock.dog.scale != 100) PED::_SET_PED_SCALE(p, stock.dog.scale / 100.0f);
         TASK::TASK_START_SCENARIO_IN_PLACE_HASH(p, MISC::GET_HASH_KEY("WORLD_ANIMAL_DOG_SITTING"), -1, true, 0, -1.0f, false);
         ForSale f;
         f.ped = p;
-        f.stock = stock[i];
+        f.stock = stock;
         g_sale.push_back(f);
+        if (g_pending.empty()) FD_INFO("stable: %zu dogs for sale spawned", g_sale.size());
+        return;
     }
-    FD_INFO("stable %s: %zu dogs for sale (period %lld)", st.id.c_str(), g_sale.size(), day / c.econ.rotationDays);
 }
 
 // ---- the stable hand's menu for the dog with Arthur ----
@@ -237,6 +264,7 @@ void tick() {
             }
         }
     }
+    stepSale();
     if (g_active < 0) {
         g_menuNext.show(false);
         g_menuDo.show(false);

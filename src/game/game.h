@@ -22,6 +22,20 @@ bool loadModel(Hash model, int timeoutMs);
 Ped spawnPed(const std::string& modelName, const Vector3& at, float heading, int timeoutMs = 3000);
 void deletePed(Ped& ped);
 
+// A ped spawn that never blocks the script: the model streams in over frames, the ped is created on the frame it is in
+// memory (a blocking wait for three shop dogs stalled every module ~6 s at a stable, window 16.11). Falls back to a
+// second model after timeoutMs, then gives up.
+struct SpawnRequest {
+    std::string model, fallback;
+    Vector3 at;
+    float heading = 0;
+    int timeoutMs = 2500;
+    int startedAt = 0;
+    bool onFallback = false, done = false;
+};
+// Call every frame until done: returns the ped on the frame it is created (once), 0 while streaming or after giving up.
+Ped stepSpawn(SpawnRequest& r);
+
 // A spot on the navmesh near 'around' that the camera does not see (arrival out of view, like the horse).
 bool hiddenSpotNear(const Vector3& around, float minDist, float maxDist, Vector3& out);
 bool safeCoord(const Vector3& around, Vector3& out);
