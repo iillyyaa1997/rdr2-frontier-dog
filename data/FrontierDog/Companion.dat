@@ -1,0 +1,23 @@
+# Frontier Dog: the companion's ranges, health and bonding (shipped data; an update replaces it)
+[Bonding]
+# whistle range and max health by bonding level 1, 2, 3 (old D7, D78)
+whistle.range=220,280,350
+health.max=400,480,560
+bond.points.2=100
+bond.points.3=400
+bond.feed=8
+bond.feed_cooldown_ms=60000
+bond.pat=4
+bond.pat_cooldown_ms=120000
+bond.praise=3
+bond.praise_cooldown_ms=120000
+bond.fetch=2
+bond.fetch_cooldown_ms=20000
+bond.together=1
+bond.together_ms=120000
+[Traits]
+trait.sharp_ears.range=1.3333
+trait.affectionate.bond=1.3333
+[Grades]
+# ailing dogs: max health cut (D111)
+ailing.health_cut=0.25
