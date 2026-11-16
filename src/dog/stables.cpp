@@ -28,9 +28,18 @@ struct ForSale {
 };
 
 static std::vector<Stable> g_stables;
+static std::vector<ForSale> g_sale;
+
+bool saleCard(Ped ped, DogRecord& out) {
+    for (const auto& f : g_sale)
+        if (f.ped == ped) {
+            out = f.stock.dog;
+            return true;
+        }
+    return false;
+}
 static int g_active = -1;
 static long long g_period = -1;
-static std::vector<ForSale> g_sale;
 static game::UiPrompt g_buyPrompts[3];
 static game::UiPrompt g_menuNext, g_menuDo;
 static int g_menuIndex = 0;
@@ -43,6 +52,7 @@ static Vector3 vec(const std::vector<double>& v) { return v.size() == 3 ? Vector
 void start() {
     KvFile kv;
     kv.load(ctx().dataDir + "\\Stables.dat");
+    g_stables.clear();  // the script starts again after a save load; the lists outlive it (16 stables on 16.11)
     for (const auto& id : kv.getList("stables")) {
         Stable s;
         s.id = id;

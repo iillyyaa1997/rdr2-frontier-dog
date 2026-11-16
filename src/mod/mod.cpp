@@ -99,6 +99,7 @@ static void scriptMain() {
     home::start();
     delivery::start();
     abilities::start();
+    ui::cardStart();
     DECORATOR::DECOR_REGISTER("FD_shop", 3);
     int heartbeat = 0;
     if (HANDLE w = CreateThread(nullptr, 0, watchdog, nullptr, 0, nullptr)) CloseHandle(w);

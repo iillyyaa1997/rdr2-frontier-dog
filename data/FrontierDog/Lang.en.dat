@@ -1,5 +1,7 @@
 # Frontier Dog texts (English). {name} etc. are filled in; a key ending in .f is the female form.
 dog.default_name=Dog
+prompt.show_info=Show info
+prompt.hide_info=Hide info
 prompt.stay=Stay
 prompt.follow=Follow
 prompt.praise=Praise

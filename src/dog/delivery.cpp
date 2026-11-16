@@ -48,6 +48,7 @@ void start() {
     g_campOrder.create("INPUT_INTERACT_OPTION1", "", 1200);
     g_message.create("INPUT_INTERACT_OPTION1", ctx().t("prompt.message"), 1000, 2);
     KvFile tel;
+    g_telegraphs.clear();  // again after a save load (the script restarts, the list stays)
     if (tel.load(fs::join(ctx().dataDir, "Telegraph.dat")))
         for (const auto& k : tel.getList("telegraphs")) {
             auto v = tel.getFloats("telegraph." + k);

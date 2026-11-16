@@ -60,6 +60,7 @@ void start() {
     g_pelt.create("INPUT_CONTEXT_Y", c.t("prompt.pelt_to_horse"), 800, 2);
     g_herbPrompt.create(c.ini.get("HerbControl", "INPUT_LOOK_BEHIND"), c.t("prompt.find_herbs"), 800);
     KvFile herbs;
+    g_herbs.clear();  // again after a save load (the script restarts, the list stays)
     if (herbs.load(fs::join(c.dataDir, "Herbs.dat")))
         for (const auto& kind : herbs.getList("herbs"))
             for (const auto& pt : str::split(herbs.get("herb." + kind), ';')) {

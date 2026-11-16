@@ -4,14 +4,18 @@
 #include <string>
 
 #include "dog/companion.h"
+#include "dog/home.h"
+#include "dog/stables.h"
 #include "dog/strays.h"
 #include "game/game.h"
+#include "game/prompt.h"
 #include "mod/context.h"
 #include "ui/draw.h"
 
 namespace fd::ui {
 
 static int g_page = 0;
+static game::UiPrompt g_info;  // our "Show info" in the dog's prompt group (the game's one hides with its control)
 static DogRecord g_dog;
 static Ped g_ped = 0;
 
@@ -132,22 +136,60 @@ static void draw() {
     pagerHint(ix, cy, c.t("card.next2"));
 }
 
+// The card a focused dog of ours gets: the companion, a stray (known before taming, D102), a dog for sale, a dog at home.
+static bool cardFor(Ped focus, DogRecord& out) {
+    auto& comp = companion();
+    if (!focus || !game::alive(focus)) return false;
+    if (comp.present() && focus == comp.ped()) {
+        if (DogRecord* d = comp.record()) out = *d;
+        return comp.record() != nullptr;
+    }
+    if (stables::saleCard(focus, out) || home::homeCard(focus, out)) return true;
+    if (!comp.isShopOrHomeDog(focus) && ctx().breeds.byAnimalType(ENTITY::_GET_PED_ANIMAL_TYPE(focus))) {
+        out = strays::cardFor(focus);
+        return true;
+    }
+    return false;
+}
+
+void cardStart() {
+    // a control the focus prompt list shows on the same key (Q; measured 16.11: cover is on Q too but its prompt never
+    // shows while aiming); the press is read on it and on the taken-over Show-info control
+    g_info.create(ctx().ini.get("InfoPromptControl", "INPUT_INTERACT_LOCKON_STUDY_BINOCULARS"), ctx().t("prompt.show_info"));
+    cardHide();
+}
+
+#ifdef FD_TEST
+void cardInfoControl(const std::string& control) { g_info.create(control, ctx().t("prompt.show_info")); }
+#endif
+
 void cardTick() {
     auto& comp = companion();
     Entity focus = 0;
     PLAYER::GET_PLAYER_INTERACTION_TARGET_ENTITY(PLAYER::PLAYER_ID(), &focus, false, false);
-    static const Hash kShow = MISC::GET_HASH_KEY("INPUT_INTERACT_LOCKON_DETAILS_ANIMAL");
+    // the game's own "Show info" (its control measured 16.11: Q / R1) shows the model's species card - "Siberian Husky"
+    // on the Shiba - so for our dogs that control is taken over and opens our card instead (again: closes it)
+    static const Hash kShow = MISC::GET_HASH_KEY(ctx().ini.get("InfoControl", "INPUT_INTERACT_LOCKON_TARGET_INFO").c_str());
     static const Hash kLeft = MISC::GET_HASH_KEY("INPUT_FRONTEND_LEFT");
     static const Hash kRight = MISC::GET_HASH_KEY("INPUT_FRONTEND_RIGHT");
-    if (!g_page && PAD::IS_CONTROL_JUST_PRESSED(0, kShow) && focus) {
-        if (comp.present() && focus == comp.ped()) {
-            if (DogRecord* d = comp.record()) cardShow(*d, comp.ped());
-        } else if (game::alive(focus) && !comp.isShopOrHomeDog(focus) && ctx().breeds.byAnimalType(ENTITY::_GET_PED_ANIMAL_TYPE(focus))) {
-            cardShow(strays::cardFor(focus), focus);  // a stray's card is known before taming (D102)
+    DogRecord rec;
+    bool ours = cardFor(focus, rec);
+    if (ours) g_info.setTarget(focus);
+    g_info.setText(ctx().t(g_page && g_ped == focus ? "prompt.hide_info" : "prompt.show_info"));
+    g_info.show(ours);
+    if (ours) {
+        PAD::DISABLE_CONTROL_ACTION(0, kShow, false);
+        static const Hash kPrompt = MISC::GET_HASH_KEY(ctx().ini.get("InfoPromptControl", "INPUT_INTERACT_LOCKON_STUDY_BINOCULARS").c_str());
+        if (PAD::IS_DISABLED_CONTROL_JUST_PRESSED(0, kShow) || PAD::IS_CONTROL_JUST_PRESSED(0, kPrompt)) {
+            if (g_page && g_ped == focus) cardHide();
+            else {
+                g_page = 0;
+                cardShow(rec, focus);
+            }
         }
     }
     if (!g_page) return;
-    if (g_ped && (focus != g_ped || game::dist(g_ped, game::player()) > 4.0f)) {
+    if (g_ped && (focus != g_ped || game::dist(g_ped, game::player()) > 6.0f)) {
         g_page = 0;
         g_ped = 0;
         return;

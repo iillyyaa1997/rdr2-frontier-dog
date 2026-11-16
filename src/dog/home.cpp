@@ -33,6 +33,15 @@ static std::string campFile() { return fs::join(fs::join(ctx().dataDir, "Dogs"),
 
 bool inCamp() { return g_inCamp; }
 
+bool homeCard(Ped ped, DogRecord& out) {
+    for (const auto& h : g_dogs)
+        if (ped && h.ped == ped && h.slot >= 0 && ctx().store.used(h.slot)) {
+            out = ctx().store.at(h.slot);
+            return true;
+        }
+    return false;
+}
+
 bool campKnown(Vector3& at) {
     if (!g_known) return false;
     at = g_camp;

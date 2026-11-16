@@ -3,7 +3,11 @@
 // serves the dog with Arthur: training, the vet (cure / pedigree), papers, a new name collar, selling, and bringing a
 // dog from home for $5.
 #pragma once
+#include "logic/dog.h"
+#include "sdk/natives.gen.h"
+
 namespace fd::stables {
 void start();
 void tick();
+bool saleCard(Ped ped, DogRecord& out);  // a dog for sale: its record (the inspect card)
 }

@@ -1,5 +1,7 @@
 # Тексты Frontier Dog (русский). {name} и т. п. подставляются; ключ с .f — женская форма
 dog.default_name=Собака
+prompt.show_info=Показать информацию
+prompt.hide_info=Убрать информацию
 prompt.stay=Сидеть
 prompt.follow=За мной
 prompt.praise=Похвалить

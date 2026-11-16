@@ -23,6 +23,7 @@ using namespace game;
 
 static std::vector<Ped> g_spawned;
 
+static int g_ctlUntil = 0;  // see probeControls
 static void run(const std::vector<std::string>& a) {
     auto& c = ctx();
     auto& comp = companion();
@@ -208,6 +209,10 @@ static void run(const std::vector<std::string>& a) {
         // card [off|2]: the companion's card without a focus (stays until 'card off'); 2 = page two
         if (a.size() > 1 && a[1] == "off") ui::cardHide();
         else if (comp.record()) { ui::cardShow(*comp.record(), 0); ui::cardPage(a.size() > 1 && a[1] == "2" ? 2 : 1); }
+    } else if (cmd == "infoctl" && a.size() >= 2) {
+        ui::cardInfoControl(a[1]);
+    } else if (cmd == "ctl") {
+        g_ctlUntil = now() + int(num(1, 20) * 1000);
     } else if (cmd == "hud") {
         // the game's HUD slot states (39 Arthur's cores, 42 horse's, 17 radar, 3 cash) and the hide flags
         FD_INFO("test: hud player %d horse %d radar %d cash %d hidden %d radarHidden %d", HUD::_GET_HUD_VISIBILITY_SLOT_STATE(39),
@@ -301,7 +306,30 @@ static void run(const std::vector<std::string>& a) {
     FD_INFO("test: done %s", cmd.c_str());
 }
 
+// 'ctl <s>': for s seconds logs every candidate control pressed (which one opens the game's animal "Show info")
+static void probeControls() {
+    static const char* kNames[] = {
+        "INPUT_INTERACT_LOCKON_DETAILS_ANIMAL", "INPUT_INTERACT_LOCKON_TARGET_INFO", "INPUT_INTERACT_LOCKON_ANIMAL",
+        "INPUT_INTERACT_LOCKON_STUDY_BINOCULARS", "INPUT_INTERACT_LOCKON_TRACK_ANIMAL", "INPUT_INTERACT_LOCKON_CALL_ANIMAL",
+        "INPUT_INTERACT_LOCKON_POS", "INPUT_INTERACT_LOCKON_NEG", "INPUT_INTERACT_LOCKON_ROB", "INPUT_INTERACT_LOCKON_Y",
+        "INPUT_INTERACT_LOCKON_A", "INPUT_INTERACT_ANIMAL", "INPUT_INTERACT_HORSE_BRUSH", "INPUT_COVER", "INPUT_CONTEXT_RB",
+        "INPUT_CONTEXT_LB", "INPUT_CONTEXT_LT", "INPUT_CONTEXT_RT", "INPUT_CONTEXT_A", "INPUT_CONTEXT_B", "INPUT_CONTEXT_X",
+        "INPUT_CONTEXT_Y", "INPUT_FRONTEND_RB", "INPUT_FRONTEND_LB", "INPUT_INTERACT_OPTION1", "INPUT_INTERACT_OPTION2",
+        "INPUT_LOOK_BEHIND", "INPUT_REVEAL_HUD", "INPUT_HUD_SPECIAL", "INPUT_SPECIAL_ABILITY", "INPUT_FOCUS_CAM",
+        "INPUT_INSPECT_ZOOM", "INPUT_SHOP_INSPECT", "INPUT_PLAYER_MENU", "INPUT_QUICK_USE_ITEM", "INPUT_INTERACT_NEG",
+        "INPUT_INTERACT_POS", "INPUT_INTERACT_LEAD_ANIMAL", "INPUT_INTERACT_WILD_ANIMAL", "INPUT_INTERACT_HIT_CARRIABLE"};
+    for (const char* n : kNames) {
+        Hash h = MISC::GET_HASH_KEY(n);
+        if (PAD::IS_CONTROL_JUST_PRESSED(0, h) || PAD::IS_DISABLED_CONTROL_JUST_PRESSED(0, h)) {
+            Entity focus = 0;
+            PLAYER::GET_PLAYER_INTERACTION_TARGET_ENTITY(PLAYER::PLAYER_ID(), &focus, false, false);
+            FD_INFO("test: control %s pressed (focus %d, dog %d)", n, focus, companion().ped());
+        }
+    }
+}
+
 void tick() {
+    if (now() < g_ctlUntil) probeControls();
     static int next = 0;
     if (now() < next) return;
     next = now() + 1000;
