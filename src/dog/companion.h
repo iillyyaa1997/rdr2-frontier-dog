@@ -22,8 +22,6 @@ public:
     DogRecord* record();
     bool staying() const { return stay_; }
     float whistleRange() const;
-    void markActive(int ms = 6000);     // the dog's core shows for a while (command, whistle)
-    bool hudActive() const;
     void addBond(double points, const std::string& reason, int cooldownMs);
     void save();
 
@@ -61,7 +59,6 @@ private:
     int slot_ = -1;
     bool stay_ = false;
     int pendingFollowAt_ = 0;
-    int hudUntil_ = 0;
     int nextBondTick_ = 0;
     int saveAt_ = 0;
     bool dirty_ = false;

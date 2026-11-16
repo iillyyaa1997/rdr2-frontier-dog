@@ -12,24 +12,35 @@ namespace fd::ui {
 
 static int slotState(int slot) { return HUD::_GET_HUD_VISIBILITY_SLOT_STATE(slot); }
 
+// The game's core slot states as Care Overhaul's adaptive HUD reads them (RE of RDR2CareOverhaul.asi 16.11): 1 shown,
+// 3 shown (eased), 2 hidden at once, 4 hidden after a delay. Its needs cores follow exactly this, nothing of their own.
+static bool slotShown(int s) { return s == 1 || s == 3; }
+
 void coreTick() {
     auto& c = ctx();
     if (!c.ini.getBool("ShowCore", true)) return;
     auto& comp = companion();
     DogRecord* d = comp.record();
     static float alpha = 0, curX = -1, curY = 0, curW = 38.0f / 1920.0f;
-    static int lastTick = 0, hiddenSince = -1;
+    static int lastTick = 0, hiddenSince = -1, hideDelay = 0;
     int t = game::now();
     int dt = std::clamp(t - lastTick, 0, 200);
     lastTick = t;
+    float showEase = float(std::max(1LL, c.ini.getInt("CoreShowEaseMs", 100)));
+    float hideEase = float(std::max(1LL, c.ini.getInt("CoreHideEaseMs", 250)));
     int player = slotState(39), horse = slotState(42), radar = slotState(17), cash = slotState(3);
-    bool wanted = comp.present() && d && !HUD::IS_HUD_HIDDEN() && (player == 3 || horse == 3 || comp.hudActive());
+    // shown together with Arthur's or the horse's cores and only then (no timer of our own: it showed before the radar)
+    bool wanted = comp.present() && d && !HUD::IS_HUD_HIDDEN() && (slotShown(player) || slotShown(horse));
     if (wanted) {
         hiddenSince = -1;
-        alpha += float(dt) / 100.0f;
+        alpha += float(dt) / showEase;
     } else {
-        if (hiddenSince < 0) hiddenSince = t;
-        if (t - hiddenSince >= 2000) alpha -= float(dt) / 250.0f;
+        if (hiddenSince < 0) {
+            hiddenSince = t;
+            hideDelay = (player == 2 || player == 0) && (horse == 2 || horse == 0) ? 0 : c.ini.getInt("CoreHideDelayMs", 2000);
+        }
+        if (t - hiddenSince >= hideDelay) alpha -= float(dt) / hideEase;
+        else if (alpha > 0) alpha += float(dt) / showEase;  // a show already started finishes first, as the game's own
     }
     alpha = std::clamp(alpha, 0.0f, 1.0f);
     if (alpha <= 0 || !comp.present() || !d) return;
@@ -39,7 +50,7 @@ void coreTick() {
     float tx = float(c.ini.getFloat(large ? "CoresX" : "CoresSmallX", large ? 0.1969 : 0.1542));
     float ty = float(c.ini.getFloat(large ? "CoresY" : "CoresSmallY", large ? 0.8519 : 0.8870));
     float tw = (large ? 52.0f : 38.0f) / 1920.0f;
-    if (radar == 4 && player == 3 && !revealed) {  // no radar: the game's cores stand in a row at the bottom left
+    if (radar == 4 && slotShown(player) && !revealed) {  // no radar: the game's cores stand in a row at the bottom left
         tx = float(c.ini.getFloat("CoresRowX", 0.0951));
         ty = float(c.ini.getFloat("CoresRowY", 0.9306));
         tw = 38.0f / 1920.0f;

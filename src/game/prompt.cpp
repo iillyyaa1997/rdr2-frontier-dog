@@ -78,6 +78,9 @@ void UiPrompt::setGroup(int group) {
 
 void UiPrompt::show(bool visible, bool enabled) {
     if (!handle_) return;
+    // hidden = disabled too, as the game's scripts and the old mod do: a hidden prompt left enabled still claims its
+    // button, and ~40 of them took the game's own prompts away (no pickup, no camp prompts; 16.11 his play)
+    enabled = visible && enabled;
     if (visible != visible_) HUD::_UI_PROMPT_SET_VISIBLE(handle_, visible);
     if (enabled != enabled_) HUD::_UI_PROMPT_SET_ENABLED(handle_, enabled);
     visible_ = visible;

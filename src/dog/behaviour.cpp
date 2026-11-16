@@ -77,7 +77,6 @@ static void updateAttack(Ped dog, DogRecord& d) {
             g_attackUntil = now() + 20000;  // busy while the target lives (old 0.11.2: no stuck-check recall mid-chase)
             TASK::TASK_COMBAT_PED(dog, target, 0, 16);
             speech(player(), PED::IS_PED_MALE(dog) ? "HORSE_RUN_AWAY_MALE" : "HORSE_RUN_AWAY_FEMALE");
-            companion().markActive();
             FD_INFO("command: attack");
         }
     } else {
@@ -103,7 +102,6 @@ static void updateTrack(Ped dog) {
         g_trackUntil = now() + 180000;
         TASK::CLEAR_PED_TASKS(dog, true, true);
         TASK::TASK_GO_TO_ENTITY(dog, g_trackTarget, -1, 6.0f, 2.0f, 0, 0);
-        companion().markActive();
         FD_INFO("command: track");
     }
     if (g_trackTarget) {
@@ -132,7 +130,6 @@ static void updateFeed(Ped dog, DogRecord& d) {
         TASK::TASK_EAT(dog, unk, 0);
         companion().addBond(ctx().tunef(treat ? "bond.treat" : "bond.feed", treat ? 5 : 8), treat ? "treat" : "feed",
                             ctx().tune(treat ? "bond.treat_cooldown_ms" : "bond.feed_cooldown_ms", 60000));
-        companion().markActive();
         FD_INFO("fed the dog: %s, hunger %.0f", food, d.hunger);
     }
 }
@@ -159,7 +156,6 @@ static void updatePredators(Ped dog, DogRecord& d) {
         if (quiet) AUDIO::PLAY_ANIMAL_VOCALIZATION(dog, "BARK_HAPPY", true);  // the Shiba's single quiet 'boof' (old D54)
         else TASK::TASK_START_SCENARIO_IN_PLACE_HASH(dog, MISC::GET_HASH_KEY("WORLD_ANIMAL_DOG_BARK_GROWL"), 6000, true, 0, -1.0f, false);
         g_warnUntil = now() + 6000;
-        companion().markActive(8000);
         FD_INFO("predator warning at %.0f m", dist(p, player()));
         break;
     }
@@ -193,7 +189,6 @@ static void updateLeave(Ped dog) {
     if (g_leave.fired()) {
         g_leaveMeAlone = !g_leaveMeAlone;
         g_leaveZone = zone;
-        companion().markActive();
     }
 }
 

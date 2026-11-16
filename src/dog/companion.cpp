@@ -36,8 +36,6 @@ float Companion::whistleRange() const {
     return float(r);
 }
 
-void Companion::markActive(int ms) { hudUntil_ = std::max(hudUntil_, now() + ms); }
-bool Companion::hudActive() const { return now() < hudUntil_; }
 
 void Companion::save() {
     if (slot_ >= 0) ctx().store.save(slot_);
@@ -130,12 +128,13 @@ void Companion::setup(Ped dog) {
     MAP::BLIP_ADD_MODIFIER(blip_, MISC::GET_HASH_KEY("BLIP_MODIFIER_RADAR_EDGE_ALWAYS"));
     MAP::BLIP_ADD_MODIFIER(blip_, 0x0B93E613);
     MAP::_SET_BLIP_NAME(blip_, literal(d && !d->name.empty() ? d->name : ctx().t("dog.default_name")));
+    // the focus title shows the dog's name, not the model's species ("Siberian Husky" on the Shiba, 16.11)
+    PED::_SET_PED_PROMPT_NAME(dog, literal(d && !d->name.empty() ? d->name : ctx().t("dog.default_name")));
 
     for (auto* p : {&stayPrompt_, &praisePrompt_, &homePrompt_, &revivePrompt_}) p->setTarget(dog);
     stay_ = false;
     lastPlayerPos_ = pos(pl);
     lastPosAt_ = now();
-    markActive();
 }
 
 void Companion::releasePed(bool runOff) {
@@ -288,7 +287,6 @@ void Companion::updatePrompts() {
 
 void Companion::follow() {
     stay_ = false;
-    markActive();
     Ped pl = player();
     FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped_, 165, 5.0f);
     TASK::TASK_CLEAR_LOOK_AT(ped_);
@@ -304,13 +302,11 @@ void Companion::follow() {
 
 void Companion::stay() {
     stay_ = true;
-    markActive();
     TASK::TASK_START_SCENARIO_IN_PLACE_HASH(ped_, MISC::GET_HASH_KEY("WORLD_ANIMAL_DOG_SITTING"), -1, true, 0, -1.0f, false);
     FD_INFO("command: stay");
 }
 
 void Companion::praise() {
-    markActive();
     TASK::TASK_ANIMAL_INTERACTION(player(), ped_, MISC::GET_HASH_KEY("Interaction_Dog_Patting"), 0, true);
     addBond(ctx().tunef("bond.praise", 3), "praise", ctx().tune("bond.praise_cooldown_ms", 120000));
 }
@@ -318,7 +314,6 @@ void Companion::praise() {
 void Companion::whistle() {
     DogRecord* d = record();
     if (!d) return;
-    markActive();
     float range = whistleRange();
     float dd = dist(ped_, player());
     if (dd > range) {
@@ -361,7 +356,6 @@ bool Companion::arriveOutOfView() {
     TASK::TASK_FOLLOW_TO_OFFSET_OF_ENTITY(ped_, player(), 0, 0, 0, 3.0f, 100000, 5.0f, false, false, false, false, false, false);
     lastArrival_ = now();
     stuckSince_ = 0;
-    markActive();
     FD_INFO("dog arrives out of view, %.0f m", dist(spot, pos(player())));
     return true;
 }
@@ -424,7 +418,6 @@ void Companion::addBond(double points, const std::string& reason, int cooldownMs
         auto hp = ctx().tuning.getFloats("health.max");
         if (lvl - 1 < int(hp.size()) && alive(ped_)) ENTITY::SET_ENTITY_MAX_HEALTH(ped_, int(hp[lvl - 1]));
         helpText(ctx().f("help.bond_level", {{"name", d->name}, {"level", std::to_string(lvl)}}, d->female));
-        markActive();
         save();
     }
 }
@@ -482,7 +475,6 @@ void Companion::startWounded() {
         TASK::CLEAR_PED_TASKS_IMMEDIATELY(ped_, true, true);
         TASK::TASK_ANIMAL_WRITHE(ped_, 0, 0);
     }
-    markActive(10000);
     helpText(ctx().f("help.wounded", {{"name", d->name}, {"min", std::to_string(int(minutes + 0.5))}}, d->female), 10000);
     FD_INFO("wounded: waits %.0f min", minutes);
 }

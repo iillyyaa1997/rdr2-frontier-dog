@@ -127,7 +127,6 @@ static void herbs(Ped dog, DogRecord& d) {
     g_herbUntil = t + 30000;
     TASK::CLEAR_PED_TASKS(dog, true, true);
     TASK::TASK_FOLLOW_NAV_MESH_TO_COORD(dog, spot.x, spot.y, spot.z, 2.0f, 30000, 1.0f, 0, 0.0f);
-    companion().markActive();
     FD_INFO("herbs: %.0f m (%s)", dist(spot, pos(player())), asked ? "asked" : "herbalist");
 }
 
@@ -192,7 +191,6 @@ static void huntress(Ped dog, DogRecord& d) {
         g_hunt = p;
         g_huntUntil = now() + 60000;
         TASK::CLEAR_PED_TASKS(dog, true, true);
-        companion().markActive();
         FD_INFO("huntress: goes after a three-star animal");
         return;
     }
@@ -262,7 +260,6 @@ static void trail(Ped dog, DogRecord& d) {
         g_trail = p;
         g_trailUntil = now() + 120000;
         TASK::CLEAR_PED_TASKS(dog, true, true);
-        companion().markActive();
         FD_INFO("trail: a wounded animal, range %.0f m, hold %d s", g_trailRange, g_holdMs / 1000);
         return;
     }
@@ -290,7 +287,6 @@ static void pointing(Ped dog, DogRecord& d) {
         TASK::TASK_TURN_PED_TO_FACE_ENTITY(dog, p, 4000, 0, 0, 0);
         g_pointUntil = now() + 4500;
         addSkillUse(d, "point", ctx().tune("skill.uses.2", 10), ctx().tune("skill.uses.3", 25));
-        companion().markActive();
         FD_INFO("pointing at game %.0f m", dist(p, dog));
         return;
     }
@@ -345,7 +341,6 @@ static void flushing(Ped dog, DogRecord& d) {
         g_flushBehind = Vector3(gp.x + dx / l * 7.0f, gp.y + dy / l * 7.0f, gp.z);
         g_flushCircle = lvl >= 2;  // drives it towards Arthur from the far side
         TASK::CLEAR_PED_TASKS(dog, true, true);
-        companion().markActive();
     }
 }
 
@@ -383,7 +378,6 @@ static void guarding(Ped dog, DogRecord& d) {
             g_guardUntil = t + 15000;
             g_noticed[p] = t;
             TASK::TASK_COMBAT_PED(dog, p, 0, 16);
-            companion().markActive();
             FD_INFO("guard: goes for the %s at the horse", thief ? "thief" : "predator");
             return;
         }
@@ -442,7 +436,6 @@ static void predatorsAndGrip(Ped dog, DogRecord& d) {
             g_fearlessUntil = t + (fearless ? 6000 : 4000);
             TASK::TASK_COMBAT_PED(dog, p, 0, 16);
             TASK::TASK_COMBAT_PED(p, dog, 0, 16);  // draws the predator off Arthur
-            companion().markActive();
             FD_INFO("courage: the dog draws the predator off Arthur");
             break;
         }
@@ -491,7 +484,6 @@ static void senses(Ped dog, DogRecord& d) {
             growl(dog, d);
             addSkillUse(d, "ambush", ctx().tune("skill.uses.2", 10), ctx().tune("skill.uses.3", 25));
             deed(d, "guard", 1);
-            companion().markActive(8000);
             FD_INFO("senses a hostile man %.0f m away", dd);
             return;
         }
@@ -508,7 +500,7 @@ static void bodiesAndPelts(Ped dog, DogRecord& d) {
                (d.stats[Strength] >= 3 || ctx().hasTrait(d, "tenacious"));
     g_body.setTarget(can ? target : 0);
     g_body.show(can);
-    if (can && g_body.fired() && hunting::bring(target, true, true, false, false)) companion().markActive();
+    if (can && g_body.fired()) hunting::bring(target, true, true, false, false);
     // Arthur carries a pelt next to the dog: «Отнести к лошади»
     Entity carried = PED::_GET_FIRST_ENTITY_PED_IS_CARRYING(player());
     Ped horse = PLAYER::_GET_SADDLE_HORSE_FOR_PLAYER(PLAYER::PLAYER_ID());

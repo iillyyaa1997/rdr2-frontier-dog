@@ -208,6 +208,11 @@ static void run(const std::vector<std::string>& a) {
         // card [off|2]: the companion's card without a focus (stays until 'card off'); 2 = page two
         if (a.size() > 1 && a[1] == "off") ui::cardHide();
         else if (comp.record()) { ui::cardShow(*comp.record(), 0); ui::cardPage(a.size() > 1 && a[1] == "2" ? 2 : 1); }
+    } else if (cmd == "hud") {
+        // the game's HUD slot states (39 Arthur's cores, 42 horse's, 17 radar, 3 cash) and the hide flags
+        FD_INFO("test: hud player %d horse %d radar %d cash %d hidden %d radarHidden %d", HUD::_GET_HUD_VISIBILITY_SLOT_STATE(39),
+                HUD::_GET_HUD_VISIBILITY_SLOT_STATE(42), HUD::_GET_HUD_VISIBILITY_SLOT_STATE(17),
+                HUD::_GET_HUD_VISIBILITY_SLOT_STATE(3), int(HUD::IS_HUD_HIDDEN()), int(HUD::IS_RADAR_HIDDEN()));
     } else if (cmd == "strays") {
         strays::spawnNow();
     } else if (cmd == "item" && a.size() >= 2) {

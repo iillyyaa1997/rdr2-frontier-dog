@@ -108,6 +108,7 @@ static void stepSale() {
         if (stock.dog.preset >= 0) PED::_EQUIP_META_PED_OUTFIT_PRESET(p, stock.dog.preset, false);
         if (stock.dog.scale != 100) PED::_SET_PED_SCALE(p, stock.dog.scale / 100.0f);
         TASK::TASK_START_SCENARIO_IN_PLACE_HASH(p, MISC::GET_HASH_KEY("WORLD_ANIMAL_DOG_SITTING"), -1, true, 0, -1.0f, false);
+        PED::_SET_PED_PROMPT_NAME(p, literal(c.breedText(stock.dog)));  // the breed, not the model's species
         ForSale f;
         f.ped = p;
         f.stock = stock;
@@ -227,7 +228,10 @@ static void updateKeyboard() {
     if (!pay(ctx().econ.renamePrice)) return;
     d->name = name;
     companion().save();
-    if (Ped p = companion().ped()) MAP::_SET_BLIP_NAME(MAP::GET_BLIP_FROM_ENTITY(p), literal(name));
+    if (Ped p = companion().ped()) {
+        MAP::_SET_BLIP_NAME(MAP::GET_BLIP_FROM_ENTITY(p), literal(name));
+        PED::_SET_PED_PROMPT_NAME(p, literal(name));
+    }
     helpText(ctx().f("help.renamed", {{"name", name}}, d->female));
 }
 
