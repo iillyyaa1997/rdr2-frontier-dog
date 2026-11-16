@@ -2,14 +2,18 @@
 
 #include "game/game.h"
 
-#ifdef FD_TEST
 #include <algorithm>
+#include <map>
 #include <vector>
 
+#ifdef FD_TEST
 #include "core/log.h"
 #endif
 
 namespace fd::game {
+
+static std::vector<UiPrompt*> g_registry;  // every created prompt (applyFrame)
+static int g_nextOrder = 0;
 
 #ifdef FD_TEST
 // test hooks: 'prompts' lists the visible prompts, 'press <text part>' fires the first visible one whose text contains it
@@ -25,6 +29,7 @@ void testPress(const std::string& part) { g_press = part; }
 
 UiPrompt::~UiPrompt() {
     destroy();
+    g_registry.erase(std::remove(g_registry.begin(), g_registry.end(), this), g_registry.end());
 #ifdef FD_TEST
     g_all.erase(std::remove(g_all.begin(), g_all.end(), this), g_all.end());
 #endif
@@ -35,6 +40,10 @@ void UiPrompt::create(const std::string& control, const std::string& text, int h
 #ifdef FD_TEST
     if (std::find(g_all.begin(), g_all.end(), this) == g_all.end()) g_all.push_back(this);
 #endif
+    if (std::find(g_registry.begin(), g_registry.end(), this) == g_registry.end()) {
+        g_registry.push_back(this);
+        order_ = g_nextOrder++;
+    }
     holdMs_ = holdMs;
     handle_ = HUD::_UI_PROMPT_REGISTER_BEGIN();
     HUD::_UI_PROMPT_SET_CONTROL_ACTION(handle_, MISC::GET_HASH_KEY(control.c_str()));
@@ -47,7 +56,7 @@ void UiPrompt::create(const std::string& control, const std::string& text, int h
     HUD::_UI_PROMPT_REGISTER_END(handle_);
     HUD::_UI_PROMPT_SET_VISIBLE(handle_, false);
     HUD::_UI_PROMPT_SET_ENABLED(handle_, false);
-    visible_ = enabled_ = false;
+    visible_ = enabled_ = want_ = wantEnabled_ = false;
     target_ = 0;
     group_ = 0;
 }
@@ -80,11 +89,30 @@ void UiPrompt::show(bool visible, bool enabled) {
     if (!handle_) return;
     // hidden = disabled too, as the game's scripts and the old mod do: a hidden prompt left enabled still claims its
     // button, and ~40 of them took the game's own prompts away (no pickup, no camp prompts; 16.11 his play)
-    enabled = visible && enabled;
-    if (visible != visible_) HUD::_UI_PROMPT_SET_VISIBLE(handle_, visible);
-    if (enabled != enabled_) HUD::_UI_PROMPT_SET_ENABLED(handle_, enabled);
-    visible_ = visible;
-    enabled_ = enabled;
+    want_ = visible;
+    wantEnabled_ = visible && enabled;
+}
+
+void UiPrompt::applyFrame() {
+    std::map<int, std::vector<UiPrompt*>> groups;
+    for (UiPrompt* p : g_registry)
+        if (p->handle_ && p->want_) groups[p->group_].push_back(p);
+    std::vector<UiPrompt*> shown;
+    for (auto& [group, list] : groups) {
+        std::sort(list.begin(), list.end(), [](const UiPrompt* a, const UiPrompt* b) {
+            return a->rank_ != b->rank_ ? a->rank_ < b->rank_ : a->order_ < b->order_;
+        });
+        for (size_t i = 0; i < list.size() && int(i) < kGroupMax; ++i) shown.push_back(list[i]);
+    }
+    for (UiPrompt* p : g_registry) {
+        if (!p->handle_) continue;
+        bool in = std::find(shown.begin(), shown.end(), p) != shown.end();
+        bool visible = p->want_ && in, enabled = p->wantEnabled_ && in;
+        if (visible != p->visible_) HUD::_UI_PROMPT_SET_VISIBLE(p->handle_, visible);
+        if (enabled != p->enabled_) HUD::_UI_PROMPT_SET_ENABLED(p->handle_, enabled);
+        p->visible_ = visible;
+        p->enabled_ = enabled;
+    }
 }
 
 bool UiPrompt::fired() {

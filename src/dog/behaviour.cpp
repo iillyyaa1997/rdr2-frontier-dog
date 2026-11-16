@@ -46,6 +46,10 @@ void start() {
     g_track.create("INPUT_INTERACT_OPTION2", c.t("prompt.track"), 1000);
     g_feed.create("INPUT_INTERACT_OPTION1", c.t("prompt.feed"), 0, 3);
     g_leave.create("INPUT_INTERACT_OPTION2", c.t("prompt.leave"), 1500);
+    g_feed.setRank(30);
+    g_attack.setRank(35);
+    g_track.setRank(40);
+    g_leave.setRank(65);
 }
 
 bool autonomyAllowed() { return !onMission() && !inCutscene() && !g_leaveMeAlone && !home::inCamp(); }

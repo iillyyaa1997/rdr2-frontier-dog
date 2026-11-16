@@ -156,6 +156,7 @@ void cardStart() {
     // a control the focus prompt list shows on the same key (Q; measured 16.11: cover is on Q too but its prompt never
     // shows while aiming); the press is read on it and on the taken-over Show-info control
     g_info.create(ctx().ini.get("InfoPromptControl", "INPUT_INTERACT_LOCKON_STUDY_BINOCULARS"), ctx().t("prompt.show_info"));
+    g_info.setRank(10);
     cardHide();
 }
 

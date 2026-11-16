@@ -51,6 +51,12 @@ void Companion::start() {
     homePrompt_.create("INPUT_INTERACT_OPTION2", ctx().t("prompt.home"), 1500);
     tamePrompt_.create("INPUT_INTERACT_OPTION1", ctx().t("prompt.tame"), 1000);
     revivePrompt_.create("INPUT_INTERACT_OPTION1", ctx().t("prompt.revive"), 1500, 2);
+    // the dog's group shows 5 prompts at most (game::UiPrompt::applyFrame): what matters first
+    revivePrompt_.setRank(5);
+    stayPrompt_.setRank(20);
+    praisePrompt_.setRank(30);
+    tamePrompt_.setRank(30);
+    homePrompt_.setRank(40);
     slot_ = ctx().store.withArthur();
     if (slot_ < 0) return;
     // after a script reload the old ped may still be around: take it over instead of spawning a second dog
@@ -308,6 +314,10 @@ void Companion::follow() {
 
 void Companion::stay() {
     stay_ = true;
+    // out of Arthur's group while it stays: a group member walks back to the leader whatever its task (16.11: sat
+    // 10 m away, was next to Arthur 15 s later); follow() puts it back
+    if (PED::IS_PED_GROUP_MEMBER(ped_, PED::GET_PED_GROUP_INDEX(player()), false)) PED::REMOVE_PED_FROM_GROUP(ped_);
+    TASK::CLEAR_PED_TASKS(ped_, true, true);
     TASK::TASK_START_SCENARIO_IN_PLACE_HASH(ped_, MISC::GET_HASH_KEY("WORLD_ANIMAL_DOG_SITTING"), -1, true, 0, -1.0f, false);
     FD_INFO("command: stay");
 }

@@ -16,6 +16,7 @@
 #include "game/game.h"
 #include "mod/context.h"
 #include "mod/testhooks.h"
+#include "game/prompt.h"
 #include "ui/card.h"
 #include "ui/core.h"
 #include "sdk/natives.gen.h"
@@ -137,6 +138,7 @@ static void scriptMain() {
         step("strays", [] { strays::tick(); });
         step("abilities", [] { abilities::tick(); });
         step("ui", [] { ui::coreTick(); ui::cardTick(); });
+        step("prompts", [] { game::UiPrompt::applyFrame(); });
 #ifdef FD_TEST
         step("test", [] { testhooks::tick(); });
 #endif

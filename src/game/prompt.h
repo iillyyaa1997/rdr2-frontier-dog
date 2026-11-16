@@ -21,8 +21,13 @@ public:
     void setText(const std::string& text);
     void setTarget(Entity target);   // 0 = free prompt (bottom right, no group)
     void setGroup(int group);
-    void show(bool visible, bool enabled = true);
+    void show(bool visible, bool enabled = true);  // wanted this frame; applyFrame decides what the game gets
+    void setRank(int rank) { rank_ = rank; }      // lower = more important when a group is full
     bool fired();                    // completed press/hold this frame (once)
+    // once per frame after every module: the game shows at most kGroupMax prompts of one group (measured 16.11: the
+    // dog's 6th prompt - Follow - silently dropped), so the best ranked wanted ones are shown, the rest hidden
+    static void applyFrame();
+    static constexpr int kGroupMax = 5;
 #ifdef FD_TEST
     bool visibleForTest() const { return handle_ && visible_; }
     const std::string& textForTest() const { return text_; }
@@ -34,7 +39,9 @@ private:
     std::string text_;
     Entity target_ = 0;
     int group_ = 0;
-    bool visible_ = false, enabled_ = false;
+    bool visible_ = false, enabled_ = false;  // what the game has
+    bool want_ = false, wantEnabled_ = false;  // what the module asked for this frame
+    int rank_ = 50, order_ = 0;
 };
 
 #ifdef FD_TEST

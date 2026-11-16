@@ -7,10 +7,14 @@ better, and has a character of its own. Every system below can be switched off i
 - Joins you after the game loads and arrives out of view, like your horse; comes back on its own when left behind, after
   fast travel, trains or cutscenes.
 - Whistle to call it; its hearing range grows with your bond.
-- Focus the dog for its prompts: Stay, Follow, Praise, Send home, «Leave it» (stops everything it does on its own).
+- Focus the dog for its prompts: Stay, Follow, Praise, Send home, «Leave it» (stops everything it does on its own) —
+  Stay / Follow and Send home from any distance it can hear your whistle.
 - Waits outside buildings; on story missions it stays out of the way and hides during cutscenes.
-- A paw blip on the radar and the map, and the dog's own health core next to Arthur's and the horse's.
-- An inspect card (Show info): stats, bond, traits and skills on two pages — also for strays you have not tamed yet.
+- A paw blip on the radar and the map, and the dog's own core next to Arthur's and the horse's: it shows, hides and
+  moves exactly with the game's cores (regular or expanded radar, the HUD reveal, compass or no radar).
+- Its name on the focus title, and its own inspect card on Show info: stats, bond, traits and skills on two pages —
+  also for strays you have not tamed yet, dogs for sale and dogs at home (the game's card would only name the model's
+  species).
 
 ## Bond, skills, breeds
 - Bond levels 1–3, earned by praise, petting, feeding, brushing, treats, fetching and time together.

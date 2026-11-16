@@ -59,6 +59,10 @@ void start() {
     g_body.create(c.ini.get("AttackControl", "INPUT_INTERACT_OPTION1"), c.t("prompt.bring_body"), 800, 2);
     g_pelt.create("INPUT_CONTEXT_Y", c.t("prompt.pelt_to_horse"), 800, 2);
     g_herbPrompt.create(c.ini.get("HerbControl", "INPUT_LOOK_BEHIND"), c.t("prompt.find_herbs"), 800);
+    g_body.setRank(45);
+    g_pelt.setRank(45);
+    g_flush.setRank(60);
+    g_herbPrompt.setRank(70);
     KvFile herbs;
     g_herbs.clear();  // again after a save load (the script restarts, the list stays)
     if (herbs.load(fs::join(c.dataDir, "Herbs.dat")))

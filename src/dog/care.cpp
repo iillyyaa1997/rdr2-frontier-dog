@@ -29,6 +29,8 @@ bool offersButton1() { return g_healOffered; }
 void start() {
     g_brush.create("INPUT_CONTEXT_Y", ctx().t("prompt.brush"), 1000);
     g_heal.create("INPUT_INTERACT_OPTION1", ctx().t("prompt.heal"), 1000, 3);
+    g_heal.setRank(30);
+    g_brush.setRank(55);
 }
 
 static void cleanLook(Ped dog) {
