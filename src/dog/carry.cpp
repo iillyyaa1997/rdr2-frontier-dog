@@ -38,6 +38,8 @@ void CarryTask::start(Ped dog, const CarryJob& job) {
     orderedAt_ = progressAt_ = restUntil_ = effortAt_ = stepAt_ = steps_ = stuckTries_ = 0;
     effort_ = 0;
     pullBoost_ = 1.0f;
+    groundCheckAt_ = 0;
+    standHeight_ = -1;
     rope_ = 0;
     attached_ = false;
     lastDelivered_ = false;
@@ -76,6 +78,7 @@ void CarryTask::update() {
     }
     switch (stage_) {
         case Stage::GoTo: {
+            keepOnGround(t);
             int st = ENTITY::GET_CARRIABLE_ENTITY_STATE(job_.carcass);
             if (job_.pelt && (st == kCarriedByHuman || st == kBeingPlacedOnGround)) {
                 if (t - stageAt_ > 10000) fail("Arthur kept the pelt");
@@ -111,6 +114,7 @@ void CarryTask::update() {
             return;
         }
         case Stage::Grab:
+            keepOnGround(t);
             if (t - stageAt_ > 600) {
                 take();
                 stage_ = Stage::Return;
@@ -120,6 +124,7 @@ void CarryTask::update() {
             }
             return;
         case Stage::Return: {
+            keepOnGround(t);
             Ped to = dest();
             float d = dist(dog_, to);
             float arrive = to == job_.horse ? 2.6f : (walkForward_ ? 2.2f : 3.0f);
@@ -284,6 +289,24 @@ void CarryTask::stepBack(int t, Ped to) {
     }
     float phase = float(t - stepAt_) / float(period);
     pullCarcass(phase < 0.5f ? 1.6f : 0.3f);
+}
+
+void CarryTask::keepOnGround(int t) {
+    if (t < groundCheckAt_) return;
+    groundCheckAt_ = t + 150;
+    Vector3 p = pos(dog_);
+    float ground = 0;
+    if (!MISC::GET_GROUND_Z_FOR_3D_COORD(p.x, p.y, p.z + 3.0f, &ground, false)) return;
+    float h = p.z - ground;
+    if (!rope_) {  // before the rope: learn how high the origin of this dog stands
+        if (h > 0.1f && h < 1.2f) standHeight_ = standHeight_ < 0 ? h : std::max(standHeight_, h);
+        return;
+    }
+    float stand = standHeight_ > 0 ? standHeight_ : float(ctx().tunef("carry.stand_height", 0.45));
+    float sunk = stand - h;
+    if (sunk < float(ctx().tunef("carry.sink_tolerance", 0.2))) return;
+    ENTITY::SET_ENTITY_COORDS_NO_OFFSET(dog_, p.x, p.y, ground + stand, false, false, false);
+    if (sunk > 0.5f) FD_INFO("carry: the dog was pulled %.2f m into the ground, put back on it", sunk);
 }
 
 void CarryTask::release() {

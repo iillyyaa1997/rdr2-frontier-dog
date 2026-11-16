@@ -368,15 +368,22 @@ static void riding() {
         return;
     }
     float d = dist(g_rider, player());
-    if (d < 9.0f || (!PED::IS_PED_ON_MOUNT(player()) && d < 12.0f)) {
+    // the dog runs beside the horse and must keep up (window 16.11 #3: at a gallop it was 48 m behind at the handover)
+    float lag = dist(g_dog, g_horse);
+    bool dogClose = lag < 12.0f;
+    if ((d < 9.0f || (!PED::IS_PED_ON_MOUNT(player()) && d < 12.0f)) && (dogClose || t - g_stageAt > 90000)) {
         TASK::TASK_STAND_STILL(g_rider, 4000);
         g_stage = Stage::Handover;
         g_stageAt = t;
         return;
     }
-    if (t - g_orderedAt > 5000) {
+    bool waiting = d < 12.0f;  // at Arthur: waits for the dog
+    float pace = waiting ? 0.0f : (lag > 25.0f ? 1.0f : (lag > 12.0f ? 1.5f : (d > 60 ? 2.0f : 1.5f)));
+    if (t - g_orderedAt > 3000) {
         g_orderedAt = t;
-        TASK::TASK_GO_TO_ENTITY(g_rider, player(), -1, 7.0f, d > 60 ? 3.0f : 1.5f, 0, 0);
+        if (waiting) TASK::TASK_STAND_STILL(g_rider, 3500);
+        else TASK::TASK_GO_TO_ENTITY(g_rider, player(), -1, 7.0f, pace, 0, 0);
+        if (lag > 12.0f) TASK::TASK_FOLLOW_TO_OFFSET_OF_ENTITY(g_dog, g_horse, 1.5f, -1.0f, 0, 3.0f, -1, 2.0f, true, false, false, false, false, false);
     }
     if (t - g_progressAt > 30000) {
         bool stuck = g_lastDist - d < 10.0f;

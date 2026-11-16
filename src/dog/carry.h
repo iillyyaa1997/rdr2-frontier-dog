@@ -56,6 +56,9 @@ private:
     float lastGap_ = 0, effort_ = 0;
     float pullBoost_ = 1.0f;  // grows while a large carcass will not move (window 16.11: the Shiba stalled on a deer)
     bool boostPull();         // true if the pull could still grow
+    void keepOnGround(int t); // the rope drags a scaled-down dog into the ground (16.11 #3: Shiba 72 % sank, then fell through)
+    int groundCheckAt_ = 0;
+    float standHeight_ = -1;  // the dog's origin above the ground while standing, measured before the rope goes on
     int rope_ = 0;
     bool attached_ = false, walkForward_ = true, straight_ = false, lastDelivered_ = false;
     int deliveries_ = 0;
