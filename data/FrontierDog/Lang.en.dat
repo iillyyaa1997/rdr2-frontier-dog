@@ -117,3 +117,5 @@ prompt.feed=Feed
 prompt.leave=Leave it
 prompt.leave_off=Go ahead
 help.skill_up={name}: {skill} is now level {level}
+prompt.brush=Brush
+prompt.heal=Treat

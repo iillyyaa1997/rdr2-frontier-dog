@@ -6,6 +6,7 @@
 #include "core/log.h"
 #include "core/strutil.h"
 #include "dog/behaviour.h"
+#include "dog/care.h"
 #include "dog/hunting.h"
 #include "game/game.h"
 #include "mod/context.h"
@@ -208,7 +209,7 @@ void Companion::updatePrompts() {
     bool close = dist(ped_, player()) < 4.0f && !PED::IS_PED_ON_MOUNT(player());
     stayPrompt_.setText(ctx().t(stay_ ? "prompt.follow" : "prompt.stay", d && d->female));
     stayPrompt_.show(close);
-    praisePrompt_.show(close && !behaviour::feedOffered());
+    praisePrompt_.show(close && !behaviour::feedOffered() && !care::offersButton1());
     homePrompt_.show(close && !onMission() && !behaviour::trackOffered());
     if (stayPrompt_.fired()) {
         if (stay_) {

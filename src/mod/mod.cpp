@@ -5,6 +5,7 @@
 #include "core/log.h"
 #include "core/version.h"
 #include "dog/behaviour.h"
+#include "dog/care.h"
 #include "dog/companion.h"
 #include "dog/hunting.h"
 #include "game/game.h"
@@ -68,6 +69,7 @@ static void scriptMain() {
     c.store.open(fs::join(c.dataDir, "Dogs"));
     companion().start();
     behaviour::start();
+    care::start();
     while (true) {
         int n = SCRIPT::GET_NUMBER_OF_EVENTS(0);
         for (int i = 0; i < n; ++i) {
@@ -80,6 +82,7 @@ static void scriptMain() {
         companion().tick();
         behaviour::tick();
         hunting::tick();
+        care::tick();
         ui::coreTick();
         ui::cardTick();
 #ifdef FD_TEST

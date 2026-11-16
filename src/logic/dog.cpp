@@ -64,6 +64,7 @@ void DogRecord::fromKv(const KvFile& kv) {
     hunger = kv.getFloat("hunger", 0);
     dirt = kv.getFloat("dirt", 0);
     limp = kv.getBool("limp");
+    limpUntil = kv.getInt("limp.until", 0);
     readMap(kv, "deed.", deeds);
     readMap(kv, "deedsteps.", deedSteps);
     readMap(kv, "deedbank.", deedTraitBank);
@@ -103,6 +104,7 @@ KvFile DogRecord::toKv() const {
     kv.setFloat("hunger", hunger, 1);
     kv.setFloat("dirt", dirt, 1);
     kv.setBool("limp", limp);
+    kv.setInt("limp.until", limpUntil);
     writeMap(kv, "deed.", deeds);
     writeMap(kv, "deedsteps.", deedSteps);
     writeMap(kv, "deedbank.", deedTraitBank);

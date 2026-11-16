@@ -150,3 +150,5 @@ prompt.feed=Покормить
 prompt.leave=Не мешай
 prompt.leave_off=Можно
 help.skill_up={name}: навык «{skill}» — уровень {level}
+prompt.brush=Почистить
+prompt.heal=Подлечить

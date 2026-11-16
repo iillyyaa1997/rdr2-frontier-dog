@@ -39,6 +39,7 @@ struct DogRecord {
     double hunger = 0;        // 0 fed … 100 starving
     double dirt = 0;          // 0 clean … 100 filthy
     bool limp = false;
+    long long limpUntil = 0;  // in-game minute
 
     std::map<std::string, int> deeds;              // hardening counters (mutts)
     std::map<std::string, int> deedSteps;          // hardening steps already taken per deed

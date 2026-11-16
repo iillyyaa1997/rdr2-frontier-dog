@@ -47,3 +47,10 @@ dirt.per_haul=8
 # uses for level 2 / 3 at trainability 3 (× learning speed by trainability)
 skill.uses.2=10
 skill.uses.3=25
+[Care]
+hunger.hours=48
+care.limp_minutes=30
+care.brush_from=40
+bond.brush=5
+bond.brush_cooldown_ms=300000
+bond.heal=4
