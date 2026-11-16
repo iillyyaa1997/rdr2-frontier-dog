@@ -155,3 +155,7 @@ prompt.flush=Flush game
 prompt.bring_body=Bring the body
 prompt.pelt_to_horse=Take it to the horse
 help.hardened={name} is hardened by road and street: now {grade}.
+prompt.find_herbs=Find herbs
+prompt.telegram=Telegram to camp: bring {name}
+help.herbs_here={name} found herbs.
+help.no_herbs=No herbs nearby.

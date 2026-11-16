@@ -2,7 +2,9 @@
 
 #include <cmath>
 
+#include "core/fs.h"
 #include "core/log.h"
+#include "core/strutil.h"
 #include "dog/companion.h"
 #include "dog/home.h"
 #include "game/game.h"
@@ -20,6 +22,7 @@ static float g_lastDist = 0;
 static Ped g_rider = 0, g_horse = 0, g_dog = 0, g_messenger = 0;
 static game::UiPrompt g_campNext, g_campOrder, g_message;
 static int g_campIndex = 0, g_whistleSince = 0;
+static std::vector<Vector3> g_telegraphs;
 
 bool active() { return g_stage != Stage::Idle; }
 
@@ -27,6 +30,21 @@ void start() {
     g_campNext.create("INPUT_CONTEXT_X", ctx().t("stable.next"));
     g_campOrder.create("INPUT_INTERACT_OPTION1", "", 1200);
     g_message.create("INPUT_INTERACT_OPTION1", ctx().t("prompt.message"), 1000, 2);
+    KvFile tel;
+    if (tel.load(fs::join(ctx().dataDir, "Telegraph.dat")))
+        for (const auto& k : tel.getList("telegraphs")) {
+            auto v = tel.getFloats("telegraph." + k);
+            if (v.size() == 2) g_telegraphs.push_back(Vector3(float(v[0]), float(v[1]), 0));
+        }
+}
+
+static bool atTelegraph() {
+    Vector3 p = pos(player());
+    for (const auto& t : g_telegraphs) {
+        float dx = t.x - p.x, dy = t.y - p.y;
+        if (dx * dx + dy * dy < 12.0f * 12.0f) return true;
+    }
+    return false;
 }
 
 static std::vector<int> homeSlots() {
@@ -193,14 +211,15 @@ void tick() {
     // (a) Arthur's own campfire in the wild
     bool sitting = PED::IS_PED_ON_FOOT(player()) && PED::IS_PED_USING_ANY_SCENARIO(player()) &&
                    !INTERIOR::GET_INTERIOR_FROM_ENTITY(player()) && !home::inCamp() && !inTown(pos(player()));
-    if (sitting && !slots.empty()) {
+    bool telegraph = PED::IS_PED_ON_FOOT(player()) && atTelegraph();  // (b) a telegram from the post office
+    if ((sitting || telegraph) && !slots.empty()) {
         g_campIndex %= int(slots.size());
         const DogRecord& d = c.store.at(slots[g_campIndex]);
-        g_campOrder.setText(c.f("prompt.send_for", {{"name", d.name}}, d.female));
+        g_campOrder.setText(c.f(sitting ? "prompt.send_for" : "prompt.telegram", {{"name", d.name}}, d.female));
         g_campNext.show(slots.size() > 1);
         g_campOrder.show(true);
         if (g_campNext.fired()) g_campIndex = (g_campIndex + 1) % int(slots.size());
-        if (g_campOrder.fired()) order(slots[g_campIndex], "campfire");
+        if (g_campOrder.fired()) order(slots[g_campIndex], sitting ? "campfire" : "telegram");
     } else {
         g_campNext.show(false);
         g_campOrder.show(false);

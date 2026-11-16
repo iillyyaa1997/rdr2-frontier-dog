@@ -1,0 +1,14 @@
+# Post offices (telegraph) for delivery orders (D116): from jeanropke/RDOMap data/shops.json @ edae49df624b (Unlicense)
+telegraphs=amd,asb,ben,blk,emr,rgg,rho,sdn,str,val,van,wal
+telegraph.amd=-3732.6,-2598.1
+telegraph.asb=2939.1,1287.1
+telegraph.ben=-5227.4,-3469.1
+telegraph.blk=-875.1,-1327.3
+telegraph.emr=1521.9,441.1
+telegraph.rgg=-1092.9,-575.7
+telegraph.rho=1226.7,-1295.1
+telegraph.sdn=2748.8,-1398.2
+telegraph.str=-1763.9,-385.1
+telegraph.val=-178.0,628.1
+telegraph.van=2986.2,570.1
+telegraph.wal=-1299.8,400.9

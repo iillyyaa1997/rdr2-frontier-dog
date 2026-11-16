@@ -4,6 +4,9 @@
 #include <cmath>
 #include <map>
 #include <set>
+#include <vector>
+
+#include "core/fs.h"
 
 #include "core/log.h"
 #include "core/strutil.h"
@@ -22,7 +25,12 @@ namespace fd::abilities {
 
 using namespace game;
 
-static game::UiPrompt g_flush, g_body, g_pelt;
+static game::UiPrompt g_flush, g_body, g_pelt, g_herbPrompt;
+struct HerbSpot { float x, y; };
+static std::vector<HerbSpot> g_herbs;
+static Vector3 g_herbTarget;
+static bool g_herbGoing = false;
+static int g_herbUntil = 0, g_nextHerbalist = 0;
 static int g_scanAt = 0, g_slowAt = 0;
 // running jobs
 static Ped g_hunt = 0, g_trail = 0, g_flushGame = 0, g_gripMan = 0, g_guardFoe = 0, g_fearlessFoe = 0;
@@ -42,7 +50,7 @@ bool busy() {
     int t = now();
     return (g_hunt && t < g_huntUntil) || (g_trail && t < g_trailUntil) || t < g_holdUntil || (g_flushGame && t < g_flushUntil) ||
            (g_gripMan && t < g_gripUntil) || (g_guardFoe && t < g_guardUntil) || (g_fearlessFoe && t < g_fearlessUntil) ||
-           t < g_herdUntil || t < g_pointUntil || t < g_zoomUntil || g_waterRefusing || g_watchingFood;
+           t < g_herdUntil || t < g_pointUntil || t < g_zoomUntil || g_waterRefusing || g_watchingFood || g_herbGoing || t < g_herbUntil;
 }
 
 void start() {
@@ -50,6 +58,77 @@ void start() {
     g_flush.create("INPUT_CONTEXT_Y", c.t("prompt.flush"), 0, 2);
     g_body.create(c.ini.get("AttackControl", "INPUT_INTERACT_OPTION1"), c.t("prompt.bring_body"), 800, 2);
     g_pelt.create("INPUT_CONTEXT_Y", c.t("prompt.pelt_to_horse"), 800, 2);
+    g_herbPrompt.create(c.ini.get("HerbControl", "INPUT_LOOK_BEHIND"), c.t("prompt.find_herbs"), 800);
+    KvFile herbs;
+    if (herbs.load(fs::join(c.dataDir, "Herbs.dat")))
+        for (const auto& kind : herbs.getList("herbs"))
+            for (const auto& pt : str::split(herbs.get("herb." + kind), ';')) {
+                auto xy = str::split(pt, ',');
+                double x, y;
+                if (xy.size() == 2 && str::parseFloat(xy[0], x) && str::parseFloat(xy[1], y)) g_herbs.push_back({float(x), float(y)});
+            }
+    FD_INFO("herb spots: %zu", g_herbs.size());
+}
+
+static float noseFactor(const DogRecord& d);
+static bool recently(Ped p, int ms);
+
+// «Найди травы» on command and the Herbalist trait (D131: spots from the open RDOMap data, single-player match unverified)
+static bool nearestHerb(const Vector3& from, float range, Vector3& out) {
+    float best = range;
+    bool found = false;
+    for (const auto& h : g_herbs) {
+        float dx = h.x - from.x, dy = h.y - from.y, d = std::sqrt(dx * dx + dy * dy);
+        if (d >= best) continue;
+        Vector3 p(h.x, h.y, from.z);
+        if (recently(int(h.x * 7 + h.y * 13), 600000)) continue;
+        best = d;
+        out = p;
+        found = true;
+    }
+    if (found) {
+        float z = out.z;
+        if (MISC::GET_GROUND_Z_FOR_3D_COORD(out.x, out.y, out.z + 50.0f, &z, false)) out.z = z;
+    }
+    return found;
+}
+
+static void herbs(Ped dog, DogRecord& d) {
+    int t = now();
+    if (g_herbGoing) {
+        if (t > g_herbUntil) { g_herbGoing = false; return; }
+        if (dist(pos(dog), g_herbTarget) < 2.0f) {
+            TASK::TASK_START_SCENARIO_IN_PLACE_HASH(dog, MISC::GET_HASH_KEY("WORLD_ANIMAL_DOG_SITTING"), 5000, true, 0, -1.0f, false);
+            AUDIO::PLAY_ANIMAL_VOCALIZATION(dog, "BARK_HAPPY", true);
+            helpText(ctx().f("help.herbs_here", {{"name", d.name}}, d.female));
+            g_herbGoing = false;
+            g_herbUntil = t + 5500;
+        }
+        return;
+    }
+    if (g_herbs.empty()) return;
+    float range = 30.0f * noseFactor(d) * (ctx().hasTrait(d, "herbalist") ? 1.6f : 1.0f);
+    bool close = dist(dog, player()) < 4.0f && !hunting::busy();
+    g_herbPrompt.setTarget(dog);
+    g_herbPrompt.show(close && ctx().feature("HerbSearch"));
+    bool asked = close && g_herbPrompt.fired();
+    bool herbalist = ctx().hasTrait(d, "herbalist") && t >= g_nextHerbalist && !busy() && !hunting::busy() &&
+                     behaviour::autonomyAllowed() && !companion().staying();
+    if (herbalist) g_nextHerbalist = t + 30000;
+    if (!asked && !herbalist) return;
+    Vector3 spot;
+    if (!nearestHerb(pos(player()), herbalist && !asked ? 50.0f : range, spot)) {
+        if (asked) helpText(ctx().t("help.no_herbs"));
+        return;
+    }
+    g_noticed[int(spot.x * 7 + spot.y * 13)] = t;
+    g_herbTarget = spot;
+    g_herbGoing = true;
+    g_herbUntil = t + 30000;
+    TASK::CLEAR_PED_TASKS(dog, true, true);
+    TASK::TASK_FOLLOW_NAV_MESH_TO_COORD(dog, spot.x, spot.y, spot.z, 2.0f, 30000, 1.0f, 0, 0.0f);
+    companion().markActive();
+    FD_INFO("herbs: %.0f m (%s)", dist(spot, pos(player())), asked ? "asked" : "herbalist");
 }
 
 static float noseFactor(const DogRecord& d) {
@@ -567,6 +646,7 @@ void tick() {
     Ped dog = comp.ped();
     bool allowed = behaviour::autonomyAllowed() && !inTown(pos(player()));
     waterShy(dog, *d);
+    herbs(dog, *d);
     flushing(dog, *d);
     bodiesAndPelts(dog, *d);
     int t = now();
