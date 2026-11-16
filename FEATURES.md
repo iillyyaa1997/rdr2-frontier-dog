@@ -1,0 +1,82 @@
+# Frontier Dog — features
+
+A dog companion for Red Dead Redemption 2 story mode: a dog that lives with the gang, hunts with Arthur, gets hurt, gets
+better, and has a character of its own. Every system below can be switched off in `FrontierDog.ini`.
+
+## The dog at your side
+- Joins you after the game loads and arrives out of view, like your horse; comes back on its own when left behind, after
+  fast travel, trains or cutscenes.
+- Whistle to call it; its hearing range grows with your bond.
+- Focus the dog for its prompts: Stay, Follow, Praise, Send home, «Leave it» (stops everything it does on its own).
+- Waits outside buildings; on story missions it stays out of the way and hides during cutscenes.
+- A paw blip on the radar and the map, and the dog's own health core next to Arthur's and the horse's.
+- An inspect card (Show info): stats, bond, traits and skills on two pages — also for strays you have not tamed yet.
+
+## Bond, skills, breeds
+- Bond levels 1–3, earned by praise, petting, feeding, brushing, treats, fetching and time together.
+- Eight skills that grow by doing (levels 1–3): Retrieve, Soft mouth, Trail, Hold, Point, Flush, Guard, Ambush sense — or
+  pay a stable hand to train one overnight.
+- Twelve breeds: Australian Shepherd, Bloodhound, Bluetick Coonhound, Border Collie, Catahoula, Chesapeake Bay Retriever,
+  American Foxhound, Husky, Labrador, Poodle, Mutt and a Shiba Inu (on the husky model, red-and-white, 72 % size).
+- Five stats (Strength, Nose, Stamina, Courage, Trainability) and 23 traits (Huntress, Tenacious, Fearless, Grip, Diver,
+  Herbalist, Horse herder, Tracker, …).
+- Grades: Pedigree (the mutt's is Street-hardened), Standard and Ailing. Every dog's roll is fixed when the mod first
+  meets it.
+
+## Life and death
+- A badly hurt dog goes down and waits 5, 15 or 30 minutes (by bond) for a Dog Reviver or a Horse Reviver; revived dogs
+  limp until treated with horse medicine or a tonic.
+- Not saved in time, it is nursed back in camp for a day and returns one grade lower instead of dying; an Ailing dog
+  that falls dies for good. Explosions and headshots kill outright, as with horses (optional protection in the ini).
+- Whoever was fighting a downed dog turns on Arthur instead of finishing it.
+
+## Hunting
+- Fetches what Arthur shoots: small game in its jaws, medium game dragged, large game hauled backwards on its own
+  strength — and loads the carcass onto Arthur's horse when the horse is near.
+- Shots taken during a carry wait their turn; pelt quality depends on Soft mouth; tired dogs rest.
+- Huntress catches three-star game by herself; Point, Flush on command, trail and hold a wounded animal, bring bodies
+  and pelts, retrieve from water (Diver from deep water).
+- «Find herbs»: leads you to nearby herbs; Herbalist shows them within 50 m by itself.
+
+## Guarding
+- «Get him!» while aiming at a man or an animal; warns about predators once each; senses ambushes.
+- Guards your horse (Guard 1–3), Grip knocks fleeing men down, Fearless stands up to bears, growls at lawmen while
+  you are wanted, Horse herder stops a bolting horse.
+- «Track» bounty targets sent by Bounties Expansion and Contracts.
+
+## Care
+- Hunger and feeding from your satchel (meat, Dog Food, Dog Treat), its own dirt that shows on the coat, brushing,
+  resting by the campfire.
+- The Shiba's habits: sulks after a brush, watches you eat, shy of strangers, zoomies, sleeps curled up in camp, quiet
+  alerts, wary of water until bond 3, won't carry one-star game.
+
+## Home in camp
+- Up to four dogs: one with Arthur, three at home in the gang camp, where you see them lying, sitting and sleeping.
+- Take one along for free or let one go for good; at home dogs are fed and rested and their bond grows slowly.
+
+## Stables
+- Dogs for sale outside all eight stables: three of the region's breeds, standard or pedigree, re-stocked every three
+  in-game days.
+- The stable hand trains skills, cures an Ailing dog ($40, one day), makes a breed dog Pedigree ($150, seven days), issues
+  papers, makes a new name collar (rename), buys your dog (60 % with papers, 30 % without) and brings a dog from home
+  ($5, 15 seconds).
+
+## Delivery from camp
+- Send for a dog at your own campfire in the wild, by telegram at any post office, or through a passer-by ($2).
+- A courier really rides out of camp: his blip moves along the roads at a horse's pace, near you he becomes a rider with
+  your dog running beside his horse, hands it over and rides off. $5–15 by distance; the trip survives a reload.
+
+## Strays
+- Mutts along roads, packs of two or three near towns, never more than three around.
+- Tame one with food or a pat; a Street-hardened mutt keeps its distance until fed on two or three different days.
+- A fed stray may tag along; a standard mutt becomes Street-hardened through seven deeds with you.
+
+## Items (Lenny's Mod Loader)
+- Dog Reviver (stable hand), Dog Food and Dog Treat (butcher) as real items in the satchel.
+
+## Companion mod: Honor Shield
+- Killing men or animals that attacked you first costs no honor (a separate .asi, optional).
+
+## Also
+- English and Russian, picked from the game's language; other languages via text files.
+- Script events (`FRONTIER_DOG_*`) for other mods.
