@@ -7,6 +7,7 @@
 #include "dog/behaviour.h"
 #include "dog/care.h"
 #include "dog/companion.h"
+#include "dog/delivery.h"
 #include "dog/home.h"
 #include "dog/hunting.h"
 #include "dog/stables.h"
@@ -74,6 +75,7 @@ static void scriptMain() {
     care::start();
     stables::start();
     home::start();
+    delivery::start();
     DECORATOR::DECOR_REGISTER("FD_shop", 3);
     while (true) {
         int n = SCRIPT::GET_NUMBER_OF_EVENTS(0);
@@ -90,6 +92,7 @@ static void scriptMain() {
         care::tick();
         stables::tick();
         home::tick();
+        delivery::tick();
         ui::coreTick();
         ui::cardTick();
 #ifdef FD_TEST
