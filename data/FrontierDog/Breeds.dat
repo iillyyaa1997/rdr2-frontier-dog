@@ -142,15 +142,15 @@ shiba.habit.quiet_alert=1
 huntress.prey=a_c_rabbit_01,a_c_squirrel_01,a_c_chipmunk_01,a_c_pheasant_01,a_c_prairiechicken_01,a_c_turkey_01,a_c_turkey_02,a_c_turkeywild_01,a_c_duck_01,a_c_goosecanada_01,a_c_raccoon_01,a_c_fox_01,a_c_possum_01,a_c_badger_01,a_c_muskrat_01
 
 [Regions]
-# trait weights for strays by district (D106 idea 2): trait:multiplier
-region.bayou_nwa=diver:3,long_retrieve:1.5
-region.bluewater_marsh=diver:3,soft_mouth:1.5
-region.grizzlies_east=hardy:2.5,frugal:2,tough:1.5
-region.grizzlies_west=hardy:2.5,frugal:2,tough:1.5
+# trait weights for strays by district (D106 idea 2): trait:multiplier; district names as the game hashes them, no spaces/underscores (seen in BountyPay)
+region.bayounwa=diver:3,long_retrieve:1.5
+region.bluewatermarsh=diver:3,soft_mouth:1.5
+region.grizzlieseast=hardy:2.5,frugal:2,tough:1.5
+region.grizzlieswest=hardy:2.5,frugal:2,tough:1.5
 region.heartlands=watchdog:2,horse_herder:1.5,obedient:1.5
-region.scarlett_meadows=watchdog:2,affectionate:1.5
-region.big_valley=tracker:2,flusher:1.5
-region.cumberland_forest=tracker:2,bloodhound_nose:1.5
-region.roanoke_ridge=tracker:1.5,hardy:1.5,fearless:1.5
-region.great_plains=quick:2,flusher:1.5
-region.tall_trees=tracker:2,hardy:1.5
+region.scarlettmeadows=watchdog:2,affectionate:1.5
+region.bigvalley=tracker:2,flusher:1.5
+region.cumberlandforest=tracker:2,bloodhound_nose:1.5
+region.roanokeridge=tracker:1.5,hardy:1.5,fearless:1.5
+region.greatplains=quick:2,flusher:1.5
+region.talltrees=tracker:2,hardy:1.5
