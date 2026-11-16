@@ -5,6 +5,7 @@
 
 #include "core/log.h"
 #include "core/strutil.h"
+#include "dog/behaviour.h"
 #include "game/game.h"
 #include "mod/context.h"
 
@@ -205,8 +206,8 @@ void Companion::updatePrompts() {
     bool close = dist(ped_, player()) < 4.0f && !PED::IS_PED_ON_MOUNT(player());
     stayPrompt_.setText(ctx().t(stay_ ? "prompt.follow" : "prompt.stay", d && d->female));
     stayPrompt_.show(close);
-    praisePrompt_.show(close);
-    homePrompt_.show(close && !onMission());
+    praisePrompt_.show(close && !behaviour::feedOffered());
+    homePrompt_.show(close && !onMission() && !behaviour::trackOffered());
     if (stayPrompt_.fired()) {
         if (stay_) {
             follow();
@@ -306,7 +307,7 @@ void Companion::updateFollow() {
     lastPosAt_ = t;
     float dd = dist(ped_, pl);
     float range = whistleRange();
-    bool busy = PED::IS_PED_IN_COMBAT(ped_, 0) || TASK::IS_PED_IN_WRITHE(ped_);
+    bool busy = PED::IS_PED_IN_COMBAT(ped_, 0) || TASK::IS_PED_IN_WRITHE(ped_) || behaviour::busy();
     bool inside = INTERIOR::GET_INTERIOR_FROM_ENTITY(pl) && !ctx().ini.getBool("AllowEnteringInteriors", false);
     if (stay_ || busy || inside) {
         stuckSince_ = 0;

@@ -26,3 +26,11 @@ ailing.health_cut=0.25
 wounded.wait_min=5,15,30
 wounded.health_pct=12
 trait.hardy.wait=1.5
+[Behaviour]
+attack.range=60
+predator.warn_range=40
+hunger.feed_from=20
+hunger.meal=60
+hunger.treat=20
+bond.treat=5
+bond.treat_cooldown_ms=60000
