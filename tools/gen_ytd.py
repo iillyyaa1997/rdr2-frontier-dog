@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""gen_ytd.py OUT.ytd NAME=IMAGE.png [NAME=IMAGE.png ...]
+"""gen_ytd.py [--mips N (default 0 = the full chain)] [--scale K] OUT.ytd NAME=IMAGE.png [NAME=IMAGE.png ...]
 
 Writes an RDR2 texture dictionary (.ytd, RSC8 resource) that Lenny's Mod Loader streams as an add-on and DRAW_SPRITE
 draws by (file name, texture name). No Windows tool needed. The layout copies the one of an add-on .ytd that works
@@ -10,11 +10,11 @@ in the game (PDO Reloaded's PDOR_ICONS.ytd, read 16.11; tested build 1.0.1491.50
   virtual  at 0x50000000: pgDictionary { vtable 0, page map ptr, 0, refs 1, hashes {ptr,count,cap},
            textures {ptr,count,cap} }, the page map (0x48: 02 02), one 0x80-byte texture per entry, one 0x50-byte
            view block per entry, the texture pointer array, the hash array, the names; padding 0xCF
-  texture  +0x08 u32 two bits 01 per mip; +0x0C u32 1; +0x10 02 80 00 18; +0x18 u16 width, u16 height, u16 depth 1,
+  texture  +0x08 u32 two bits 01 per mip (with 1x1); +0x0C u32 1; +0x10 02 80 00 18; +0x18 u16 width, u16 height, u16 depth 1,
            u8 1, u8 format (0x4D = BC3); +0x20 0D 00 u8 mips 00 00 00 01 00; +0x28 name ptr; +0x30 view ptr;
            +0x38 data ptr (0x60000000 + offset in the physical part); +0x78 CD padding
   entries  sorted by joaat(name), the hash array in the same order
-  data     BC3 blocks, linear, one mip (the sprites are drawn near their own size)
+  data     BC3 blocks, linear, the whole mip chain down to 1x1 (one mip draws as garbage in game)
 
 Images must be RGBA with sides a multiple of 4; up to 0x10000 bytes of BC3 per 0x20000 page is plenty for HUD icons.
 Needs Pillow (to read the images).
@@ -90,8 +90,26 @@ def bc3(im):
     return bytes(out)
 
 
-def build(entries):
-    """entries: list of (name, RGBA image). Returns the .ytd bytes."""
+def mip_chain(im, levels):
+    """BC3 of `levels` mips from im down (1 = just im; 0 = the whole chain to 1x1), and the level count."""
+    w, h = im.size
+    if levels == 0:
+        levels = max(w, h).bit_length()
+    out = bytearray()
+    for lv in range(levels):
+        mw, mh = max(1, w >> lv), max(1, h >> lv)
+        m = im if lv == 0 else im.resize((mw, mh), Image.LANCZOS)
+        if mw < 4 or mh < 4:  # a block is 4x4: the rest of it is never sampled
+            pad = Image.new('RGBA', (max(4, mw), max(4, mh)), (0, 0, 0, 0))
+            pad.paste(m, (0, 0))
+            m = pad
+        out += bc3(m)
+    return bytes(out), levels
+
+
+def build(entries, levels=0):
+    """entries: list of (name, RGBA image); levels: mips per texture (0 = the full chain - needed: checked in game
+    16.11, one-mip textures draw as red garbage while the full chain at 64 and at 128 draws right). Returns bytes."""
     entries = sorted(entries, key=lambda e: joaat(e[0]))
     n = len(entries)
     v = bytearray(b'\xcf' * VSIZE)
@@ -111,16 +129,16 @@ def build(entries):
     for i, (name, im) in enumerate(entries):
         w, h = im.size
         assert w % 4 == 0 and h % 4 == 0, name
-        data = bc3(im)
+        data, nmips = mip_chain(im, levels)
         if off // PAGE != (off + len(data) - 1) // PAGE:
             off = (off // PAGE + 1) * PAGE
         assert off + len(data) <= PSIZE, 'physical part full'
         phys[off:off + len(data)] = data
         t = bytearray(0x80)
-        struct.pack_into('<QII', t, 0, 0, 0x1, 1)                 # vtable, one mip (01), 1
+        struct.pack_into('<QII', t, 0, 0, sum(1 << (2 * k) for k in range(nmips)), 1)  # vtable, 01 per mip, 1
         t[0x10:0x18] = bytes.fromhex('0280001800000000')
         struct.pack_into('<HHHBB', t, 0x18, w, h, 1, 1, 0x4D)      # BC3
-        t[0x20:0x28] = bytes([0x0D, 0x00, 1, 0, 0, 0, 1, 0])        # one mip
+        t[0x20:0x28] = bytes([0x0D, 0x00, nmips, 0, 0, 0, 1, 0])    # mips (with 1x1)
         struct.pack_into('<QQQ', t, 0x28, VBASE + name_at, VBASE + VIEW + i * 0x50, PBASE + off)
         t[0x78:0x80] = b'\xcd' * 8
         v[TEX + i * 0x80:TEX + (i + 1) * 0x80] = t
@@ -141,13 +159,24 @@ def build(entries):
 
 
 def main():
-    if len(sys.argv) < 3:
+    argv = sys.argv[1:]
+    levels = 0
+    if '--mips' in argv:
+        i = argv.index('--mips'); levels = int(argv[i + 1]); del argv[i:i + 2]
+    scale = 1
+    if '--scale' in argv:
+        i = argv.index('--scale'); scale = int(argv[i + 1]); del argv[i:i + 2]
+    if len(argv) < 2:
         sys.exit(__doc__)
+    sys.argv[1:] = argv
     entries = []
     for arg in sys.argv[2:]:
         name, path = arg.split('=', 1)
-        entries.append((name, Image.open(path).convert('RGBA')))
-    data = build(entries)
+        im = Image.open(path).convert('RGBA')
+        if scale != 1:
+            im = im.resize((im.size[0] * scale, im.size[1] * scale), Image.BICUBIC)
+        entries.append((name, im))
+    data = build(entries, levels)
     with open(sys.argv[1], 'wb') as f:
         f.write(data)
     print(f'{sys.argv[1]}: {len(entries)} textures, {len(data)} bytes')

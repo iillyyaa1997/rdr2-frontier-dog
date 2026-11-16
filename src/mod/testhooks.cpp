@@ -16,6 +16,7 @@
 #include "game/prompt.h"
 #include "mod/context.h"
 #include "ui/card.h"
+#include "ui/draw.h"
 
 namespace fd::testhooks {
 
@@ -25,6 +26,8 @@ static std::vector<Ped> g_spawned;
 
 static int g_ctlUntil = 0;  // see probeControls
 static int g_watchUntil = 0;  // see watchHud
+static int g_spritesUntil = 0;  // see drawSprites
+static std::vector<std::pair<std::string, std::string>> g_sprites;
 static void run(const std::vector<std::string>& a) {
     auto& c = ctx();
     auto& comp = companion();
@@ -227,6 +230,19 @@ static void run(const std::vector<std::string>& a) {
         std::string line;
         for (int i = 0; i < 100; ++i) line += std::to_string(i) + ":" + std::to_string(HUD::_GET_HUD_VISIBILITY_SLOT_STATE(i)) + " ";
         FD_INFO("test: slots %s", line.c_str());
+    } else if (cmd == "sprites" && a.size() >= 3) {
+        // sprites <seconds> dict:name ...: draws those textures in a row on black (checks streamed add-on .ytd)
+        g_sprites.clear();
+        for (size_t i = 2; i < a.size(); ++i) {
+            auto p = a[i].find(':');
+            if (p == std::string::npos) continue;
+            g_sprites.push_back({a[i].substr(0, p), a[i].substr(p + 1)});
+            const char* d = g_sprites.back().first.c_str();
+            if (!TXD::HAS_STREAMED_TEXTURE_DICT_LOADED(d)) TXD::REQUEST_STREAMED_TEXTURE_DICT(d, false);
+            FD_INFO("test: sprite %s exists %d loaded %d", a[i].c_str(), int(TXD::DOES_STREAMED_TEXTURE_DICT_EXIST(d)),
+                    int(TXD::HAS_STREAMED_TEXTURE_DICT_LOADED(d)));
+        }
+        g_spritesUntil = now() + int(num(1, 20) * 1000);
     } else if (cmd == "hud") {
         // the game's HUD slot states (39 Arthur's cores, 42 horse's, 17 radar, 3 cash) and the hide flags
         FD_INFO("test: hud player %d horse %d radar %d cash %d hidden %d radarHidden %d", HUD::_GET_HUD_VISIBILITY_SLOT_STATE(39),
@@ -377,7 +393,17 @@ static void watchHud() {
     if (!diff.empty()) FD_INFO("test: slots changed %s", diff.c_str());
 }
 
+static void drawSprites() {
+    float w = 0.06f, h = w * 16 / 9, x = 0.04f, y = 0.30f;
+    for (auto& [d, n] : g_sprites) {
+        ui::rect(x - 0.004f, y - 0.007f, w + 0.008f, h + 0.014f, 0, 0, 0, 255);
+        ui::sprite(d.c_str(), n.c_str(), x, y, w, h, 255, 255, 255, 255);
+        x += w + 0.016f;
+    }
+}
+
 void tick() {
+    if (now() < g_spritesUntil) drawSprites();
     if (now() < g_ctlUntil) probeControls();
     if (now() < g_watchUntil) watchHud();
     static int next = 0;
