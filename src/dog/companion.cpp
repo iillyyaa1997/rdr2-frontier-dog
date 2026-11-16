@@ -198,6 +198,18 @@ bool Companion::adopt(Ped ped, DogRecord d) {
     return true;
 }
 
+void Companion::takeFromCamp(int slot, Ped ped) {
+    if (slot < 0 || !ctx().store.used(slot)) return;
+    if (slot_ >= 0) sendHome(false);  // in camp: it becomes one of the home dogs there
+    slot_ = slot;
+    ctx().store.at(slot).where = Where::WithArthur;
+    save();
+    DECORATOR::DECOR_SET_INT(ped, "FD_shop", 0);
+    ENTITY::SET_ENTITY_INVINCIBLE(ped, false);
+    setup(ped);
+    follow();
+}
+
 void Companion::releaseForSale() {
     DogRecord* d = record();
     if (!d) return;
@@ -235,6 +247,9 @@ void Companion::tick() {
         died();
         return;
     }
+    // a scaled-down dog has a shrunken collision capsule and falls through the ground: 0.6 every frame keeps it up
+    // (window 0.11, 15.11: sinkings 14 -> 1 with 0.6)
+    if (DogRecord* d = record(); d && d->scale > 0 && d->scale < 100) PED::SET_PED_CAPSULE(ped_, float(ctx().tunef("capsule.scaled", 0.6)));
     if (pendingFollowAt_ && now() >= pendingFollowAt_) {
         pendingFollowAt_ = 0;
         follow();

@@ -138,3 +138,7 @@ help.bought=The dog is yours: {grade}, {breed}.
 help.back_home.training={name} is back from training.
 help.back_home.cure={name} is cured and home again ({grade}).
 help.back_home.pedigree={name} is now {grade} and home again.
+prompt.take_along=Take along
+prompt.let_go=Let go for good
+help.taken_along={name} goes with you.
+help.let_go={name} is free now.

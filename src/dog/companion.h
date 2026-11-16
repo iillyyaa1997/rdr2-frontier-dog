@@ -30,7 +30,8 @@ public:
     void sendHome(bool runOff);         // the dog goes home to camp (ped removed out of view)
     void callFromHome(int slot);        // a home dog joins Arthur (arrives out of view)
     void callFromHomeAt(int slot, const Vector3& at);  // brought by the stable hand to a spot
-    bool adopt(Ped ped, DogRecord d);   // an existing ped becomes the companion (tamed stray, bought dog)
+    bool adopt(Ped ped, DogRecord d);
+    void takeFromCamp(int slot, Ped ped);  // a home dog seen in camp joins Arthur (free swap, D98)   // an existing ped becomes the companion (tamed stray, bought dog)
     void releaseForSale();              // the companion was sold: it stays with the stable hand
     bool isShopOrHomeDog(Ped p) const;  // stable dogs for sale must not be tamed
     void follow();
