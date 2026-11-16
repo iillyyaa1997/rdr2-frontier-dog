@@ -13,6 +13,10 @@ float dist(Entity a, Entity b);
 Vector3 add(const Vector3& a, const Vector3& b);
 Vector3 scale(const Vector3& a, float k);
 int now();  // game timer, ms
+// Where the game's cores stand: 0 in a row (no radar circle: minimap off or compass), 1 around the regular radar, 2
+// around the expanded one (chosen, or any mode while the HUD is revealed: a tap on Alt / D-pad down grows it). The chosen minimap mode is read like
+// Care Overhaul does, from the game's memory (only on the verified build 1.0.1491.50); otherwise from the HUD.
+int radarLayout();
 bool exists(Entity e);
 bool alive(Entity e);
 

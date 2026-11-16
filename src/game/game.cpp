@@ -241,4 +241,67 @@ void giveCash(int cents) {
     if (cents > 0) MONEY::_MONEY_INCREMENT_CASH_BALANCE(cents, MISC::GET_HASH_KEY("ADD_REASON_DEFAULT"));
 }
 
+// ---- radar mode (16.11, measured on 1.0.1491.50: hold Alt / D-pad down picks the minimap mode, a tap reveals the HUD)
+// RDR2.exe + 0x3ef1490: 0 = see the chosen mode, 1 = radar off, 2 = grown by the HUD reveal; + 0x3eb9df0 / 0x3ed0180 /
+// 0x3ef1448: the chosen mode 0 off, 1 regular, 2 expanded, 3 compass (the offsets RDR2CareOverhaul.asi reads).
+static bool verifiedBuild() {
+    static int ok = -1;
+    if (ok >= 0) return ok == 1;
+    ok = 0;
+    HMODULE ver = LoadLibraryW(L"version.dll");
+    if (!ver) return false;
+    using SizeFn = DWORD(WINAPI*)(LPCWSTR, LPDWORD);
+    using InfoFn = BOOL(WINAPI*)(LPCWSTR, DWORD, DWORD, LPVOID);
+    using QueryFn = BOOL(WINAPI*)(LPCVOID, LPCWSTR, LPVOID*, PUINT);
+    auto size = reinterpret_cast<SizeFn>(GetProcAddress(ver, "GetFileVersionInfoSizeW"));
+    auto info = reinterpret_cast<InfoFn>(GetProcAddress(ver, "GetFileVersionInfoW"));
+    auto query = reinterpret_cast<QueryFn>(GetProcAddress(ver, "VerQueryValueW"));
+    wchar_t exe[MAX_PATH];
+    if (size && info && query && GetModuleFileNameW(nullptr, exe, MAX_PATH)) {
+        DWORD ignored = 0;
+        DWORD n = size(exe, &ignored);
+        std::string data(n, '\0');
+        VS_FIXEDFILEINFO* fixed = nullptr;
+        UINT len = 0;
+        if (n && info(exe, 0, n, &data[0]) && query(data.data(), L"\\", reinterpret_cast<LPVOID*>(&fixed), &len) && fixed)
+            ok = fixed->dwFileVersionMS == ((1u << 16) | 0u) && fixed->dwFileVersionLS == ((1491u << 16) | 50u) ? 1 : 0;
+    }
+    FreeLibrary(ver);
+    FD_INFO("radar mode from memory: %s", ok ? "yes (1.0.1491.50)" : "no (another game build)");
+    return ok == 1;
+}
+
+static int readGameInt(uintptr_t off) {
+    HMODULE m = GetModuleHandleW(nullptr);
+    if (!m) return -1;
+    auto p = reinterpret_cast<const int*>(reinterpret_cast<uintptr_t>(m) + off);
+    MEMORY_BASIC_INFORMATION mbi{};
+    if (!VirtualQuery(p, &mbi, sizeof mbi) || mbi.State != MEM_COMMIT ||
+        !(mbi.Protect & (PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE)))
+        return -1;
+    return *p;
+}
+
+int radarLayout() {
+    if (verifiedBuild()) {
+        int now = readGameInt(0x3ef1490);
+        if (now == 2) return 2;  // the HUD is revealed: the radar grows whatever was chosen (timed shots 16.11)
+        int chosen = now == 1 ? 0 : -1;
+        if (chosen < 0)
+            for (uintptr_t off : {uintptr_t(0x3eb9df0), uintptr_t(0x3ed0180), uintptr_t(0x3ef1448)}) {
+                int v = readGameInt(off);
+                if (v >= 0 && v <= 3) {
+                    chosen = v;
+                    break;
+                }
+            }
+        if (chosen == 1 || chosen == 2) return chosen;
+        if (chosen == 0 || chosen == 3) return 0;  // off / compass: no radar circle
+    }
+    // another build: no radar circle when it is hidden (grown while the HUD is revealed: slot 2 goes 0 -> 1 with the
+    // cash and the place name), else regular (expanded and compass cannot be told apart this way)
+    if (HUD::IS_RADAR_HIDDEN()) return HUD::_GET_HUD_VISIBILITY_SLOT_STATE(2) == 1 ? 2 : 0;
+    return 1;
+}
+
 }  // namespace fd::game

@@ -24,6 +24,7 @@ using namespace game;
 static std::vector<Ped> g_spawned;
 
 static int g_ctlUntil = 0;  // see probeControls
+static int g_watchUntil = 0;  // see watchHud
 static void run(const std::vector<std::string>& a) {
     auto& c = ctx();
     auto& comp = companion();
@@ -213,6 +214,13 @@ static void run(const std::vector<std::string>& a) {
         ui::cardInfoControl(a[1]);
     } else if (cmd == "ctl") {
         g_ctlUntil = now() + int(num(1, 20) * 1000);
+    } else if (cmd == "watch") {
+        g_watchUntil = now() + int(num(1, 20) * 1000);
+    } else if (cmd == "slots") {
+        // every HUD visibility slot state 0..99 in one line (which ones change when the radar expands)
+        std::string line;
+        for (int i = 0; i < 100; ++i) line += std::to_string(i) + ":" + std::to_string(HUD::_GET_HUD_VISIBILITY_SLOT_STATE(i)) + " ";
+        FD_INFO("test: slots %s", line.c_str());
     } else if (cmd == "hud") {
         // the game's HUD slot states (39 Arthur's cores, 42 horse's, 17 radar, 3 cash) and the hide flags
         FD_INFO("test: hud player %d horse %d radar %d cash %d hidden %d radarHidden %d", HUD::_GET_HUD_VISIBILITY_SLOT_STATE(39),
@@ -328,8 +336,44 @@ static void probeControls() {
     }
 }
 
+// 'watch <s>': every change of the HUD slots that move cores and of the radar mode Care Overhaul reads from the
+// game's memory (RDR2.exe + 0x3ef1490 and its fallbacks, build 1491.50), for s seconds
+static int readGameInt(uintptr_t off) {
+    HMODULE m = GetModuleHandleW(L"RDR2.exe");
+    if (!m) return -99;
+    auto p = reinterpret_cast<const int*>(reinterpret_cast<uintptr_t>(m) + off);
+    MEMORY_BASIC_INFORMATION mbi{};
+    if (!VirtualQuery(p, &mbi, sizeof mbi) || mbi.State != MEM_COMMIT ||
+        !(mbi.Protect & (PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE)))
+        return -98;
+    return *p;
+}
+static void watchHud() {
+    static std::string last;
+    std::string s = "p" + std::to_string(HUD::_GET_HUD_VISIBILITY_SLOT_STATE(39)) + " h" +
+                    std::to_string(HUD::_GET_HUD_VISIBILITY_SLOT_STATE(42)) + " r" +
+                    std::to_string(HUD::_GET_HUD_VISIBILITY_SLOT_STATE(17)) + " s14:" +
+                    std::to_string(HUD::_GET_HUD_VISIBILITY_SLOT_STATE(14)) + " mem " + std::to_string(readGameInt(0x3ef1490)) + "/" +
+                    std::to_string(readGameInt(0x3eb9df0)) + "/" + std::to_string(readGameInt(0x3ed0180)) + "/" +
+                    std::to_string(readGameInt(0x3ef1448)) + " radarHidden " + std::to_string(int(HUD::IS_RADAR_HIDDEN()));
+    if (s != last) FD_INFO("test: watch %s", s.c_str());
+    last = s;
+    // every other HUD slot that changes (which one tells the HUD is revealed / the radar grown)
+    static int prev[100];
+    static bool init = false;
+    std::string diff;
+    for (int i = 0; i < 100; ++i) {
+        int v = HUD::_GET_HUD_VISIBILITY_SLOT_STATE(i);
+        if (init && v != prev[i]) diff += std::to_string(i) + ":" + std::to_string(prev[i]) + ">" + std::to_string(v) + " ";
+        prev[i] = v;
+    }
+    init = true;
+    if (!diff.empty()) FD_INFO("test: slots changed %s", diff.c_str());
+}
+
 void tick() {
     if (now() < g_ctlUntil) probeControls();
+    if (now() < g_watchUntil) watchHud();
     static int next = 0;
     if (now() < next) return;
     next = now() + 1000;

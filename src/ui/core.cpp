@@ -22,13 +22,16 @@ void coreTick() {
     auto& comp = companion();
     DogRecord* d = comp.record();
     static float alpha = 0, curX = -1, curY = 0, curW = 38.0f / 1920.0f;
-    static int lastTick = 0, hiddenSince = -1, hideDelay = 0;
+    static int lastTick = 0, hiddenSince = -1, hideDelay = 0, horseSeenAt = -100000;
     int t = game::now();
     int dt = std::clamp(t - lastTick, 0, 200);
     lastTick = t;
     float showEase = float(std::max(1LL, c.ini.getInt("CoreShowEaseMs", 100)));
     float hideEase = float(std::max(1LL, c.ini.getInt("CoreHideEaseMs", 250)));
-    int player = slotState(39), horse = slotState(42), radar = slotState(17), cash = slotState(3);
+    int player = slotState(39), horse = slotState(42);
+    if (slotShown(horse)) horseSeenAt = t;
+    // the horse's two cores stay on screen through the hide delay and fade too
+    bool horseCores = t - horseSeenAt < c.ini.getInt("CoreHideDelayMs", 2000) + c.ini.getInt("CoreHideEaseMs", 250);
     // shown together with Arthur's or the horse's cores and only then (no timer of our own: it showed before the radar)
     bool wanted = comp.present() && d && !HUD::IS_HUD_HIDDEN() && (slotShown(player) || slotShown(horse));
     if (wanted) {
@@ -45,20 +48,24 @@ void coreTick() {
     alpha = std::clamp(alpha, 0.0f, 1.0f);
     if (alpha <= 0 || !comp.present() || !d) return;
 
-    bool revealed = cash == 1 || cash == 3;
-    bool large = revealed || c.ini.getBool("RadarExpanded", false);
+    // where the game's cores stand follows the minimap mode: around the expanded radar (chosen, or while the HUD is
+    // revealed - a tap on Alt / D-pad down grows it), around the regular one, or in a row with no radar (off, compass)
+    int layout = game::radarLayout();
+    bool large = layout == 2;
     float tx = float(c.ini.getFloat(large ? "CoresX" : "CoresSmallX", large ? 0.1969 : 0.1542));
     float ty = float(c.ini.getFloat(large ? "CoresY" : "CoresSmallY", large ? 0.8519 : 0.8870));
     float tw = (large ? 52.0f : 38.0f) / 1920.0f;
-    if (radar == 4 && slotShown(player) && !revealed) {  // no radar: the game's cores stand in a row at the bottom left
-        tx = float(c.ini.getFloat("CoresRowX", 0.0951));
+    if (layout == 0) {  // no radar circle: the game's cores stand in a row at the bottom left, the horse's after Arthur's
+        tx = float(c.ini.getFloat("CoresRowX", 0.0951)) + (horseCores ? 2 * float(c.ini.getFloat("CoresRowStep", 0.0238)) : 0.0f);
         ty = float(c.ini.getFloat("CoresRowY", 0.9306));
         tw = 38.0f / 1920.0f;
     }
-    if (curX < 0) { curX = tx; curY = ty; }
-    curX += (tx - curX) * 0.2f;
-    curY += (ty - curY) * 0.2f;
-    curW += (tw - curW) * 0.2f;
+    // the game's cores jump between the layouts, no glide (16.11); a bit larger than the measured spots - its ring
+    // was ~33 px against the game's ~40 at 1080p - grown around the same centre
+    float scale = float(c.ini.getFloat("CoreScale", 1.2));
+    curX = tx - tw * (scale - 1) / 2;
+    curY = ty - tw * 16 / 9 * (scale - 1) / 2;
+    curW = tw * scale;
 
     int a = int(alpha * 255);
     float w = curW, h = curW * 16 / 9;

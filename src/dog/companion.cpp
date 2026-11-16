@@ -263,11 +263,17 @@ void Companion::tick() {
 
 void Companion::updatePrompts() {
     DogRecord* d = record();
-    bool close = dist(ped_, player()) < 4.0f && !PED::IS_PED_ON_MOUNT(player());
+    float dd = dist(ped_, player());
+    bool close = dd < 4.0f && !PED::IS_PED_ON_MOUNT(player());
+    // Stay / Follow and Send home while Arthur aims at the dog from any distance it hears him (16.11: from afar only
+    // "Show info" was there); praise needs it close
+    Entity focus = 0;
+    PLAYER::GET_PLAYER_INTERACTION_TARGET_ENTITY(PLAYER::PLAYER_ID(), &focus, false, false);
+    bool command = close || (focus == ped_ && dd < whistleRange());
     stayPrompt_.setText(ctx().t(stay_ ? "prompt.follow" : "prompt.stay", d && d->female));
-    stayPrompt_.show(close);
+    stayPrompt_.show(command);
     praisePrompt_.show(close && !behaviour::feedOffered() && !care::offersButton1());
-    homePrompt_.show(close && !onMission() && !behaviour::trackOffered());
+    homePrompt_.show(command && !onMission() && !behaviour::trackOffered());
     if (stayPrompt_.fired()) {
         if (d) addDeed(*d, ctx().breeds, "command", 1, ctx().rng);
         if (stay_) {
