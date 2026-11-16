@@ -4,7 +4,7 @@
 set -e
 OBJ=/tmp/obj; rm -rf $OBJ; mkdir -p $OBJ
 FLAGS="--target=x86_64-pc-windows-msvc -fms-compatibility-version=19.29 /nologo /c /std:c++17 /O2 /MT /EHsc /fp:fast /W3 \
- /D WIN32 /D NDEBUG /D _WINDOWS /D _USRDLL $DEFS /I src \
+ /D WIN32 /D _CRT_SECURE_NO_WARNINGS /D NDEBUG /D _WINDOWS /D _USRDLL $DEFS /I src \
  /imsvc /xwin/crt/include /imsvc /xwin/sdk/include/ucrt /imsvc /xwin/sdk/include/um /imsvc /xwin/sdk/include/shared \
  -Wno-unused-parameter -Wno-missing-field-initializers -Wno-microsoft-cast"
 export FLAGS OBJ
