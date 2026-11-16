@@ -34,12 +34,15 @@ static Vector3 g_flushBehind, g_lastRoadPos;
 static bool g_flushCircle = false, g_roadInit = false;
 static std::map<int, int> g_noticed;  // ped -> time (pointing, ambush, guard bark, lawmen growl)
 static int g_swimSince = 0;
+static Vector3 g_lastDry;
+static bool g_waterRefusing = false, g_watchingFood = false;
+static int g_landSince = 0;
 
 bool busy() {
     int t = now();
     return (g_hunt && t < g_huntUntil) || (g_trail && t < g_trailUntil) || t < g_holdUntil || (g_flushGame && t < g_flushUntil) ||
            (g_gripMan && t < g_gripUntil) || (g_guardFoe && t < g_guardUntil) || (g_fearlessFoe && t < g_fearlessUntil) ||
-           t < g_herdUntil || t < g_pointUntil || t < g_zoomUntil;
+           t < g_herdUntil || t < g_pointUntil || t < g_zoomUntil || g_waterRefusing || g_watchingFood;
 }
 
 void start() {
@@ -482,6 +485,61 @@ static void habits(Ped dog, DogRecord& d) {
     }
 }
 
+// a water-shy breed (Shiba below bonding 3, old D47) turns back when it starts swimming and waits on the last dry spot;
+// it rejoins when Arthur is on land within 15 m, or arrives out of view once he has been on land 5 s and is far
+static void waterShy(Ped dog, DogRecord& d) {
+    const BreedDef* b = ctx().breeds.find(d.breed);
+    int shyBelow = b ? int(b->habits.getInt("water_shy_bond", 0)) : 0;
+    bool swims = PED::IS_PED_SWIMMING(dog);
+    if (!swims && !ENTITY::IS_ENTITY_IN_WATER(dog)) g_lastDry = pos(dog);
+    if (shyBelow <= 0 || d.bondLevel >= shyBelow) { g_waterRefusing = false; return; }
+    Ped mount = PED::GET_MOUNT(player());
+    bool onLand = !PED::IS_PED_SWIMMING(player()) && !ENTITY::IS_ENTITY_IN_WATER(player()) &&
+                  !(mount && (PED::IS_PED_SWIMMING(mount) || ENTITY::IS_ENTITY_IN_WATER(mount)));
+    g_landSince = onLand ? (g_landSince ? g_landSince : now()) : 0;
+    if (swims && !g_waterRefusing && !hunting::busy()) {
+        g_waterRefusing = true;
+        TASK::CLEAR_PED_TASKS(dog, true, true);
+        int seq = 0;
+        TASK::OPEN_SEQUENCE_TASK(&seq);
+        TASK::TASK_FOLLOW_NAV_MESH_TO_COORD(0, g_lastDry.x, g_lastDry.y, g_lastDry.z, 2.0f, 15000, 0.5f, 0, 0.0f);
+        TASK::TASK_TURN_PED_TO_FACE_ENTITY(0, player(), 1500, 0, 0, 0);
+        TASK::TASK_START_SCENARIO_IN_PLACE_HASH(0, MISC::GET_HASH_KEY("WORLD_ANIMAL_DOG_SITTING"), -1, true, 0, -1.0f, false);
+        TASK::CLOSE_SEQUENCE_TASK(seq);
+        TASK::TASK_PERFORM_SEQUENCE(dog, seq);
+        TASK::CLEAR_SEQUENCE_TASK(&seq);
+        AUDIO::PLAY_ANIMAL_VOCALIZATION(dog, "WHINE", true);
+        FD_INFO("water-shy: turns back to the shore");
+        return;
+    }
+    if (!g_waterRefusing) return;
+    if (onLand && dist(dog, player()) < 15.0f) {
+        g_waterRefusing = false;
+        companion().follow();
+    } else if (g_landSince && now() - g_landSince > 5000 && dist(dog, player()) > 40.0f && !onMission()) {
+        g_waterRefusing = false;
+        companion().arriveOutOfView();  // found a way round
+    }
+}
+
+// the Shiba sits by Arthur and stares at his food while he eats (old D58)
+static void watchFood(Ped dog, DogRecord& d) {
+    const BreedDef* b = ctx().breeds.find(d.breed);
+    if (!b || !b->habits.getBool("watches_food", false)) return;
+    bool onFoot = !PED::IS_PED_ON_MOUNT(player()) && !PED::IS_PED_IN_ANY_VEHICLE(player(), false);
+    bool eating = onFoot && TASK::IS_PED_RUNNING_TASK_ITEM_INTERACTION(player());
+    if (eating && !g_watchingFood && !busy() && !hunting::busy() && dist(dog, player()) < 15.0f) {
+        g_watchingFood = true;
+        TASK::CLEAR_PED_TASKS(dog, true, true);
+        TASK::TASK_LOOK_AT_ENTITY(dog, player(), 20000, 0, 0, 0);
+        TASK::TASK_START_SCENARIO_IN_PLACE_HASH(dog, MISC::GET_HASH_KEY("WORLD_ANIMAL_DOG_BEGGING"), -1, true, 0, -1.0f, false);
+        FD_INFO("habit: watches Arthur eat");
+    } else if (!eating && g_watchingFood) {
+        g_watchingFood = false;
+        companion().follow();
+    }
+}
+
 // ---------------------------------------------------------------- deeds for mutt hardening
 static void roadAndWater(Ped dog, DogRecord& d) {
     Vector3 p = pos(dog);
@@ -508,6 +566,7 @@ void tick() {
     if (!d || d->woundedUntil > 0) return;
     Ped dog = comp.ped();
     bool allowed = behaviour::autonomyAllowed() && !inTown(pos(player()));
+    waterShy(dog, *d);
     flushing(dog, *d);
     bodiesAndPelts(dog, *d);
     int t = now();
@@ -525,6 +584,7 @@ void tick() {
         if (allowed && !comp.staying() && !busy()) pointing(dog, *d);
         senses(dog, *d);
         habits(dog, *d);
+        watchFood(dog, *d);
         roadAndWater(dog, *d);
         for (auto it = g_noticed.begin(); it != g_noticed.end();)
             it = (t - it->second > 900000) ? g_noticed.erase(it) : std::next(it);
