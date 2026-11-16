@@ -120,7 +120,7 @@ static void run(const std::vector<std::string>& a) {
         auto v = st.getFloats(a[1] + ".dogs");
         if (v.size() == 3) ENTITY::SET_ENTITY_COORDS(pl, float(v[0]) + 12, float(v[1]) - 14, float(v[2]) + 1, false, false, false, true);  // well outside the building
     } else if (cmd == "set" && a.size() >= 3 && comp.record()) {
-        // set grade|hunger|dirt|bond|scale|preset|stat<1-5> <value>; skill <id> <level>; trait <id>; untrait <id>
+        // set grade|hunger|dirt|bond|scale|preset|maxhp|stat<1-5> <value>; skill <id> <level>; trait <id>; untrait <id>
         DogRecord& d = *comp.record();
         double v = num(2, 0);
         if (a[1] == "grade") d.grade = Grade(int(v));
@@ -130,6 +130,12 @@ static void run(const std::vector<std::string>& a) {
         else if (a[1] == "scale") { d.scale = int(v); PED::_SET_PED_SCALE(comp.ped(), float(v) / 100.0f); }
         else if (a[1] == "preset") { d.preset = int(v); PED::_EQUIP_META_PED_OUTFIT_PRESET(comp.ped(), int(v), false); }
         else if (a[1].rfind("stat", 0) == 0 && a[1].size() == 5) d.stats[std::clamp(a[1][4] - '1', 0, 4)] = int(v);
+        else if (a[1] == "maxhp" && comp.present()) {  // the core's grey track follows max health (D148)
+            Ped dp = comp.ped();
+            float f = float(ENTITY::GET_ENTITY_HEALTH(dp)) / std::max(1, ENTITY::GET_ENTITY_MAX_HEALTH(dp, false));
+            ENTITY::SET_ENTITY_MAX_HEALTH(dp, int(v));
+            ENTITY::SET_ENTITY_HEALTH(dp, std::max(1, int(v * f)), 0);
+        }
         comp.save();
     } else if (cmd == "skill" && a.size() >= 3 && comp.record()) {
         comp.record()->skillLevel[a[1]] = int(num(2, 1));

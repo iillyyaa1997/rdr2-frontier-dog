@@ -10,7 +10,9 @@ better, and has a character of its own. Every system below can be switched off i
 - Focus the dog for its prompts: Stay, Follow, Praise, Send home, «Leave it» (stops everything it does on its own) —
   Stay / Follow and Send home from any distance it can hear your whistle.
 - Waits outside buildings; on story missions it stays out of the way and hides during cutscenes.
-- A paw blip on the radar and the map, and the dog's own core next to Arthur's and the horse's: it shows, hides and
+- A paw blip on the radar and the map, and the dog's own core next to Arthur's and the horse's, drawn like them: a worn
+  paw that drains from the top as the dog gets hungry (red when starving, blinking red when wounded), its ring the
+  dog's health over a grey track that grows with your bond the way Arthur's grows with his level. It shows, hides and
   moves exactly with the game's cores (regular or expanded radar, the HUD reveal, compass or no radar).
 - Its name on the focus title, and its own inspect card on Show info: stats, bond, traits and skills on two pages —
   also for strays you have not tamed yet, dogs for sale and dogs at home (the game's card would only name the model's

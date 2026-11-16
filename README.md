@@ -18,7 +18,14 @@ ScriptHookRDR2.dll is generated at build time from the symbols the code imports,
 
 - RDR2 1.0.1491.50 (Steam), Story Mode
 - [ScriptHookRDR2 V2](https://www.nexusmods.com/reddeadredemption2/mods/1472) and an ASI loader
-- Lenny's Mod Loader for the new items (dog reviver, food, treat)
+- Lenny's Mod Loader for the new items (dog reviver, food, treat) and the dog's core icon
+
+## The dog's core icon
+
+`data/hud/paw_core_0..15.png` — our own paw in the style of the game's core icons, 16 drained states like
+`rpg_core_health core_state_0..15`, made by `tools/gen_paw_core.py` from the game's hearts (see its header). They are
+packed into a texture dictionary `frontier_dog_hud.ytd` (textures `paw_core_0` … `paw_core_15`) with a Windows tool and
+streamed by Lenny's Mod Loader; without it the core falls back to the game's paw blip. Not yet checked in game.
 
 ## License
 
