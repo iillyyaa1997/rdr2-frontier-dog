@@ -8,4 +8,6 @@ void tick();
 void onEvent(Hash type, int index);
 bool busy();
 void giveUp();  // the dog lets go (whistle by an Obedient dog, being sent home)
+// bring a given carcass/body/pelt (Huntress catch, «Притащить тело», «Отнести к лошади»); false if it cannot
+bool bring(Ped carcass, bool keepQuality, bool body, bool pelt, bool toHorse);
 }

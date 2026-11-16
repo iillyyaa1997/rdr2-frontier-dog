@@ -151,3 +151,7 @@ help.courier_done={name} is with you.
 help.message_sent=The passer-by is off with the message.
 help.stray_wary=The dog keeps its distance. Feed it again another day.
 help.stray_trusts=The dog starts to trust you.
+prompt.flush=Flush game
+prompt.bring_body=Bring the body
+prompt.pelt_to_horse=Take it to the horse
+help.hardened={name} is hardened by road and street: now {grade}.

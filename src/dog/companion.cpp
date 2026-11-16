@@ -270,6 +270,7 @@ void Companion::updatePrompts() {
     praisePrompt_.show(close && !behaviour::feedOffered() && !care::offersButton1());
     homePrompt_.show(close && !onMission() && !behaviour::trackOffered());
     if (stayPrompt_.fired()) {
+        if (d) addDeed(*d, ctx().breeds, "command", 1, ctx().rng);
         if (stay_) {
             follow();
             speech(player(), PED::IS_PED_MALE(ped_) ? "HORSE_FOLLOW_ME_MALE" : "HORSE_FOLLOW_ME_FEMALE");

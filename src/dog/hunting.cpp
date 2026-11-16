@@ -141,6 +141,30 @@ static void afterDelivery(DogRecord& d) {
     comp.save();
 }
 
+bool bring(Ped carcass, bool keepQuality, bool body, bool pelt, bool toHorse) {
+    auto& comp = companion();
+    DogRecord* d = comp.record();
+    if (!comp.present() || !d || g_carry.active()) return false;
+    CarryJob job;
+    job.carcass = carcass;
+    job.size = pelt ? CarrySize::Small : CarryTask::sizeOf(carcass, &job.length);
+    job.body = body;
+    job.pelt = pelt;
+    job.losesQuality = !keepQuality;
+    job.speed = job.size == CarrySize::Small ? 3.0f : 1.0f;
+    job.staminaSeconds = float(ctx().tunef("carry.stamina_seconds", 45)) * staminaFactor(d->stats[Stamina]);
+    if (job.size == CarrySize::Large || body) {
+        float base = float(ctx().tunef("carry.pull_force", 20));
+        int s = d->stats[Strength];
+        job.pull = s >= 3 ? base * (1.0f + 0.6f * (s - 3)) : base * 0.5f;
+        if (body && job.size != CarrySize::Large) job.size = CarrySize::Large;
+    }
+    Ped horse = PLAYER::_GET_SADDLE_HORSE_FOR_PLAYER(PLAYER::PLAYER_ID());
+    if (toHorse && alive(horse)) job.horse = horse;
+    g_carry.start(comp.ped(), job);
+    return true;
+}
+
 void tick() {
     auto& comp = companion();
     if (!comp.present()) {
