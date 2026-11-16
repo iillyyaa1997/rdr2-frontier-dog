@@ -74,16 +74,17 @@ static bool spawnCourier() {
         dir = Vector3((camp.x - pp.x) / l, (camp.y - pp.y) / l, 0);
     }
     bool ok = false;
-    for (float r : {220.0f, 180.0f, 260.0f, 150.0f}) {
+    // window 16.11: a rider started 220-264 m away never moved (speed 0 for a minute) - far peds are not simulated
+    for (float r : {140.0f, 120.0f, 160.0f, 100.0f}) {
         Vector3 want = add(pp, scale(dir, r));
-        if (PATH::GET_CLOSEST_VEHICLE_NODE(want.x, want.y, want.z, &road, 0, 3.0f, 0.0f) && dist(road, pp) > 120.0f &&
+        if (PATH::GET_CLOSEST_VEHICLE_NODE(want.x, want.y, want.z, &road, 0, 3.0f, 0.0f) && dist(road, pp) > 90.0f &&
             !CAMERA::IS_SPHERE_VISIBLE(road.x, road.y, road.z + 1.0f, 2.0f)) {
             from = road;
             ok = true;
             break;
         }
     }
-    if (!ok && !hiddenSpotNear(pp, 120, 200, from)) return false;
+    if (!ok && !hiddenSpotNear(pp, 90, 150, from)) return false;
     g_horse = spawnPed(ctx().ini.get("CourierHorse", "A_C_Horse_KentuckySaddle_Black"), from, 0, 3000);
     if (!g_horse) g_horse = spawnPed("A_C_Horse_Morgan_Bay", from, 0, 3000);
     g_rider = spawnPed(ctx().ini.get("CourierModel", "A_M_M_RANCHER_01"), add(from, Vector3(1, 0, 0)), 0, 3000);
@@ -159,7 +160,7 @@ static void riding() {
                 int(PED::IS_PED_ON_MOUNT(g_rider)), ENTITY::GET_ENTITY_SPEED(g_horse));
         g_lastDist = d;
         g_progressAt = t;
-        if (stuck && d >= 140.0f) {
+        if (stuck && d >= 110.0f) {
             // far and not moving (window 16.11: stood 2 min at 222 m): move the party to a road closer, out of sight
             Vector3 spot, road;
             Vector3 pp = pos(player());
@@ -175,7 +176,7 @@ static void riding() {
                 g_lastDist = dist(spot, pp);
                 FD_INFO("delivery: the rider was stuck far away, now on the way %.0f m out of sight", g_lastDist);
             }
-        } else if (stuck && d < 140.0f) {
+        } else if (stuck && d < 110.0f) {
             // where a horse cannot get through (a cliff, a house): the dog runs the last stretch (D115)
             FD_INFO("delivery: the rider cannot get closer, the dog runs the rest");
             g_stage = Stage::Handover;

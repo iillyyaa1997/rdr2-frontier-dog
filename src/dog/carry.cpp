@@ -291,15 +291,16 @@ void CarryTask::deliver() {
         FD_INFO("carry: delivered (%s)", job_.body ? "a body" : "a pelt");
     }
     TASK::TASK_TURN_PED_TO_FACE_ENTITY(dog_, player(), 1500, 0, 0, 0);
-    if (job_.horse && dist(dog_, job_.horse) < 4.0f && ctx().ini.getBool("CarryStowOnHorse", true)) stowOnHorse();
+    if (job_.horse && dist(dog_, job_.horse) < 4.0f && ctx().ini.getBool("CarryStowOnHorse", false)) stowOnHorse();
     lastDelivered_ = true;
     ++deliveries_;
 }
 
 // The game's own way, read in its ambient scripts (av_walk_horse_carry_deer.c, av_animal_carry_ride.c 2026-11-16):
 // TASK_CARRIABLE(carcass, joaat("DEAD_CARRIABLE_<SPECIES>"), horse, slot 0, flags 0) after requesting that config.
-// Our 15.11 windows tried slots 7/4 with the entity's own config only (never worked). Unverified: if it does not take,
-// the carcass simply stays by the horse.
+// Our 15.11 windows tried slots 7/4 with the entity's own config only (never worked). Window 16.11: with slot 0 the fox
+// vanished (blood on the horse's rump, no carcass on it or beside it) and once the horse froze mid-step, so it is OFF by
+// default (CarryStowOnHorse=1 to experiment): the carcass stays by the horse as in 0.14.
 void CarryTask::stowOnHorse() {
     std::string model;
     for (const auto& b : {"deer", "buck", "goat", "pronghorn", "bighornram", "duck", "elk", "moose", "boar", "fox", "coyote",

@@ -464,6 +464,19 @@ void Companion::startWounded() {
     save();
     ENTITY::SET_ENTITY_AS_MISSION_ENTITY(ped_, true, true);
     ENTITY::SET_ENTITY_INVINCIBLE(ped_, true);
+    // window 16.11: a dog wounded in a fight was dead one second later (the attacker finished it or a death already in
+    // progress): keep a health floor and turn its attackers on Arthur
+    int maxHp = ENTITY::GET_ENTITY_MAX_HEALTH(ped_, false);
+    int floorHp = std::max(1, int(maxHp * ctx().tunef("wounded.health_floor_pct", 10) / 100.0));
+    if (ENTITY::GET_ENTITY_HEALTH(ped_) < floorHp) ENTITY::SET_ENTITY_HEALTH(ped_, floorHp, 0);
+    int peds[256];
+    int n = worldGetAllPeds(peds, 256);
+    for (int i = 0; i < n; ++i) {  // whoever fights the dog turns on Arthur instead of finishing it
+        Ped p = peds[i];
+        if (p == ped_ || p == player() || !alive(p) || dist(p, ped_) > 50.0f || !PED::IS_PED_IN_COMBAT(p, ped_)) continue;
+        TASK::CLEAR_PED_TASKS(p, true, true);
+        TASK::TASK_COMBAT_PED(p, player(), 0, 16);
+    }
     if (TASK::IS_PED_IN_WRITHE(ped_)) PED::SET_PAUSE_PED_WRITHE_BLEEDOUT(ped_, true);
     else if (!PED::IS_PED_INCAPACITATED(ped_)) {
         TASK::CLEAR_PED_TASKS_IMMEDIATELY(ped_, true, true);

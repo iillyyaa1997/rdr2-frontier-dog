@@ -207,6 +207,10 @@ void tick() {
     }
     for (int i = 0; i < 3; ++i) {
         HomeDog& h = g_dogs[i];
+        if (h.slot >= 0 && exists(h.ped) && (!ctx().store.used(h.slot) || ctx().store.at(h.slot).where != Where::Home)) {
+            deletePed(h.ped);  // called away (stable, courier, test) while Arthur is in camp: no second copy in camp
+            h = HomeDog{};
+        }
         if (h.slot < 0 || !exists(h.ped) || !ctx().store.used(h.slot)) { g_take[i].show(false); g_free[i].show(false); continue; }
         const DogRecord& d = ctx().store.at(h.slot);
         bool closeTo = dist(h.ped, player()) < 3.5f && !hide;

@@ -199,6 +199,7 @@ void tick() {
         if (g_carry.active()) g_carry.release();
         return;
     }
+    if (!g_carry.active()) g_carry.update();  // idle: only the stow-on-horse check runs
     if (g_carry.active()) {
         g_carry.update();
         if (!g_carry.active()) {
