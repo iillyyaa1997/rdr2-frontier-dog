@@ -55,6 +55,16 @@ bool inTown(const Vector3& at);            // type 1 (TOWN; includes ranches and
 
 int itemCount(const char* item);           // in Arthur's satchel
 bool takeItem(const char* item, int n = 1);  // no toast: the item toast faulted on some items (old 0.6)
+bool itemKnown(const char* item);            // the item database has this key (our LML items installed?)
+bool giveItem(const char* item, int n = 1);  // into the satchel, as the game's own scripts add items (net_stable_mount.c)
+
+// What a ped (a horse) carries in a carriable slot (5 left, 6 right, 7 back of a horse): GET_CARRIED_ATTACHED_INFO_FOR_SLOT
+struct CarriedInfo {
+    Hash model = 0, config = 0;
+    int slot = -1;
+    Entity entity = 0;
+};
+bool carriedInSlot(Ped ped, int slot, CarriedInfo& out);
 
 int cash();             // cents
 bool takeCash(int cents);

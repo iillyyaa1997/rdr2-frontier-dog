@@ -10,6 +10,7 @@
 #include "core/strutil.h"
 #include "dog/companion.h"
 #include "dog/delivery.h"
+#include "dog/hunting.h"
 #include "dog/strays.h"
 #include "game/game.h"
 #include "game/prompt.h"
@@ -209,6 +210,60 @@ static void run(const std::vector<std::string>& a) {
         else if (comp.record()) { ui::cardShow(*comp.record(), 0); ui::cardPage(a.size() > 1 && a[1] == "2" ? 2 : 1); }
     } else if (cmd == "strays") {
         strays::spawnNow();
+    } else if (cmd == "item" && a.size() >= 2) {
+        // item <KEY>: is the key in the item database, how many in the satchel
+        FD_INFO("test: item %s known %d, count %d", a[1].c_str(), int(itemKnown(a[1].c_str())), itemCount(a[1].c_str()));
+    } else if (cmd == "giveitem" && a.size() >= 2) {
+        bool ok = giveItem(a[1].c_str(), int(num(2, 1)));
+        FD_INFO("test: giveitem %s -> %d, count now %d", a[1].c_str(), int(ok), itemCount(a[1].c_str()));
+    } else if (cmd == "horseslots") {
+        Ped horse = PLAYER::_GET_SADDLE_HORSE_FOR_PLAYER(PLAYER::PLAYER_ID());
+        for (int slot = 0; slot < 12; ++slot) {
+            CarriedInfo ci;
+            if (carriedInSlot(horse, slot, ci) && (ci.entity || ci.model))
+                FD_INFO("test: horse slot %d: entity %d model 0x%08X config 0x%08X", slot, ci.entity, ci.model, ci.config);
+        }
+        FD_INFO("test: horse %d, free slot %d", horse, hunting::freeHorseSlot(horse));
+    } else if (cmd == "stow" || cmd == "stowhelper") {
+        // stow [slot|-1 free] [flags 256] [own|dead]: the nearest dead animal onto Arthur's horse (TASK_CARRIABLE)
+        // stowhelper: a man picks it up and puts it on the horse with the game's own place-on-mount task
+        Ped horse = PLAYER::_GET_SADDLE_HORSE_FOR_PLAYER(PLAYER::PLAYER_ID());
+        Ped carcass = 0;
+        float best = 25.0f;
+        int peds[256];
+        int n = worldGetAllPeds(peds, 256);
+        for (int i = 0; i < n; ++i) {
+            Ped e = peds[i];
+            if (!exists(e) || !ENTITY::IS_ENTITY_DEAD(e) || !ENTITY::GET_IS_ANIMAL(e) || e == horse) continue;
+            if (PED::_GET_CARRIER_AS_MOUNT(e)) continue;
+            float d = dist(e, pl);
+            if (d < best) { best = d; carcass = e; }
+        }
+        if (!alive(horse) || !carcass) {
+            FD_INFO("test: %s - horse %d, carcass %d", cmd.c_str(), horse, carcass);
+        } else if (cmd == "stow") {
+            int slot = int(num(1, -1));
+            if (slot < 0) slot = hunting::freeHorseSlot(horse);
+            hunting::stowOnHorse(carcass, horse, slot, int(num(2, 256)), a.size() > 3 && a[3] == "dead");
+        } else {
+            Vector3 cp = pos(carcass);
+            Ped man = spawnPed("a_m_m_rancher_01", add(cp, Vector3(1.0f, 0, 0)), 0);
+            if (man) {
+                g_spawned.push_back(man);
+                PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(man, true);
+                TASK::TASK_PICKUP_CARRIABLE_ENTITY(man, carcass);
+                int until = now() + 10000;
+                while (now() < until && PED::_GET_FIRST_ENTITY_PED_IS_CARRYING(man) != carcass) scriptWait(100);
+                bool carrying = PED::_GET_FIRST_ENTITY_PED_IS_CARRYING(man) == carcass;
+                FD_INFO("test: helper carrying it: %d", int(carrying));
+                if (carrying) {
+                    TASK::TASK_PLACE_CARRIED_ENTITY_ON_MOUNT(man, carcass, horse, 1.0f);
+                    until = now() + 15000;
+                    while (now() < until && !PED::_GET_CARRIER_AS_MOUNT(carcass)) scriptWait(100);
+                    FD_INFO("test: carcass carried by the horse: %d", int(PED::_GET_CARRIER_AS_MOUNT(carcass) == horse));
+                }
+            }
+        }
     } else if (cmd == "deliver") {
         FD_INFO("test: delivery order -> %d", int(delivery::order(int(num(1, 2)) - 1, a.size() > 2 ? a[2].c_str() : "telegraph")));
     } else {

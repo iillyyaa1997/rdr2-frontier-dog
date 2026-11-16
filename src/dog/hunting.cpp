@@ -22,6 +22,12 @@ static int g_markUntil = 0, g_markOrdered = 0;
 
 bool busy() { return g_carry.active() || (g_mark && now() < g_markUntil); }
 
+bool stowOnHorse(Ped carcass, Ped horse, int slot, int flags, bool deadConfig) {
+    return g_carry.stowCarcassOnHorse(carcass, horse, slot, flags, deadConfig);
+}
+
+int freeHorseSlot(Ped horse) { return CarryTask::freeHorseSlot(horse); }
+
 void giveUp() {
     g_carry.release();
     g_queue.clear();

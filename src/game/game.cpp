@@ -188,6 +188,47 @@ bool takeItem(const char* item, int n) {
                                                                   MISC::GET_HASH_KEY("REMOVE_REASON_DEFAULT")) != 0;
 }
 
+bool itemKnown(const char* item) { return ITEMDATABASE::_ITEMDATABASE_IS_KEY_VALID(MISC::GET_HASH_KEY(item), 0) != 0; }
+
+namespace {
+struct Guid {  // script struct<4>
+    alignas(8) long long f[4] = {0, 0, 0, 0};
+};
+struct SlotGuid {  // script struct<5>: the parent guid + the slot
+    Guid guid;
+    alignas(8) long long slot = 0;
+};
+}  // namespace
+
+bool giveItem(const char* item, int n) {
+    if (n <= 0 || !itemKnown(item)) return false;
+    int inv = INVENTORY::_INVENTORY_GET_INVENTORY_ID_FROM_PED(player());
+    Hash satchel = MISC::GET_HASH_KEY("SLOTID_SATCHEL");
+    Guid none;
+    SlotGuid parent;
+    if (!INVENTORY::INVENTORY_GET_GUID_FROM_ITEMID(inv, (Any*)&none, MISC::GET_HASH_KEY("CHARACTER"), MISC::GET_HASH_KEY("SLOTID_NONE"),
+                                                   (Any*)&parent.guid))
+        return false;
+    parent.slot = satchel;
+    Guid itemGuid;
+    Hash h = MISC::GET_HASH_KEY(item);
+    INVENTORY::INVENTORY_GET_GUID_FROM_ITEMID(inv, (Any*)&parent.guid, h, satchel, (Any*)&itemGuid);
+    return INVENTORY::_INVENTORY_ADD_ITEM_WITH_GUID(inv, (Any*)&itemGuid, (Any*)&parent, h, satchel, n,
+                                                    MISC::GET_HASH_KEY("ADD_REASON_DEFAULT")) != 0;
+}
+
+bool carriedInSlot(Ped ped, int slot, CarriedInfo& out) {
+    struct {
+        alignas(8) long long model = 0, config = 0, slot = 0, entity = 0;
+    } raw;
+    if (!PED::GET_CARRIED_ATTACHED_INFO_FOR_SLOT((Any*)&raw, ped, slot, 0)) return false;
+    out.model = Hash(raw.model);
+    out.config = Hash(raw.config);
+    out.slot = int(raw.slot);
+    out.entity = Entity(raw.entity);
+    return true;
+}
+
 int cash() { return MONEY::_MONEY_GET_CASH_BALANCE(); }
 
 bool takeCash(int cents) {

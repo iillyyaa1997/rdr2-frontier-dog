@@ -337,36 +337,52 @@ void CarryTask::deliver() {
     ++deliveries_;
 }
 
-// The game's own way, read in its ambient scripts (av_walk_horse_carry_deer.c, av_animal_carry_ride.c 2026-11-16):
-// TASK_CARRIABLE(carcass, joaat("DEAD_CARRIABLE_<SPECIES>"), horse, slot 0, flags 0) after requesting that config.
-// Our 15.11 windows tried slots 7/4 with the entity's own config only (never worked). Window 16.11: with slot 0 the fox
-// vanished (blood on the horse's rump, no carcass on it or beside it) and once the horse froze mid-step, so it is OFF by
-// default (CarryStowOnHorse=1 to experiment): the carcass stays by the horse as in 0.14.
-void CarryTask::stowOnHorse() {
-    std::string model;
+// Onto the horse the way the game itself puts carcasses back on a horse (net_stable_mount.c, read 16.11): TASK_CARRIABLE
+// (carcass, its carry config, horse, slot 5 left / 6 right / 7 back, flags 256). Our earlier tries used slots 7/4/0 with
+// flags 0/1/2/512 (15.11: nothing; 16.11 slot 0: the carcass vanished). Unverified with 256 -> CarryStowOnHorse=0 until a
+// window confirms it.
+static Hash deadCarriableFor(Ped carcass) {
     for (const auto& b : {"deer", "buck", "goat", "pronghorn", "bighornram", "duck", "elk", "moose", "boar", "fox", "coyote",
                           "wolf", "cougar", "panther", "bear", "beaver", "rabbit", "raccoon", "turkey", "goosecanada", "pheasant"}) {
         std::string m = std::string("a_c_") + b + "_01";
-        if (ENTITY::GET_ENTITY_MODEL(job_.carcass) == MISC::GET_HASH_KEY(m.c_str())) model = b;
+        if (ENTITY::GET_ENTITY_MODEL(carcass) == MISC::GET_HASH_KEY(m.c_str())) {
+            std::string up = b;
+            for (char& ch : up) ch = char(std::toupper((unsigned char)ch));
+            return MISC::GET_HASH_KEY(("DEAD_CARRIABLE_" + up).c_str());
+        }
     }
-    Hash cfg = 0;
-    if (!model.empty()) {
-        std::string up = model;
-        for (char& ch : up) ch = char(std::toupper((unsigned char)ch));
-        cfg = MISC::GET_HASH_KEY(("DEAD_CARRIABLE_" + up).c_str());
+    return 0;
+}
+
+int CarryTask::freeHorseSlot(Ped horse) {
+    for (int slot : {7, 5, 6}) {
+        CarriedInfo ci;
+        if (!carriedInSlot(horse, slot, ci) || !exists(ci.entity)) return slot;
     }
-    if (!cfg) cfg = ENTITY::_GET_ENTITY_CARRY_CONFIG(job_.carcass);
-    if (!cfg) {
-        FD_INFO("carry: no carry config for this carcass, left by the horse");
-        return;
+    return -1;
+}
+
+bool CarryTask::stowCarcassOnHorse(Ped carcass, Ped horse, int slot, int flags, bool deadConfig) {
+    Hash cfg = deadConfig ? deadCarriableFor(carcass) : ENTITY::_GET_ENTITY_CARRY_CONFIG(carcass);
+    if (!cfg) cfg = deadConfig ? ENTITY::_GET_ENTITY_CARRY_CONFIG(carcass) : deadCarriableFor(carcass);
+    if (!cfg || slot < 0) {
+        FD_INFO("carry: no carry config (0x%08X) or no free slot on the horse (%d)", cfg, slot);
+        return false;
     }
     TASK::_REQUEST_CARRIABLE_CONFIG(cfg);
     for (int i = 0; i < 50 && !TASK::_HAS_REQUESTED_CARRIABLE_CONFIG_LOADED(cfg); ++i) scriptWait(20);
-    TASK::TASK_CARRIABLE(job_.carcass, cfg, job_.horse, int(ctx().tune("carry.stow_slot", 0)), int(ctx().tune("carry.stow_flags", 0)));
-    FD_INFO("carry: puts it on the horse (config 0x%08X %s, slot %d)", cfg, model.c_str(), ctx().tune("carry.stow_slot", 0));
-    stowCarcass_ = job_.carcass;
-    stowHorse_ = job_.horse;
+    TASK::TASK_CARRIABLE(carcass, cfg, horse, slot, flags);
+    FD_INFO("carry: onto the horse (config 0x%08X %s, slot %d, flags %d)", cfg, deadConfig ? "dead_carriable" : "own", slot, flags);
+    stowCarcass_ = carcass;
+    stowHorse_ = horse;
+    stowSlot_ = slot;
     stowCheckAt_ = now() + 3000;
+    return true;
+}
+
+void CarryTask::stowOnHorse() {
+    stowCarcassOnHorse(job_.carcass, job_.horse, freeHorseSlot(job_.horse), int(ctx().tune("carry.stow_flags", 256)),
+                       ctx().ini.getBool("CarryStowDeadConfig", false));
 }
 
 void CarryTask::checkStow() {
@@ -375,6 +391,10 @@ void CarryTask::checkStow() {
         FD_INFO("carry: stow check - carcass %d / horse %d gone", int(exists(stowCarcass_)), int(exists(stowHorse_)));
         return;
     }
+    CarriedInfo ci;
+    bool got = carriedInSlot(stowHorse_, stowSlot_, ci);
+    FD_INFO("carry: stow check - slot %d: info %d, entity %d (ours %d), model 0x%08X, config 0x%08X", stowSlot_, int(got), ci.entity,
+            int(ci.entity == stowCarcass_), ci.model, ci.config);
     Vector3 c = pos(stowCarcass_), h = pos(stowHorse_);
     FD_INFO("carry: stow check - attached %d, carrier mount %d, carriable state %d, %.1f m from the horse (dz %.1f), horse "
             "speed %.2f, horse task 0x%08X",

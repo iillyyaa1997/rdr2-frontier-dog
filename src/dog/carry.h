@@ -67,6 +67,12 @@ private:
     Ped stowCarcass_ = 0, stowHorse_ = 0;
     int stowCheckAt_ = 0;
     void checkStow();
+    int stowSlot_ = -1;
+
+public:
+    // shared with the test hooks: the game's own stow onto a horse (see carry.cpp)
+    static int freeHorseSlot(Ped horse);
+    bool stowCarcassOnHorse(Ped carcass, Ped horse, int slot, int flags, bool deadConfig);
 };
 
 
