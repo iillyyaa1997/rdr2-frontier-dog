@@ -1,6 +1,10 @@
 #include "dog/delivery.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstdio>
+#include <string>
+#include <vector>
 
 #include "core/fs.h"
 #include "core/log.h"
@@ -15,7 +19,10 @@ namespace fd::delivery {
 
 using namespace game;
 
-enum class Stage { Idle, Message, Riding, Handover, Leaving };
+// Journey (D144, operator «1» 16.11): the courier really leaves the camp; while he is far from Arthur (the game does not
+// move peds that far: a rider 220-264 m away stood still for a minute) he is a map blip going along the road nodes at a
+// horse's pace; within live range he becomes the real rider at that spot (if Arthur does not see it) and rides up.
+enum class Stage { Idle, Message, Journey, Riding, Handover, Leaving };
 static Stage g_stage = Stage::Idle;
 static int g_slot = -1, g_stageAt = 0, g_orderedAt = 0, g_progressAt = 0;
 static float g_lastDist = 0;
@@ -23,6 +30,16 @@ static Ped g_rider = 0, g_horse = 0, g_dog = 0, g_messenger = 0;
 static game::UiPrompt g_campNext, g_campOrder, g_message;
 static int g_campIndex = 0, g_whistleSince = 0;
 static std::vector<Vector3> g_telegraphs;
+static Vector3 g_virt, g_wp;  // the courier while out of range (on the map) and his next road point
+static bool g_hasWp = false;
+static Blip g_blip = 0;
+static int g_fee = 0, g_lastStep = 0, g_lastSave = 0, g_holdSince = 0, g_messageWaitMs = 15000;
+
+static std::string stateFile() { return fs::join(fs::join(ctx().dataDir, "Dogs"), "courier.dat"); }
+static float flat(const Vector3& a, const Vector3& b) { return std::hypot(a.x - b.x, a.y - b.y); }
+static float speed() { return float(ctx().tunef("courier.speed_mps", 9)); }
+static float liveRange() { return float(ctx().tunef("courier.live_range", 140)); }
+static void clearJourney();
 
 bool active() { return g_stage != Stage::Idle; }
 
@@ -36,6 +53,37 @@ void start() {
             auto v = tel.getFloats("telegraph." + k);
             if (v.size() == 2) g_telegraphs.push_back(Vector3(float(v[0]), float(v[1]), 0));
         }
+    // a courier on the road when the game was closed goes on from where he was
+    KvFile kv;
+    if (kv.load(stateFile())) {
+        int slot = int(kv.getInt("slot", -1));
+        auto p = kv.getFloats("pos");
+        auto& store = ctx().store;
+        if (slot >= 0 && slot < DogStore::kSlots && store.used(slot) && store.at(slot).uid == kv.get("uid") && p.size() == 3 &&
+            store.at(slot).where == Where::Away && store.at(slot).awayReason == "courier") {
+            g_slot = slot;
+            g_fee = int(kv.getInt("fee", 0));
+            g_virt = Vector3(float(p[0]), float(p[1]), float(p[2]));
+            g_hasWp = false;
+            g_stage = Stage::Journey;
+            g_stageAt = now();
+            FD_INFO("delivery: the courier with %s is still on the way", store.at(slot).name.c_str());
+        } else {
+            clearJourney();
+        }
+    }
+    // a dog left 'with the courier' without a journey (the game closed while the rider was close) is back home
+    for (int s = 0; s < DogStore::kSlots; ++s) {
+        if (s == g_slot || !ctx().store.used(s)) continue;
+        DogRecord& d = ctx().store.at(s);
+        if (d.where == Where::Away && d.awayReason == "courier") {
+            d.where = Where::Home;
+            d.awayReason.clear();
+            d.awayUntil = 0;
+            ctx().store.save(s);
+            FD_INFO("delivery: %s was with a courier who never arrived - back home", d.name.c_str());
+        }
+    }
 }
 
 static bool atTelegraph() {
@@ -54,41 +102,114 @@ static std::vector<int> homeSlots() {
     return out;
 }
 
+static void removeBlip() {
+    if (g_blip && MAP::DOES_BLIP_EXIST(g_blip)) MAP::REMOVE_BLIP(&g_blip);
+    g_blip = 0;
+}
+
+static void courierBlip(Entity onEntity, const Vector3& at) {
+    if (!g_blip || !MAP::DOES_BLIP_EXIST(g_blip) || onEntity) {
+        removeBlip();
+        g_blip = onEntity ? MAP::BLIP_ADD_FOR_ENTITY(0x19365607, onEntity) : MAP::BLIP_ADD_FOR_COORDS(0x19365607, at.x, at.y, at.z);
+        MAP::SET_BLIP_SPRITE(g_blip, MISC::GET_HASH_KEY("blip_ambient_horse"), true);
+        MAP::BLIP_ADD_MODIFIER(g_blip, MISC::GET_HASH_KEY("BLIP_MODIFIER_RADAR_EDGE_ALWAYS"));
+        if (g_slot >= 0 && ctx().store.used(g_slot)) {
+            const DogRecord& d = ctx().store.at(g_slot);
+            MAP::_SET_BLIP_NAME(g_blip, literal(ctx().f("blip.courier", {{"name", d.name}}, d.female)));
+        }
+        return;
+    }
+    MAP::SET_BLIP_COORDS(g_blip, at.x, at.y, at.z);
+}
+
+static void saveJourney() {
+    if (g_slot < 0 || !ctx().store.used(g_slot)) return;
+    KvFile kv;
+    kv.setInt("schema", 1);
+    kv.setInt("slot", g_slot);
+    kv.set("uid", ctx().store.at(g_slot).uid);
+    kv.setInt("fee", g_fee);
+    char buf[96];
+    std::snprintf(buf, sizeof buf, "%.1f,%.1f,%.1f", g_virt.x, g_virt.y, g_virt.z);
+    kv.set("pos", buf);
+    kv.save(stateFile());
+}
+
+static void clearJourney() {
+    fs::remove(stateFile());
+    fs::remove(stateFile() + ".bak");
+}
+
+// the dog travels with the courier: not at home (no copy in camp, not offered again), not with Arthur yet
+static void setTravelling(bool on) {
+    if (g_slot < 0 || !ctx().store.used(g_slot)) return;
+    DogRecord& d = ctx().store.at(g_slot);
+    if (on) {
+        d.where = Where::Away;
+        d.awayReason = "courier";
+        d.awayUntil = gameMinutes() + 24 * 60;  // safety: never stuck away if the journey is lost
+    } else if (d.where == Where::Away && d.awayReason == "courier") {
+        d.where = Where::Home;
+        d.awayReason.clear();
+        d.awayUntil = 0;
+    }
+    ctx().store.save(g_slot);
+}
+
 static void cleanup() {
     for (Ped* p : {&g_rider, &g_horse}) {
         if (exists(*p)) ENTITY::SET_ENTITY_AS_NO_LONGER_NEEDED(p);
         *p = 0;
     }
+    removeBlip();
+    clearJourney();
     g_stage = Stage::Idle;
     g_slot = -1;
+    g_hasWp = false;
+    g_holdSince = 0;
 }
 
-static bool spawnCourier() {
+static std::string horseModel() { return ctx().ini.get("CourierHorse", "A_C_Horse_KentuckySaddle_Black"); }
+static std::string riderModel() { return ctx().ini.get("CourierModel", "A_M_M_RANCHER_01"); }
+static std::string dogModel() {
     const DogRecord& d = ctx().store.at(g_slot);
-    Vector3 pp = pos(player()), from, road;
-    Vector3 camp;
-    // start on a road out of sight, on Arthur's side towards the camp when it is known
+    return d.model.empty() ? "a_c_doghobo_01" : d.model;
+}
+
+// streams the party's models in before the courier comes into range, so the spawn itself does not wait
+static void preloadModels() {
+    for (const std::string& m : {horseModel(), riderModel(), dogModel()}) {
+        Hash h = MISC::GET_HASH_KEY(m.c_str());
+        if (STREAMING::IS_MODEL_VALID(h)) STREAMING::REQUEST_MODEL(h, false);
+    }
+}
+
+// a start out of sight near Arthur (no camp known, or the camp is close): on a road on the camp's side
+static bool nearStart(Vector3& from) {
+    Vector3 pp = pos(player()), road, camp;
     Vector3 dir(0, 1, 0);
     if (home::campKnown(camp) && dist(camp, pp) > 10) {
         float l = dist(camp, pp);
         dir = Vector3((camp.x - pp.x) / l, (camp.y - pp.y) / l, 0);
     }
-    bool ok = false;
     // window 16.11: a rider started 220-264 m away never moved (speed 0 for a minute) - far peds are not simulated
     for (float r : {140.0f, 120.0f, 160.0f, 100.0f}) {
         Vector3 want = add(pp, scale(dir, r));
         if (PATH::GET_CLOSEST_VEHICLE_NODE(want.x, want.y, want.z, &road, 0, 3.0f, 0.0f) && dist(road, pp) > 90.0f &&
             !CAMERA::IS_SPHERE_VISIBLE(road.x, road.y, road.z + 1.0f, 2.0f)) {
             from = road;
-            ok = true;
-            break;
+            return true;
         }
     }
-    if (!ok && !hiddenSpotNear(pp, 90, 150, from)) return false;
-    g_horse = spawnPed(ctx().ini.get("CourierHorse", "A_C_Horse_KentuckySaddle_Black"), from, 0, 3000);
+    return hiddenSpotNear(pp, 90, 150, from);
+}
+
+static bool spawnPartyAt(const Vector3& from) {
+    const DogRecord& d = ctx().store.at(g_slot);
+    g_horse = spawnPed(horseModel(), from, 0, 3000);
     if (!g_horse) g_horse = spawnPed("A_C_Horse_Morgan_Bay", from, 0, 3000);
-    g_rider = spawnPed(ctx().ini.get("CourierModel", "A_M_M_RANCHER_01"), add(from, Vector3(1, 0, 0)), 0, 3000);
-    g_dog = spawnPed(d.model.empty() ? "a_c_doghobo_01" : d.model, add(from, Vector3(-1.5f, -1.5f, 0)), 0, 3000);
+    g_rider = spawnPed(riderModel(), add(from, Vector3(1, 0, 0)), 0, 3000);
+    g_dog = spawnPed(dogModel(), add(from, Vector3(-1.5f, -1.5f, 0)), 0, 3000);
     if (!g_horse || !g_rider || !g_dog) {
         deletePed(g_horse); deletePed(g_rider); deletePed(g_dog);
         return false;
@@ -101,8 +222,90 @@ static bool spawnCourier() {
     if (d.preset >= 0) PED::_EQUIP_META_PED_OUTFIT_PRESET(g_dog, d.preset, false);
     if (d.scale > 0 && d.scale != 100) PED::_SET_PED_SCALE(g_dog, d.scale / 100.0f);
     TASK::TASK_FOLLOW_TO_OFFSET_OF_ENTITY(g_dog, g_horse, 1.5f, -1.0f, 0, 3.0f, -1, 2.0f, true, false, false, false, false, false);
-    FD_INFO("delivery: rider with %s starts %.0f m away", d.name.c_str(), dist(from, pp));
+    courierBlip(g_horse, from);
+    g_stage = Stage::Riding;
+    g_stageAt = g_orderedAt = g_progressAt = now();
+    g_lastDist = 1e9f;
+    FD_INFO("delivery: rider with %s %.0f m away", d.name.c_str(), dist(from, pos(player())));
     return true;
+}
+
+// ---- the journey on the map
+
+// the next point: the road node nearest to a probe ahead towards Arthur, if it brings the courier closer; else straight
+static void nextWaypoint(const Vector3& target) {
+    float l = flat(g_virt, target);
+    float step = float(ctx().tunef("courier.step_m", 60));
+    g_hasWp = true;
+    if (l <= step) {
+        g_wp = Vector3(target.x, target.y, g_virt.z);
+        return;
+    }
+    Vector3 probe(g_virt.x + (target.x - g_virt.x) / l * step, g_virt.y + (target.y - g_virt.y) / l * step, g_virt.z);
+    PATH::REQUEST_PATH_NODES_IN_AREA_THIS_FRAME(std::min(g_virt.x, probe.x) - 200, std::min(g_virt.y, probe.y) - 200,
+                                                std::max(g_virt.x, probe.x) + 200, std::max(g_virt.y, probe.y) + 200);
+    Vector3 node;
+    if (PATH::GET_CLOSEST_VEHICLE_NODE(probe.x, probe.y, probe.z, &node, 0, 3.0f, 0.0f)) {
+        float hop = flat(g_virt, node);
+        if (flat(node, target) < l - 5.0f && hop > 5.0f && hop < step * 2.0f) {
+            g_wp = node;
+            return;
+        }
+    }
+    g_wp = probe;  // no road that way (or its nodes are not loaded): across country
+}
+
+static void journey() {
+    int t = now();
+    if (!g_lastStep) g_lastStep = t;
+    float dt = (t - g_lastStep) / 1000.0f;
+    if (dt < 0.5f) return;
+    g_lastStep = t;
+    if (g_slot < 0 || !ctx().store.used(g_slot)) {
+        cleanup();
+        return;
+    }
+    Vector3 target = pos(player());
+    float away = flat(g_virt, target);
+    if (away > liveRange()) {
+        float budget = speed() * std::min(dt, 5.0f);  // a long pause (menus) does not jump the courier ahead
+        for (int guard = 0; budget > 0.01f && guard < 8; ++guard) {
+            if (!g_hasWp || flat(g_virt, g_wp) < 1.0f) nextWaypoint(target);
+            float d = flat(g_virt, g_wp);
+            if (d < 0.01f) { g_hasWp = false; continue; }
+            float k = std::min(1.0f, budget / d);
+            g_virt = Vector3(g_virt.x + (g_wp.x - g_virt.x) * k, g_virt.y + (g_wp.y - g_virt.y) * k, g_virt.z + (g_wp.z - g_virt.z) * k);
+            budget -= d * k;
+            if (k >= 1.0f) g_hasWp = false;
+        }
+        courierBlip(0, g_virt);
+        if (t - g_lastSave > 10000) {
+            g_lastSave = t;
+            saveJourney();
+        }
+        if (flat(g_virt, target) < liveRange() * 1.6f) preloadModels();
+        return;
+    }
+    // in range: the real rider takes over where the courier is, unless Arthur looks right there (then he waits a little)
+    if (onMission()) return;
+    preloadModels();
+    if (!g_holdSince) g_holdSince = t;
+    Vector3 from;
+    bool ok = safeCoord(g_virt, from) && flat(from, g_virt) < 30.0f &&
+              !CAMERA::IS_SPHERE_VISIBLE(from.x, from.y, from.z + 1.0f, 2.5f);
+    if (!ok && t - g_holdSince > 20000) ok = nearStart(from);
+    if (!ok) return;
+    clearJourney();
+    if (!spawnPartyAt(from)) {
+        if (t - g_holdSince > 60000) {
+            FD_WARN("delivery: the courier could not be placed near Arthur");
+            setTravelling(false);
+            giveCash(g_fee * 100);
+            helpText(ctx().t("help.courier_no_way"));
+            cleanup();
+        }
+        return;
+    }
 }
 
 bool order(int slot, const char* how) {
@@ -112,24 +315,44 @@ bool order(int slot, const char* how) {
         helpText(c.t("help.courier_refuses"));
         return false;
     }
-    Vector3 camp;
-    float km = home::campKnown(camp) ? dist(camp, pos(player())) : 3000.0f;
-    int fee = deliveryFee(km, c.econ);
+    Vector3 camp, pp = pos(player());
+    bool campKnown = home::campKnown(camp);
+    float meters = campKnown ? flat(camp, pp) : 3000.0f;
+    int fee = deliveryFee(meters, c.econ);
     if (!takeCash(fee * 100)) {
         helpText(c.t("help.no_money"));
         return false;
     }
     g_slot = slot;
-    g_stage = Stage::Riding;
-    g_stageAt = g_orderedAt = g_progressAt = now();
-    g_lastDist = 1e9f;
-    if (!spawnCourier()) {
+    g_fee = fee;
+    const DogRecord& d = c.store.at(slot);
+    if (campKnown && meters > liveRange()) {
+        // he leaves the camp on the road nearest to it
+        Vector3 road;
+        g_virt = camp;
+        if (PATH::GET_CLOSEST_VEHICLE_NODE(camp.x, camp.y, camp.z, &road, 0, 3.0f, 0.0f) && flat(road, camp) < 300.0f) g_virt = road;
+        g_hasWp = false;
+        g_lastStep = g_lastSave = g_holdSince = 0;
+        g_stage = Stage::Journey;
+        g_stageAt = now();
+        setTravelling(true);
+        saveJourney();
+        courierBlip(0, g_virt);
+        int minutes = std::max(1, int(std::ceil(meters * float(c.tunef("courier.road_factor", 1.25)) / speed() / 60.0f)));
+        helpText(c.f("help.courier_left", {{"name", d.name}, {"min", std::to_string(minutes)}, {"fee", std::to_string(fee)}}, d.female), 8000);
+        FD_INFO("delivery ordered (%s), fee $%d: the courier leaves camp, %.0f m, ~%d min", how, fee, meters, minutes);
+        return true;
+    }
+    // no camp known yet, or the camp is close: he appears out of sight nearby
+    Vector3 from;
+    setTravelling(true);
+    if (!nearStart(from) || !spawnPartyAt(from)) {
+        setTravelling(false);
         giveCash(fee * 100);
         helpText(c.t("help.courier_no_way"));
         cleanup();
         return false;
     }
-    const DogRecord& d = c.store.at(slot);
     helpText(c.f("help.courier_coming", {{"name", d.name}, {"fee", std::to_string(fee)}}, d.female), 7000);
     FD_INFO("delivery ordered (%s), fee $%d", how, fee);
     return true;
@@ -140,6 +363,7 @@ static void riding() {
     if (!alive(g_rider) || !alive(g_horse) || !exists(g_dog)) {
         FD_WARN("delivery: the courier or the dog is gone");
         if (exists(g_dog)) deletePed(g_dog);
+        setTravelling(false);
         cleanup();
         return;
     }
@@ -186,6 +410,7 @@ static void riding() {
     if (t - g_stageAt > 600000) {  // ten minutes: give up honestly
         helpText(ctx().t("help.courier_no_way"));
         deletePed(g_dog);
+        setTravelling(false);
         cleanup();
     }
 }
@@ -193,12 +418,16 @@ static void riding() {
 static void handover() {
     if (now() - g_stageAt < 2500) return;
     if (g_slot >= 0 && ctx().store.used(g_slot) && exists(g_dog)) {
+        DogRecord& rec = ctx().store.at(g_slot);
+        rec.awayReason.clear();
+        rec.awayUntil = 0;
         ENTITY::SET_ENTITY_INVINCIBLE(g_dog, false);
         companion().takeFromCamp(g_slot, g_dog);
         const DogRecord& d = ctx().store.at(g_slot);
         helpText(ctx().f("help.courier_done", {{"name", d.name}}, d.female));
     }
     g_dog = 0;
+    removeBlip();
     if (alive(g_rider)) TASK::TASK_WANDER_STANDARD(g_rider, 10.0f, 10);
     g_stage = Stage::Leaving;
     g_stageAt = now();
@@ -209,6 +438,7 @@ void tick() {
     auto& c = ctx();
     int t = now();
     switch (g_stage) {
+        case Stage::Journey: journey(); return;
         case Stage::Riding: riding(); return;
         case Stage::Handover: handover(); return;
         case Stage::Leaving:
@@ -216,7 +446,7 @@ void tick() {
                 cleanup();
             return;
         case Stage::Message:
-            if (t - g_stageAt > 15000) {
+            if (t - g_stageAt > g_messageWaitMs) {  // he rides to camp with the message first
                 if (exists(g_messenger)) ENTITY::SET_ENTITY_AS_NO_LONGER_NEEDED(&g_messenger);
                 g_messenger = 0;
                 g_stage = Stage::Idle;
@@ -262,6 +492,10 @@ void tick() {
             g_slot = slots[0];
             g_stage = Stage::Message;
             g_stageAt = t;
+            Vector3 camp;
+            g_messageWaitMs = home::campKnown(camp)
+                                  ? std::max(15000, int(flat(camp, pos(player())) * c.tunef("courier.road_factor", 1.25) / speed() * 1000.0f))
+                                  : 15000;
             helpText(c.t("help.message_sent"));
         }
     } else {

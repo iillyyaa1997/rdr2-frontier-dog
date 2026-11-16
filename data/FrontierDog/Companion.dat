@@ -69,3 +69,8 @@ strays.spawn_chance=0.5
 strays.pack_chance=0.35
 strays.trust_days=2
 strays.follow_chance=0.3
+; the courier (D144): leaves camp and rides on the map at this pace, real rider within live range
+courier.speed_mps=9
+courier.live_range=140
+courier.step_m=60
+courier.road_factor=1.25

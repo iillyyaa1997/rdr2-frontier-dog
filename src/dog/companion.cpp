@@ -578,7 +578,7 @@ void Companion::updateAway() {
     for (int i = 0; i < DogStore::kSlots; ++i) {
         if (!ctx().store.used(i)) continue;
         DogRecord& d = ctx().store.at(i);
-        if (d.where != Where::Away || m < d.awayUntil) continue;
+        if (d.where != Where::Away || m < d.awayUntil || d.awayReason == "courier") continue;  // the courier: delivery module
         std::string reason = d.awayReason;
         if (reason.rfind("training:", 0) == 0) {
             std::string sk = reason.substr(9);
