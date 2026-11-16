@@ -1,6 +1,7 @@
 #ifdef FD_TEST
 #include "mod/testhooks.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -80,6 +81,72 @@ static void run(const std::vector<std::string>& a) {
     } else if (cmd == "clean") {
         for (Ped& s : g_spawned) deletePed(s);
         g_spawned.clear();
+    } else if (cmd == "prey" && a.size() >= 2) {
+        // prey <model> [quality 0-2] [metres]: an animal killed by Arthur in front of him (fetch / carry tests)
+        Ped s = spawnPed(a[1], add(p, scale(fwd, float(num(3, 25)))), 0);
+        if (s) {
+            g_spawned.push_back(s);
+            PED::_SET_PED_QUALITY(s, int(num(2, 2)));
+            ENTITY::SET_ENTITY_HEALTH(s, 0, pl);
+        }
+        FD_INFO("test: prey %s -> %d", a[1].c_str(), s);
+    } else if (cmd == "animal" && a.size() >= 2) {
+        // animal <model> [metres] [quality]: a live animal (Huntress, trail, pointing, flush, predators)
+        Ped s = spawnPed(a[1], add(p, scale(fwd, float(num(2, 20)))), 0);
+        if (s) { g_spawned.push_back(s); if (a.size() > 3) PED::_SET_PED_QUALITY(s, int(num(3, 2))); }
+        FD_INFO("test: animal %s -> %d", a[1].c_str(), s);
+    } else if (cmd == "foe") {
+        // foe [model] [metres]: a hostile man who attacks Arthur (guard, grip, honor shield)
+        Ped s = spawnPed(a.size() > 1 ? a[1] : "a_m_m_huntertravelers_cool_01", add(p, scale(fwd, float(num(2, 15)))), 0);
+        if (s) { g_spawned.push_back(s); TASK::TASK_COMBAT_PED(s, pl, 0, 16); }
+    } else if (cmd == "walker") {
+        // walker [metres]: a stranger walking past (shy of strangers, guard L1)
+        Ped s = spawnPed("a_m_m_rancher_01", add(p, scale(fwd, float(num(1, 8)))), 0);
+        if (s) { g_spawned.push_back(s); TASK::TASK_GO_TO_ENTITY(s, pl, -1, 1.0f, 1.0f, 0, 0); }
+    } else if (cmd == "hurt" && comp.present()) {
+        int mx = ENTITY::GET_ENTITY_MAX_HEALTH(comp.ped(), false);
+        ENTITY::SET_ENTITY_HEALTH(comp.ped(), std::max(1, int(mx * num(1, 10) / 100.0)), 0);
+    } else if (cmd == "stable" && a.size() >= 2) {
+        // stable <id>: outside that stable, next to the dogs for sale (never inside: trespass)
+        KvFile st;
+        st.load(fs::join(c.dataDir, "Stables.dat"));
+        auto v = st.getFloats(a[1] + ".dogs");
+        if (v.size() == 3) ENTITY::SET_ENTITY_COORDS(pl, float(v[0]) + 3, float(v[1]) + 3, float(v[2]), false, false, false, true);
+    } else if (cmd == "set" && a.size() >= 3 && comp.record()) {
+        // set grade|hunger|dirt|bond|scale|preset|stat<1-5> <value>; skill <id> <level>; trait <id>; untrait <id>
+        DogRecord& d = *comp.record();
+        double v = num(2, 0);
+        if (a[1] == "grade") d.grade = Grade(int(v));
+        else if (a[1] == "hunger") d.hunger = v;
+        else if (a[1] == "dirt") d.dirt = v;
+        else if (a[1] == "bond") { d.bondPoints = v; }
+        else if (a[1] == "scale") { d.scale = int(v); PED::_SET_PED_SCALE(comp.ped(), float(v) / 100.0f); }
+        else if (a[1] == "preset") { d.preset = int(v); PED::_EQUIP_META_PED_OUTFIT_PRESET(comp.ped(), int(v), false); }
+        else if (a[1].rfind("stat", 0) == 0 && a[1].size() == 5) d.stats[std::clamp(a[1][4] - '1', 0, 4)] = int(v);
+        comp.save();
+    } else if (cmd == "skill" && a.size() >= 3 && comp.record()) {
+        comp.record()->skillLevel[a[1]] = int(num(2, 1));
+        comp.save();
+    } else if (cmd == "trait" && a.size() >= 2 && comp.record()) {
+        if (!comp.record()->hasTrait(a[1])) comp.record()->traits.push_back(a[1]);
+        comp.save();
+    } else if (cmd == "untrait" && a.size() >= 2 && comp.record()) {
+        auto& tr = comp.record()->traits;
+        tr.erase(std::remove(tr.begin(), tr.end(), a[1]), tr.end());
+        comp.save();
+    } else if (cmd == "presets" && comp.present()) {
+        FD_INFO("test: model 0x%08X has %d outfit presets", ENTITY::GET_ENTITY_MODEL(comp.ped()), PED::GET_NUM_META_PED_OUTFITS(comp.ped()));
+    } else if (cmd == "dogmodel" && a.size() >= 2) {
+        // dogmodel <model> [preset]: a dog of that model in front of Arthur (look / collar search)
+        Ped s = spawnPed(a[1], add(p, scale(fwd, 3)), 0);
+        if (s) {
+            g_spawned.push_back(s);
+            FD_INFO("test: %s has %d presets", a[1].c_str(), PED::GET_NUM_META_PED_OUTFITS(s));
+            if (a.size() > 2) PED::_EQUIP_META_PED_OUTFIT_PRESET(s, int(num(2, 0)), false);
+            TASK::TASK_STAND_STILL(s, -1);
+        }
+    } else if (cmd == "wanted") {
+        PLAYER::SET_PLAYER_WANTED_LEVEL(PLAYER::PLAYER_ID(), int(num(1, 1)), false);
     } else if (cmd == "pos") {
         FD_INFO("test: Arthur %.2f %.2f %.2f, district 0x%08X, town %d", p.x, p.y, p.z, districtHash(p), int(inTown(p)));
     } else {
