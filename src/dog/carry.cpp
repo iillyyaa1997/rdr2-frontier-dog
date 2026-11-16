@@ -344,10 +344,9 @@ void CarryTask::deliver() {
     ++deliveries_;
 }
 
-// Onto the horse the way the game itself puts carcasses back on a horse (net_stable_mount.c, read 16.11): TASK_CARRIABLE
-// (carcass, its carry config, horse, slot 5 left / 6 right / 7 back, flags 256). Our earlier tries used slots 7/4/0 with
-// flags 0/1/2/512 (15.11: nothing; 16.11 slot 0: the carcass vanished). Unverified with 256 -> CarryStowOnHorse=0 until a
-// window confirms it.
+// Onto the horse (D145, verified 16.11 #4): what works in single player is what the game's SP hunters do
+// (av_walk_horse_carry_deer.c): TASK_CARRIABLE(carcass, DEAD_CARRIABLE_<SPECIES>, horse, slot 0, flags 0); the game then
+// puts it in the horse's slot 4 (Arthur's own stow slot). The MP stable recipe (slots 5/6/7, flags 256) does nothing in SP.
 static Hash deadCarriableFor(Ped carcass) {
     for (const auto& b : {"deer", "buck", "goat", "pronghorn", "bighornram", "duck", "elk", "moose", "boar", "fox", "coyote",
                           "wolf", "cougar", "panther", "bear", "beaver", "rabbit", "raccoon", "turkey", "goosecanada", "pheasant"}) {

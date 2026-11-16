@@ -7,7 +7,10 @@ Builds the Lenny's Mod Loader folder "FrontierDogItems" with Frontier Dog's own 
   CONSUMABLE_DOG_TREAT    - sold by the butcher
 
 The game reads ONE catalog_sp.ymt, so the input must be the catalog that is installed now (on the operator's PC:
-red_dead_offline's copy); the output is that catalog plus our items, to be loaded after it. Item definitions are clones
+red_dead_offline's copy); the output is that catalog plus our items. LML (verified 16.11): the folder must be listed in
+lml\mods.xml BOTH under <Mods> and under <LoadOrder> (a folder missing from <LoadOrder> is parsed but never loaded), and
+AFTER the mod the catalog came from - for one game path the later mod in <LoadOrder> wins ('Overwriting ... from').
+Rebuild this folder whenever the source mod's catalog changes (update/removal of red_dead_offline). Item definitions are clones
 of CONSUMABLE_HORSE_REVIVER's entry (a horse item: Arthur cannot eat it himself; the mod uses it through its prompts),
 with our keys, prices and texts. Texts go to an LML text gxt2 ("0xHASH = text" lines, the format red_dead_offline uses).
 Plain text processing, line by line: the catalog is a 57 MB XML file with CRLF line ends.
