@@ -11,6 +11,7 @@
 #include "dog/home.h"
 #include "dog/hunting.h"
 #include "dog/stables.h"
+#include "dog/strays.h"
 #include "game/game.h"
 #include "mod/context.h"
 #include "mod/testhooks.h"
@@ -93,6 +94,7 @@ static void scriptMain() {
         stables::tick();
         home::tick();
         delivery::tick();
+        strays::tick();
         ui::coreTick();
         ui::cardTick();
 #ifdef FD_TEST

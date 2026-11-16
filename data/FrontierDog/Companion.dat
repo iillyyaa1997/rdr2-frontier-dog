@@ -59,3 +59,10 @@ camp.min_gang=4
 home.bond_per_hour=0.5
 [Look]
 capsule.scaled=0.6
+[Strays]
+strays.cap=3
+strays.spawn_every_ms=240000
+strays.spawn_chance=0.5
+strays.pack_chance=0.35
+strays.trust_days=2
+strays.follow_chance=0.3

@@ -4,6 +4,7 @@
 #include <string>
 
 #include "dog/companion.h"
+#include "dog/strays.h"
 #include "game/game.h"
 #include "mod/context.h"
 #include "ui/draw.h"
@@ -129,8 +130,12 @@ void cardTick() {
     static const Hash kShow = MISC::GET_HASH_KEY("INPUT_INTERACT_LOCKON_DETAILS_ANIMAL");
     static const Hash kLeft = MISC::GET_HASH_KEY("INPUT_FRONTEND_LEFT");
     static const Hash kRight = MISC::GET_HASH_KEY("INPUT_FRONTEND_RIGHT");
-    if (!g_page && comp.present() && focus == comp.ped() && PAD::IS_CONTROL_JUST_PRESSED(0, kShow)) {
-        if (DogRecord* d = comp.record()) cardShow(*d, comp.ped());
+    if (!g_page && PAD::IS_CONTROL_JUST_PRESSED(0, kShow) && focus) {
+        if (comp.present() && focus == comp.ped()) {
+            if (DogRecord* d = comp.record()) cardShow(*d, comp.ped());
+        } else if (game::alive(focus) && !comp.isShopOrHomeDog(focus) && ctx().breeds.byAnimalType(ENTITY::_GET_PED_ANIMAL_TYPE(focus))) {
+            cardShow(strays::cardFor(focus), focus);  // a stray's card is known before taming (D102)
+        }
     }
     if (!g_page) return;
     if (g_ped && (focus != g_ped || game::dist(g_ped, game::player()) > 4.0f)) {

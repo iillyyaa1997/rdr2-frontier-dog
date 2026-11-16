@@ -8,6 +8,7 @@
 #include "dog/behaviour.h"
 #include "dog/care.h"
 #include "dog/hunting.h"
+#include "dog/strays.h"
 #include "game/game.h"
 #include "mod/context.h"
 
@@ -656,9 +657,12 @@ void Companion::tame(Ped stray) {
     }
     const BreedDef* b = c.breeds.byAnimalType(ENTITY::_GET_PED_ANIMAL_TYPE(stray));
     if (!b) b = c.breeds.find("mutt");
-    auto it = strayRolls_.find(stray);
-    DogRecord d = it != strayRolls_.end() ? it->second : rollStray(*b, c.breeds, c.rng, c.chances, {});
-    strayRolls_.erase(stray);
+    if (strays::wary(stray)) {
+        helpText(c.t("help.stray_wary"));
+        return;
+    }
+    DogRecord d = strays::cardFor(stray);
+    strays::forget(stray);
     // the stray keeps the look it has (its own model); the name is the standard one (old D73)
     for (const auto& m : b->models)
         if (MISC::GET_HASH_KEY(m.c_str()) == ENTITY::GET_ENTITY_MODEL(stray)) d.model = m;
