@@ -87,11 +87,21 @@ void CarryTask::update() {
                 TASK::CLEAR_PED_TASKS(dog_, true, true);
                 stage_ = Stage::Grab;
                 stageAt_ = t;
+                progressAt_ = 0;
+                straight_ = false;
+                FD_INFO("carry: takes it");
                 return;
             }
             if (t - orderedAt_ > (job_.inWater ? 1500 : 4000)) {
-                if (job_.inWater) TASK::TASK_GO_STRAIGHT_TO_COORD(dog_, g.x, g.y, g.z, 3.0f, -1, 0.0f, 0.3f, 0);
+                float gap = dist(pos(dog_), g);
+                // no progress for 8 s on the navmesh: go straight at it (window 16.11: the dog never reached a rabbit)
+                bool straightNow = job_.inWater || straight_ || (progressAt_ && t - progressAt_ > 8000 && lastGap_ - gap < 1.0f);
+                if (!progressAt_ || lastGap_ - gap >= 1.0f) { progressAt_ = t; lastGap_ = gap; }
+                if (straightNow && !straight_) { straight_ = true; FD_INFO("carry: no way on the navmesh, goes straight"); }
+                if (straightNow) TASK::TASK_GO_STRAIGHT_TO_COORD(dog_, g.x, g.y, g.z, 3.0f, -1, 0.0f, 0.3f, 0);
                 else TASK::TASK_FOLLOW_NAV_MESH_TO_COORD(dog_, g.x, g.y, g.z, 3.0f, -1, 0.3f, 0, 0.0f);
+                FD_INFO("carry: going, %.1f m to it (jaw %.1f m), nav status %d", gap, dist(jawPoint(), g),
+                        TASK::GET_SCRIPT_TASK_STATUS(dog_, MISC::GET_HASH_KEY("SCRIPT_TASK_FOLLOW_NAV_MESH_TO_COORD"), false));
                 orderedAt_ = t;
             }
             if (t - stageAt_ > 40000) fail("could not reach it in 40 s");

@@ -111,7 +111,7 @@ static void run(const std::vector<std::string>& a) {
         KvFile st;
         st.load(fs::join(c.dataDir, "Stables.dat"));
         auto v = st.getFloats(a[1] + ".dogs");
-        if (v.size() == 3) ENTITY::SET_ENTITY_COORDS(pl, float(v[0]) + 3, float(v[1]) + 3, float(v[2]), false, false, false, true);
+        if (v.size() == 3) ENTITY::SET_ENTITY_COORDS(pl, float(v[0]) + 12, float(v[1]) - 14, float(v[2]) + 1, false, false, false, true);  // well outside the building
     } else if (cmd == "set" && a.size() >= 3 && comp.record()) {
         // set grade|hunger|dirt|bond|scale|preset|stat<1-5> <value>; skill <id> <level>; trait <id>; untrait <id>
         DogRecord& d = *comp.record();
@@ -158,7 +158,8 @@ static void run(const std::vector<std::string>& a) {
     } else if (cmd == "help") {
         helpText(a.size() > 1 ? a[1] : "Frontier Dog test", 5000);
     } else if (cmd == "pos") {
-        FD_INFO("test: Arthur %.2f %.2f %.2f, district 0x%08X, town %d", p.x, p.y, p.z, districtHash(p), int(inTown(p)));
+        FD_INFO("test: Arthur %.2f %.2f %.2f, district 0x%08X, town %d, interior %d", p.x, p.y, p.z, districtHash(p), int(inTown(p)), INTERIOR::GET_INTERIOR_FROM_ENTITY(pl));
+        if (comp.present()) { Vector3 dp = pos(comp.ped()); FD_INFO("test: dog %.2f %.2f %.2f, %.1f m, in group %d", dp.x, dp.y, dp.z, dist(dp, p), int(PED::IS_PED_GROUP_MEMBER(comp.ped(), PED::GET_PED_GROUP_INDEX(pl), false))); }
     } else {
         FD_INFO("test: unknown command %s", cmd.c_str());
         return;
