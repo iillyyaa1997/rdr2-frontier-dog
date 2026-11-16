@@ -13,7 +13,8 @@ AFTER the mod the catalog came from - for one game path the later mod in <LoadOr
 Rebuild this folder whenever the source mod's catalog changes (update/removal of red_dead_offline). Item definitions are clones
 of CONSUMABLE_HORSE_REVIVER's entry (a horse item: Arthur cannot eat it himself; the mod uses it through its prompts),
 with our keys, prices and texts. Texts go to an LML text gxt2 ("0xHASH = text" lines, the format red_dead_offline uses).
-Plain text processing, line by line: the catalog is a 57 MB XML file with CRLF line ends.
+Plain text processing, line by line: the catalog is a 57 MB XML file with CRLF line ends. The folder also carries the
+dog's core icon, textures/frontier_dog_hud.ytd built by gen_ytd.py from data/hud (needs Pillow).
 """
 import os
 import re
@@ -206,9 +207,24 @@ def main():
                 <FilePath>catalog/catalog_sp.ymt</FilePath>
             </FileReplacement>
         </Resource>
+        <Resource>
+            <!-- the dog's core icon: textures/frontier_dog_hud.ytd (tools/gen_ytd.py from data/hud), an add-on
+                 texture dictionary the mod draws with DRAW_SPRITE, streamed like Care Overhaul's rdr_care_icons.ytd -->
+            <StreamingFiles isAddon="true">textures</StreamingFiles>
+        </Resource>
     </Resources>
 </EasyInstall>
 """)
+    # the dog's core icon (D148): data/hud/paw_core_0..15.png -> textures/frontier_dog_hud.ytd
+    here = os.path.dirname(os.path.abspath(__file__))
+    sys.path.insert(0, here)
+    import gen_ytd
+    from PIL import Image
+    hud = os.path.join(here, "..", "data", "hud")
+    os.makedirs(os.path.join(mod, "textures"), exist_ok=True)
+    with open(os.path.join(mod, "textures", "frontier_dog_hud.ytd"), "wb") as f:
+        f.write(gen_ytd.build([(f"paw_core_{i}", Image.open(os.path.join(hud, f"paw_core_{i}.png")).convert("RGBA"))
+                               for i in range(16)]))
     print(f"items {len(ITEMS)}, stable rows {rows_added['ST_HORSE_SHOP']}, butcher rows {rows_added['ST_BUTCHER']}, "
           f"stock {sorted(stocked)}, lines {len(lines)}")
 

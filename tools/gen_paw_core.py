@@ -7,7 +7,7 @@ boxed down to 64x64 like the game's icons; its white, its drained grey and the s
 from the game's own hearts (HEARTS_DIR: rpg_core_health core_state_0..15.png, e.g. from the femga/rdr3_discoveries
 texture dump, "without bg"), the drained height of each state is measured on the heart of the same state; the wear
 (the operator wanted it «потёртая», like the game's paw blip) is speckle noise with a fixed seed, level 3 by default.
-Output: OUT_DIR/paw_core_0..15.png, packed by hand into frontier_dog_hud.ytd (see README) and streamed by LML.
+Output: OUT_DIR/paw_core_0..15.png, packed into frontier_dog_hud.ytd by gen_ytd.py and streamed by LML.
 Needs Pillow.
 """
 import sys

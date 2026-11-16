@@ -23,9 +23,10 @@ ScriptHookRDR2.dll is generated at build time from the symbols the code imports,
 ## The dog's core icon
 
 `data/hud/paw_core_0..15.png` — our own paw in the style of the game's core icons, 16 drained states like
-`rpg_core_health core_state_0..15`, made by `tools/gen_paw_core.py` from the game's hearts (see its header). They are
-packed into a texture dictionary `frontier_dog_hud.ytd` (textures `paw_core_0` … `paw_core_15`) with a Windows tool and
-streamed by Lenny's Mod Loader; without it the core falls back to the game's paw blip. Not yet checked in game.
+`rpg_core_health core_state_0..15`, made by `tools/gen_paw_core.py` from the game's hearts (see its header). `tools/gen_ytd.py`
+packs them into the texture dictionary `frontier_dog_hud.ytd` (textures `paw_core_0` … `paw_core_15`, BC3, RSC8 like an
+add-on .ytd that works in the game — no Windows tool needed); `tools/gen_lml_items.py` puts it into the LML folder as
+`textures/` with `<StreamingFiles isAddon="true">`. Without it the core falls back to the game's paw blip.
 
 ## License
 
