@@ -6,6 +6,7 @@
 #include "core/log.h"
 #include "core/strutil.h"
 #include "dog/behaviour.h"
+#include "dog/hunting.h"
 #include "game/game.h"
 #include "mod/context.h"
 
@@ -156,6 +157,7 @@ void Companion::releasePed(bool runOff) {
 void Companion::sendHome(bool runOff) {
     DogRecord* d = record();
     if (!d) return;
+    hunting::giveUp();
     FD_INFO("dog %s goes home", d->name.c_str());
     d->where = Where::Home;
     if (alive(ped_)) d->healthFrac = double(ENTITY::GET_ENTITY_HEALTH(ped_)) / std::max(1, ENTITY::GET_ENTITY_MAX_HEALTH(ped_, false));
@@ -272,7 +274,12 @@ void Companion::whistle() {
         auto delays = b->habits.getFloats("obey_delay_ms");
         if (d->bondLevel - 1 < int(delays.size())) delay = int(delays[d->bondLevel - 1]);
     }
-    if (ctx().hasTrait(*d, "obedient")) delay = 0;
+    bool obedient = ctx().hasTrait(*d, "obedient");
+    if (obedient) delay = 0;
+    if (hunting::busy()) {
+        if (!obedient) { FD_INFO("whistle: the dog brings the carcass first"); return; }
+        hunting::giveUp();
+    }
     if (delay > 0) {
         TASK::TASK_LOOK_AT_ENTITY(ped_, player(), delay, 0, 0, 0);
         pendingFollowAt_ = now() + delay;

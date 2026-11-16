@@ -8,6 +8,7 @@
 #include "core/log.h"
 #include "core/strutil.h"
 #include "dog/companion.h"
+#include "dog/hunting.h"
 #include "game/game.h"
 #include "game/prompt.h"
 #include "mod/context.h"
@@ -50,7 +51,7 @@ bool autonomyAllowed() { return !onMission() && !inCutscene() && !g_leaveMeAlone
 bool feedOffered() { return g_feedOffered; }
 bool trackOffered() { return g_trackOffered; }
 
-bool busy() { return now() < g_attackUntil || now() < g_trackUntil || now() < g_warnUntil; }
+bool busy() { return now() < g_attackUntil || now() < g_trackUntil || now() < g_warnUntil || hunting::busy(); }
 
 static bool attackable(Ped t, Ped dog) {
     if (!alive(t) || t == dog || t == player()) return false;

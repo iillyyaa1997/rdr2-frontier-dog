@@ -422,6 +422,20 @@ std::vector<std::string> addDeed(DogRecord& d, const BreedTable& t, const std::s
     return out;
 }
 
+bool addSkillUse(DogRecord& d, const std::string& skill, int usesL2, int usesL3) {
+    static const double factor[] = {0.6, 0.6, 0.8, 1.0, 1.2, 1.5};  // trainability 1..5 = learning speed (old D30)
+    int tr = std::clamp(d.stats[Trainability], 1, 5);
+    int& uses = d.skillUses[skill];
+    ++uses;
+    int lvl = d.skill(skill);
+    if (lvl >= 3) return false;
+    int need = int((lvl == 1 ? usesL2 : usesL3) / factor[tr] + 0.5);
+    if (uses < need) return false;
+    d.skillLevel[skill] = lvl + 1;
+    uses = 0;
+    return true;
+}
+
 const char* gradeKey(Grade g, bool mutt) {
     switch (g) {
         case Grade::Pedigree: return mutt ? "grade.hardened" : "grade.pedigree";

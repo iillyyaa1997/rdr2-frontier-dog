@@ -34,3 +34,16 @@ hunger.meal=60
 hunger.treat=20
 bond.treat=5
 bond.treat_cooldown_ms=60000
+[Carry]
+# body length (m): up to small_max in the mouth (birds always), up to medium_max on the hidden rope, longer = large
+carry.small_max=0.8
+carry.medium_max=1.6
+carry.pull_force=20
+carry.stamina_seconds=45
+carry.core_cost=8
+carry.to_horse_range=60
+dirt.per_haul=8
+[Skills]
+# uses for level 2 / 3 at trainability 3 (× learning speed by trainability)
+skill.uses.2=10
+skill.uses.3=25

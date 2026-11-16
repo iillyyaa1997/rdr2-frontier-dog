@@ -6,6 +6,7 @@
 #include "core/version.h"
 #include "dog/behaviour.h"
 #include "dog/companion.h"
+#include "dog/hunting.h"
 #include "game/game.h"
 #include "mod/context.h"
 #include "mod/testhooks.h"
@@ -69,11 +70,16 @@ static void scriptMain() {
     behaviour::start();
     while (true) {
         int n = SCRIPT::GET_NUMBER_OF_EVENTS(0);
-        for (int i = 0; i < n; ++i) companion().onEvent(SCRIPT::GET_EVENT_AT_INDEX(0, i), i);
+        for (int i = 0; i < n; ++i) {
+            Hash type = SCRIPT::GET_EVENT_AT_INDEX(0, i);
+            companion().onEvent(type, i);
+            hunting::onEvent(type, i);
+        }
         int n1 = SCRIPT::GET_NUMBER_OF_EVENTS(1);
         for (int i = 0; i < n1; ++i) behaviour::onScriptEvent(i);
         companion().tick();
         behaviour::tick();
+        hunting::tick();
         ui::coreTick();
         ui::cardTick();
 #ifdef FD_TEST

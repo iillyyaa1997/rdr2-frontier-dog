@@ -91,6 +91,10 @@ Stats randomStats(int sum, int lo, int hi, int maxFives, Rng& rng, int* fiveInde
 std::vector<std::string> rollTraits(int points, const BreedDef& own, const BreedTable& t, Rng& rng, double ownShare,
                                     const TraitBias& bias, bool allowSignatures, const std::vector<std::string>& have);
 
+// A skill used once more; returns true if it reached the next level (uses for L2/L3 × the trainability factor,
+// old D18: ~10 and ~25 uses; ailing dogs stop at 3 like every dog, their stat cap is handled elsewhere).
+bool addSkillUse(DogRecord& d, const std::string& skill, int usesL2, int usesL3);
+
 const char* gradeKey(Grade g, bool mutt);  // Lang key: grade.pedigree / grade.hardened / grade.ordinary / grade.ailing
 
 }  // namespace fd
