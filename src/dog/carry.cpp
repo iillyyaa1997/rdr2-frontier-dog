@@ -298,15 +298,22 @@ void CarryTask::keepOnGround(int t) {
     float ground = 0;
     if (!MISC::GET_GROUND_Z_FOR_3D_COORD(p.x, p.y, p.z + 3.0f, &ground, false)) return;
     float h = p.z - ground;
-    if (!rope_) {  // before the rope: learn how high the origin of this dog stands
-        if (h > 0.1f && h < 1.2f) standHeight_ = standHeight_ < 0 ? h : std::max(standHeight_, h);
+    if (!rope_) {
+        // before the rope: learn how high the origin of this dog stands - only while it stands to take the carcass (a
+        // running dog bobs higher: measured on the run, every later frame looked 'sunk' and the teleports pinned the dog
+        // in place, window 16.11 #4)
+        if (stage_ == Stage::Grab && h > 0.1f && h < 1.2f) standHeight_ = standHeight_ < 0 ? h : std::min(standHeight_, h);
         return;
     }
-    float stand = standHeight_ > 0 ? standHeight_ : float(ctx().tunef("carry.stand_height", 0.45));
+    float stand = standHeight_ > 0 ? standHeight_ : float(ctx().tunef("carry.stand_height", 0.4));
     float sunk = stand - h;
-    if (sunk < float(ctx().tunef("carry.sink_tolerance", 0.2))) return;
+    if (sunk < float(ctx().tunef("carry.sink_tolerance", 0.3))) return;  // only a real sinking (16.11 #3: metres)
     ENTITY::SET_ENTITY_COORDS_NO_OFFSET(dog_, p.x, p.y, ground + stand, false, false, false);
-    if (sunk > 0.5f) FD_INFO("carry: the dog was pulled %.2f m into the ground, put back on it", sunk);
+    static int lastLog = 0;
+    if (t - lastLog > 5000) {
+        lastLog = t;
+        FD_INFO("carry: the dog was pulled %.2f m into the ground (stands %.2f), put back on it", sunk, stand);
+    }
 }
 
 void CarryTask::release() {
@@ -332,7 +339,7 @@ void CarryTask::deliver() {
         FD_INFO("carry: delivered (%s)", job_.body ? "a body" : "a pelt");
     }
     TASK::TASK_TURN_PED_TO_FACE_ENTITY(dog_, player(), 1500, 0, 0, 0);
-    if (job_.horse && dist(dog_, job_.horse) < 4.0f && ctx().ini.getBool("CarryStowOnHorse", false)) stowOnHorse();
+    if (job_.horse && dist(dog_, job_.horse) < 4.0f && ctx().ini.getBool("CarryStowOnHorse", true)) stowOnHorse();
     lastDelivered_ = true;
     ++deliveries_;
 }
@@ -380,9 +387,12 @@ bool CarryTask::stowCarcassOnHorse(Ped carcass, Ped horse, int slot, int flags, 
     return true;
 }
 
+// Window 16.11 #4 (06:05): slot 0 + flags 0 + DEAD_CARRIABLE_<SPECIES> = what the game's own SP script does
+// (av_walk_horse_carry_deer.c): the fox got attached, carried by the horse, in its slot 4 (Arthur's own stow slot).
+// Slots 5/6/7 with flags 256 (the MP stable script) did nothing in single player, near or far.
 void CarryTask::stowOnHorse() {
-    stowCarcassOnHorse(job_.carcass, job_.horse, freeHorseSlot(job_.horse), int(ctx().tune("carry.stow_flags", 256)),
-                       ctx().ini.getBool("CarryStowDeadConfig", false));
+    stowCarcassOnHorse(job_.carcass, job_.horse, int(ctx().tune("carry.stow_slot", 0)), int(ctx().tune("carry.stow_flags", 0)),
+                       ctx().ini.getBool("CarryStowDeadConfig", true));
 }
 
 void CarryTask::checkStow() {
@@ -393,6 +403,13 @@ void CarryTask::checkStow() {
     }
     CarriedInfo ci;
     bool got = carriedInSlot(stowHorse_, stowSlot_, ci);
+    int onHorseSlot = -1;
+    for (int sl = 0; sl < 12 && onHorseSlot < 0; ++sl) {
+        CarriedInfo c2;
+        if (carriedInSlot(stowHorse_, sl, c2) && c2.entity == stowCarcass_) onHorseSlot = sl;
+    }
+    FD_INFO("carry: stow check - on the horse in slot %d, visible %d, alpha %d", onHorseSlot,
+            int(ENTITY::IS_ENTITY_VISIBLE(stowCarcass_)), ENTITY::GET_ENTITY_ALPHA(stowCarcass_));
     FD_INFO("carry: stow check - slot %d: info %d, entity %d (ours %d), model 0x%08X, config 0x%08X", stowSlot_, int(got), ci.entity,
             int(ci.entity == stowCarcass_), ci.model, ci.config);
     Vector3 c = pos(stowCarcass_), h = pos(stowHorse_);

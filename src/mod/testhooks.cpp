@@ -216,6 +216,22 @@ static void run(const std::vector<std::string>& a) {
     } else if (cmd == "giveitem" && a.size() >= 2) {
         bool ok = giveItem(a[1].c_str(), int(num(2, 1)));
         FD_INFO("test: giveitem %s -> %d, count now %d", a[1].c_str(), int(ok), itemCount(a[1].c_str()));
+    } else if (cmd == "stownew" && a.size() >= 2) {
+        // stownew <model> [slot] [flags]: exactly the game's stable code - a dead animal created 1 m off the horse and given
+        // to it with TASK_CARRIABLE in the same frame (net_stable_mount.c func_120)
+        Ped horse = PLAYER::_GET_SADDLE_HORSE_FOR_PLAYER(PLAYER::PLAYER_ID());
+        Vector3 at = ENTITY::GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(horse, 0.0f, -1.0f, 0.0f);
+        Hash model = MISC::GET_HASH_KEY(a[1].c_str());
+        if (alive(horse) && loadModel(model, 3000)) {
+            Ped c = PED::CREATE_PED(model, at.x, at.y, at.z, 0.0f, false, false, false, false);
+            STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(model);
+            ENTITY::SET_ENTITY_HEALTH(c, 0, 0);
+            PED::SET_PED_CONFIG_FLAG(c, 517, true);
+            int slot = int(num(2, -1));
+            if (slot < 0) slot = hunting::freeHorseSlot(horse);
+            hunting::stowOnHorse(c, horse, slot, int(num(3, 256)), false);
+            g_spawned.push_back(c);
+        }
     } else if (cmd == "horseslots") {
         Ped horse = PLAYER::_GET_SADDLE_HORSE_FOR_PLAYER(PLAYER::PLAYER_ID());
         for (int slot = 0; slot < 12; ++slot) {
@@ -242,8 +258,15 @@ static void run(const std::vector<std::string>& a) {
         if (!alive(horse) || !carcass) {
             FD_INFO("test: %s - horse %d, carcass %d", cmd.c_str(), horse, carcass);
         } else if (cmd == "stow") {
+            // stow [slot] [flags] [own|dead] [near]: 'near' first puts it 1 m behind the horse, as the game's stable code does
             int slot = int(num(1, -1));
             if (slot < 0) slot = hunting::freeHorseSlot(horse);
+            if (a.size() > 4 && a[4] == "near") {
+                Vector3 at = ENTITY::GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(horse, 0.0f, -1.0f, 0.0f);
+                ENTITY::SET_ENTITY_COORDS(carcass, at.x, at.y, at.z, false, false, false, true);
+                scriptWait(0);
+            }
+            FD_INFO("test: carcass %d at %.1f m from the horse", carcass, dist(carcass, horse));
             hunting::stowOnHorse(carcass, horse, slot, int(num(2, 256)), a.size() > 3 && a[3] == "dead");
         } else {
             Vector3 cp = pos(carcass);
