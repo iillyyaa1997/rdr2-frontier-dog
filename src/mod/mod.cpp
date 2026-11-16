@@ -8,6 +8,8 @@
 #include "game/game.h"
 #include "mod/context.h"
 #include "mod/testhooks.h"
+#include "ui/card.h"
+#include "ui/core.h"
 #include "sdk/natives.gen.h"
 
 namespace fd {
@@ -67,6 +69,8 @@ static void scriptMain() {
         int n = SCRIPT::GET_NUMBER_OF_EVENTS(0);
         for (int i = 0; i < n; ++i) companion().onEvent(SCRIPT::GET_EVENT_AT_INDEX(0, i), i);
         companion().tick();
+        ui::coreTick();
+        ui::cardTick();
 #ifdef FD_TEST
         testhooks::tick();
 #endif
