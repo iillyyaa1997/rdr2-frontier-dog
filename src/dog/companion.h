@@ -45,6 +45,10 @@ private:
     void updateStrays();
     void praise();
     void died();
+    bool updateWounded();   // true while the wounded state owns the dog this frame
+    void startWounded();
+    void endWounded(bool revived);
+    void updateAway();
     void tame(Ped stray);
 
     Ped ped_ = 0;
@@ -64,7 +68,11 @@ private:
     float lastFollowDist_ = 0;
     std::map<std::string, int> cooldownUntil_;
 
-    game::UiPrompt stayPrompt_, praisePrompt_, homePrompt_, tamePrompt_;
+    game::UiPrompt stayPrompt_, praisePrompt_, homePrompt_, tamePrompt_, revivePrompt_;
+    Blip woundedBlip_ = 0;
+    int woundedGraceUntil_ = 0;
+    int nextWoundedCheck_ = 0;
+    int nextAwayCheck_ = 0;
     Ped tameCandidate_ = 0;
     int tameCandidateUntil_ = 0;
     std::map<int, DogRecord> strayRolls_;  // ped handle -> rolled card (D102: known before taming)

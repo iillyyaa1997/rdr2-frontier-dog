@@ -150,6 +150,18 @@ unsigned districtHash(const Vector3& at) { return ZONE::_GET_MAP_ZONE_AT_COORDS(
 
 bool inTown(const Vector3& at) { return ZONE::_GET_MAP_ZONE_AT_COORDS(at.x, at.y, at.z, 1) != 0; }
 
+int itemCount(const char* item) {
+    int inv = INVENTORY::_INVENTORY_GET_INVENTORY_ID_FROM_PED(player());
+    return INVENTORY::_INVENTORY_GET_INVENTORY_ITEM_COUNT_WITH_ITEMID(inv, MISC::GET_HASH_KEY(item), false);
+}
+
+bool takeItem(const char* item, int n) {
+    if (itemCount(item) < n) return false;
+    int inv = INVENTORY::_INVENTORY_GET_INVENTORY_ID_FROM_PED(player());
+    return INVENTORY::_INVENTORY_REMOVE_INVENTORY_ITEM_WITH_ITEMID(inv, MISC::GET_HASH_KEY(item), n,
+                                                                  MISC::GET_HASH_KEY("REMOVE_REASON_DEFAULT")) != 0;
+}
+
 int cash() { return MONEY::_MONEY_GET_CASH_BALANCE(); }
 
 bool takeCash(int cents) {

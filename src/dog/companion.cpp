@@ -48,6 +48,7 @@ void Companion::start() {
     praisePrompt_.create("INPUT_INTERACT_OPTION1", ctx().t("prompt.praise"));
     homePrompt_.create("INPUT_INTERACT_OPTION2", ctx().t("prompt.home"), 1500);
     tamePrompt_.create("INPUT_INTERACT_OPTION1", ctx().t("prompt.tame"), 1000);
+    revivePrompt_.create("INPUT_INTERACT_OPTION1", ctx().t("prompt.revive"), 1500, 2);
     slot_ = ctx().store.withArthur();
     if (slot_ < 0) return;
     // after a script reload the old ped may still be around: take it over instead of spawning a second dog
@@ -125,7 +126,7 @@ void Companion::setup(Ped dog) {
     MAP::BLIP_ADD_MODIFIER(blip_, 0x0B93E613);
     MAP::_SET_BLIP_NAME(blip_, literal(d && !d->name.empty() ? d->name : ctx().t("dog.default_name")));
 
-    for (auto* p : {&stayPrompt_, &praisePrompt_, &homePrompt_}) p->setTarget(dog);
+    for (auto* p : {&stayPrompt_, &praisePrompt_, &homePrompt_, &revivePrompt_}) p->setTarget(dog);
     stay_ = false;
     lastPlayerPos_ = pos(pl);
     lastPosAt_ = now();
@@ -135,7 +136,7 @@ void Companion::setup(Ped dog) {
 void Companion::releasePed(bool runOff) {
     if (MAP::DOES_BLIP_EXIST(blip_)) MAP::REMOVE_BLIP(&blip_);
     blip_ = 0;
-    for (auto* p : {&stayPrompt_, &praisePrompt_, &homePrompt_}) p->show(false);
+    for (auto* p : {&stayPrompt_, &praisePrompt_, &homePrompt_, &revivePrompt_}) p->show(false);
     if (exists(ped_)) {
         DECORATOR::DECOR_SET_INT(ped_, kDecor, 0);
         PED::REMOVE_PED_FROM_GROUP(ped_);
@@ -175,7 +176,9 @@ void Companion::callFromHome(int slot) {
 
 void Companion::tick() {
     updateStrays();
+    updateAway();
     if (slot_ < 0) return;
+    if (updateWounded()) return;
     if (!ped_ || !exists(ped_)) {
         // the game removed the ped (far away, a cutscene, a reload): bring it back out of view
         ped_ = 0;
@@ -374,6 +377,135 @@ void Companion::updateHealth() {
     }
 }
 
+// ---------------------------------------------------------------- wounded (old D26–D28, D79, D81)
+// Ordinary hits put the dog down wounded: it waits 5 / 15 / 30 real minutes by bonding (Hardy x1.5) for a Horse Reviver
+// (or our Dog Reviver, D133). Not saved in time -> it loses a grade (D107). An explosion or a headshot can kill outright.
+
+void Companion::startWounded() {
+    DogRecord* d = record();
+    if (!d) return;
+    auto waits = ctx().tuning.getFloats("wounded.wait_min");
+    double minutes = d->bondLevel - 1 < int(waits.size()) ? waits[d->bondLevel - 1] : 5.0;
+    if (ctx().hasTrait(*d, "hardy")) minutes *= ctx().tunef("trait.hardy.wait", 1.5);
+    Vector3 at = pos(ped_);
+    d->woundedUntil = unixNow() + (long long)(minutes * 60);
+    d->woundedX = at.x; d->woundedY = at.y; d->woundedZ = at.z;
+    save();
+    ENTITY::SET_ENTITY_AS_MISSION_ENTITY(ped_, true, true);
+    ENTITY::SET_ENTITY_INVINCIBLE(ped_, true);
+    if (TASK::IS_PED_IN_WRITHE(ped_)) PED::SET_PAUSE_PED_WRITHE_BLEEDOUT(ped_, true);
+    else if (!PED::IS_PED_INCAPACITATED(ped_)) {
+        TASK::CLEAR_PED_TASKS_IMMEDIATELY(ped_, true, true);
+        TASK::TASK_ANIMAL_WRITHE(ped_, 0, 0);
+    }
+    markActive(10000);
+    helpText(ctx().f("help.wounded", {{"name", d->name}, {"min", std::to_string(int(minutes + 0.5))}}, d->female), 10000);
+    FD_INFO("wounded: waits %.0f min", minutes);
+}
+
+void Companion::endWounded(bool revived) {
+    DogRecord* d = record();
+    if (exists(ped_)) ENTITY::SET_ENTITY_INVINCIBLE(ped_, false);
+    woundedGraceUntil_ = now() + 8000;  // the writhe flag lingers a few seconds after a revive
+    if (d) {
+        d->woundedUntil = 0;
+        if (revived) d->limp = true;  // limps until healed (care)
+        save();
+    }
+    if (MAP::DOES_BLIP_EXIST(woundedBlip_)) MAP::REMOVE_BLIP(&woundedBlip_);
+    woundedBlip_ = 0;
+    revivePrompt_.show(false);
+    FD_INFO(revived ? "wounded dog revived" : "wounded dog was not helped in time");
+}
+
+bool Companion::updateWounded() {
+    DogRecord* d = record();
+    if (!d) return false;
+    bool there = exists(ped_), living = there && !ENTITY::IS_ENTITY_DEAD(ped_);
+    bool down = living && (TASK::IS_PED_IN_WRITHE(ped_) || PED::IS_PED_INCAPACITATED(ped_));
+    if (d->woundedUntil <= 0) {
+        if (!living) return false;
+        double pct = ctx().tunef("wounded.health_pct", 12);
+        bool low = ENTITY::GET_ENTITY_HEALTH(ped_) * 100.0 <= pct * ENTITY::GET_ENTITY_MAX_HEALTH(ped_, false);
+        if ((down || low) && now() >= woundedGraceUntil_) startWounded();
+        return false;
+    }
+    if (living) {
+        // the revive prompt: a Dog Reviver (if the item exists) or the game's Horse Reviver
+        const char* item = itemCount("CONSUMABLE_DOG_REVIVER") > 0 ? "CONSUMABLE_DOG_REVIVER"
+                         : (itemCount("CONSUMABLE_HORSE_REVIVER") > 0 ? "CONSUMABLE_HORSE_REVIVER" : nullptr);
+        bool close = dist(ped_, player()) < 2.5f;
+        revivePrompt_.setText(item ? ctx().t("prompt.revive") : ctx().t("prompt.need_reviver"));
+        revivePrompt_.show(dist(ped_, player()) < 6.0f, item && close);
+        for (auto* p : {&stayPrompt_, &praisePrompt_, &homePrompt_}) p->show(false);
+        if (item && revivePrompt_.fired() && takeItem(item)) {
+            PED::_INCAPACITATED_REVIVE(ped_, ped_);
+            TASK::CLEAR_PED_TASKS(ped_, true, true);
+            ENTITY::SET_ENTITY_HEALTH(ped_, ENTITY::GET_ENTITY_MAX_HEALTH(ped_, false) / 2, 0);
+            endWounded(true);
+            helpText(ctx().f("help.revived", {{"name", d->name}}, d->female));
+            follow();
+            return false;
+        }
+    }
+    if (now() < nextWoundedCheck_) return !living;
+    nextWoundedCheck_ = now() + 1000;
+    if (unixNow() >= d->woundedUntil) {
+        endWounded(false);
+        died();  // not saved in time: one grade lower (or gone, if it was ailing)
+        return true;
+    }
+    if (living) {
+        ENTITY::SET_ENTITY_INVINCIBLE(ped_, true);
+        if (TASK::IS_PED_IN_WRITHE(ped_)) PED::SET_PAUSE_PED_WRITHE_BLEEDOUT(ped_, true);
+        return false;
+    }
+    if (there) return false;  // dead outright: the normal death path
+    // the ped is gone (Arthur died far away, a reload): the dog still lies where it fell
+    Vector3 at(d->woundedX, d->woundedY, d->woundedZ);
+    if (!woundedBlip_) {
+        woundedBlip_ = MAP::BLIP_ADD_FOR_COORDS(0x19365607, at.x, at.y, at.z);
+        MAP::SET_BLIP_SPRITE(woundedBlip_, MISC::GET_HASH_KEY("blip_animal"), true);
+        MAP::BLIP_ADD_MODIFIER(woundedBlip_, MISC::GET_HASH_KEY("BLIP_MODIFIER_RADAR_EDGE_ALWAYS"));
+        MAP::_SET_BLIP_NAME(woundedBlip_, literal(d->name));
+    }
+    if (dist(pos(player()), at) < 80.0f) {
+        Ped dog = spawnPed(d->model.empty() ? "a_c_doghobo_01" : d->model, at, 0);
+        if (dog) {
+            if (d->preset >= 0) PED::_EQUIP_META_PED_OUTFIT_PRESET(dog, d->preset, false);
+            setup(dog);
+            ENTITY::SET_ENTITY_AS_MISSION_ENTITY(dog, true, true);
+            ENTITY::SET_ENTITY_INVINCIBLE(dog, true);
+            TASK::TASK_ANIMAL_WRITHE(dog, 0, 0);
+            if (MAP::DOES_BLIP_EXIST(woundedBlip_)) MAP::REMOVE_BLIP(&woundedBlip_);
+            woundedBlip_ = 0;
+            FD_INFO("the wounded dog is back where it fell");
+        }
+    }
+    return true;
+}
+
+// ---------------------------------------------------------------- dogs away (nursed, training, at the vet)
+
+void Companion::updateAway() {
+    if (now() < nextAwayCheck_) return;
+    nextAwayCheck_ = now() + 10000;
+    long long m = gameMinutes();
+    for (int i = 0; i < DogStore::kSlots; ++i) {
+        if (!ctx().store.used(i)) continue;
+        DogRecord& d = ctx().store.at(i);
+        if (d.where != Where::Away || m < d.awayUntil) continue;
+        std::string reason = d.awayReason;
+        d.where = Where::Home;  // picked up at the stable comes with the stable module; until then it walks home
+        d.awayReason.clear();
+        d.awayUntil = 0;
+        ctx().store.save(i);
+        FD_INFO("dog %s is back home (%s)", d.name.c_str(), reason.c_str());
+        helpText(ctx().f("help.back_home." + (reason.empty() ? std::string("away") : reason.substr(0, reason.find(':'))),
+                         {{"name", d.name}, {"grade", ctx().gradeText(d)}}, d.female), 7000);
+    }
+}
+
 // ---------------------------------------------------------------- death -> grade down (D107–D113)
 
 void Companion::died() {
@@ -382,6 +514,10 @@ void Companion::died() {
     std::string name = d->name;
     bool female = d->female;
     Grade before = d->grade;
+    d->woundedUntil = 0;
+    if (MAP::DOES_BLIP_EXIST(woundedBlip_)) MAP::REMOVE_BLIP(&woundedBlip_);
+    woundedBlip_ = 0;
+    revivePrompt_.show(false);
     bool lives = gradeDown(*d, ctx().breeds, ctx().rng);
     FD_INFO("dog %s died: grade %d -> %s", name.c_str(), int(before), lives ? "one grade lower, nursed in camp" : "gone for good");
     releasePed(false);

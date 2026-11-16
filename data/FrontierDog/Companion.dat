@@ -21,3 +21,8 @@ trait.affectionate.bond=1.3333
 [Grades]
 # ailing dogs: max health cut (D111)
 ailing.health_cut=0.25
+[Wounded]
+# real minutes a wounded dog waits for a reviver, by bonding level (old D28); Hardy x1.5
+wounded.wait_min=5,15,30
+wounded.health_pct=12
+trait.hardy.wait=1.5

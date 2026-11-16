@@ -39,6 +39,9 @@ long long unixNow();
 unsigned districtHash(const Vector3& at);  // _GET_MAP_ZONE_AT_COORDS type 10 (DISTRICT)
 bool inTown(const Vector3& at);            // type 1 (TOWN; includes ranches and oil fields)
 
+int itemCount(const char* item);           // in Arthur's satchel
+bool takeItem(const char* item, int n = 1);  // no toast: the item toast faulted on some items (old 0.6)
+
 int cash();             // cents
 bool takeCash(int cents);
 void giveCash(int cents);
