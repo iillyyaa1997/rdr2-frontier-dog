@@ -339,7 +339,12 @@ void CarryTask::deliver() {
         FD_INFO("carry: delivered (%s)", job_.body ? "a body" : "a pelt");
     }
     TASK::TASK_TURN_PED_TO_FACE_ENTITY(dog_, player(), 1500, 0, 0, 0);
-    if (job_.horse && dist(dog_, job_.horse) < 4.0f && ctx().ini.getBool("CarryStowOnHorse", true)) stowOnHorse();
+    // a pelt is not stowed: TASK_CARRIABLE with the pelt's own config laid it flat across the horse's side, flesh up, in
+    // the carcass slot, so Arthur could not stow a carcass any more (his play, 17.11). The game keeps pelts on a horse
+    // as a stack of its own (_SET_PELT_FOR_HORSE) - to be tried with the 'peltstow' hook; until then it is left by the horse.
+    if (job_.horse && dist(dog_, job_.horse) < 4.0f && ctx().ini.getBool("CarryStowOnHorse", true) && !job_.pelt &&
+        !ENTITY::_GET_IS_CARRIABLE_PELT(job_.carcass))
+        stowOnHorse();
     lastDelivered_ = true;
     ++deliveries_;
 }

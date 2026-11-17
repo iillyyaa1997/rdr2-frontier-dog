@@ -247,6 +247,25 @@ static void run(const std::vector<std::string>& a) {
             PED::GET_META_PED_ASSET_GUIDS(t, i, &d, &al, &nm, &mt);
             FD_INFO("test:  %d item 0x%08X cat 0x%08X drawable 0x%08X albedo 0x%08X", i, item, cat, d, al);
         }
+    } else if (cmd == "peltstow") {
+        // peltstow [clear]: the nearest pelt on the ground goes into the pelt stack of Arthur's horse the game's way
+        // (_SET_PELT_FOR_HORSE), then the stack is listed; 'clear' empties it (17.11: the pelt laid like a carcass)
+        Ped horse = PLAYER::_GET_SADDLE_HORSE_FOR_PLAYER(PLAYER::PLAYER_ID());
+        if (!alive(horse)) { FD_INFO("test: no horse"); return; }
+        if (a.size() > 1 && a[1] == "clear") {
+            for (int i = 0; i < 8; ++i) if (int id = PED::_GET_PELT_FROM_HORSE(horse, i)) PED::_CLEAR_PELT_FROM_HORSE(horse, id);
+        } else {
+            Entity best = 0;
+            float bd = 15.0f;
+            const int kMax = 256;
+            int objs[kMax];
+            int n = worldGetAllObjects(objs, kMax);
+            for (int i = 0; i < n; ++i)
+                if (ENTITY::_GET_IS_CARRIABLE_PELT(objs[i]) && dist(objs[i], pl) < bd) { bd = dist(objs[i], pl); best = objs[i]; }
+            FD_INFO("test: pelt %d %.1f m away", best, bd);
+            if (best) PED::_SET_PELT_FOR_HORSE(horse, best);
+        }
+        for (int i = 0; i < 8; ++i) FD_INFO("test: horse pelt %d = %d", i, PED::_GET_PELT_FROM_HORSE(horse, i));
     } else if (cmd == "collartint" && a.size() >= 5 && comp.present()) {
         // collartint <palette name|0> <tint0> <tint1> <tint2>: the studded collar recoloured on the companion (survey of
         // collar colours; palettes are metaped_tint_*)
