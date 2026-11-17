@@ -14,7 +14,8 @@ better, and has a character of its own. Every system below can be switched off i
   paw that drains from the top as the dog gets hungry (red when starving, blinking red when wounded), its ring the
   dog's health over a grey track that grows with your bond the way Arthur's grows with his level. It shows, hides and
   moves exactly with the game's cores (regular or expanded radar, the HUD reveal, compass or no radar).
-- Its name on the focus title, and its own inspect card on Show info: stats, bond, traits and skills on two pages —
+- Its name on the focus title, and its own inspect card on Show info: stats (each with a line on what it does), bond,
+  traits and skills on two pages —
   also for strays you have not tamed yet, dogs for sale and dogs at home (the game's card would only name the model's
   species).
 

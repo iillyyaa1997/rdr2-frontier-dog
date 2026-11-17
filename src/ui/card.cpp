@@ -54,7 +54,7 @@ static void draw() {
     auto& c = ctx();
     const DogRecord& d = g_dog;
     const BreedDef* b = c.breeds.find(d.breed);
-    float x = 0.70f, y = 0.12f, w = 0.27f, h = g_page == 1 ? 0.60f : 0.66f, pad = 0.016f;
+    float x = 0.70f, y = 0.12f, w = 0.27f, h = g_page == 1 ? 0.71f : 0.66f, pad = 0.016f;
     float ix = x + pad, iw = w - 2 * pad;
     sprite("generic_textures", "inkroller_1a", x - 0.02f, y - 0.02f, w + 0.04f, h + 0.04f, 0, 0, 0, 235);
     rect(x, y, w, h, 0, 0, 0, 120);
@@ -86,7 +86,10 @@ static void draw() {
                 rect(segX + (k - 1) * (segW + gap), cy + 0.012f, segW, segH, r, g, bl, a);
             }
             text(std::to_string(v), segX + 5 * (segW + gap) + 0.006f, cy, label, 190, 182, 165, 255);
-            cy += row;
+            cy += row - 0.004f;
+            // what the stat does, small under it (his ask 17.11: «не понятно за что отвечает каждая характеристика»)
+            text(c.t("stat." + std::to_string(i + 1) + ".what"), ix + 0.008f, cy, 0.28f, 170, 163, 148, 255);
+            cy += 0.022f;
         }
         cy += 0.006f;
         header(c.t("card.bonding"), ix, cy, iw);
