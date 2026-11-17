@@ -6,6 +6,7 @@
 
 #include "core/fs.h"
 #include "core/log.h"
+#include "dog/collars.h"
 #include "dog/companion.h"
 #include "game/game.h"
 #include "game/prompt.h"
@@ -117,7 +118,7 @@ static void setupHomeDog(int idx, Ped p) {
     ENTITY::SET_ENTITY_AS_MISSION_ENTITY(p, true, true);
     ENTITY::SET_ENTITY_INVINCIBLE(p, true);
     DECORATOR::DECOR_SET_INT(p, "FD_shop", 1);
-    if (d.preset >= 0) PED::_EQUIP_META_PED_OUTFIT_PRESET(p, d.preset, false);
+    collars::dress(p, d);
     if (d.scale > 0 && d.scale != 100) {
         PED::_SET_PED_SCALE(p, d.scale / 100.0f);
         PED::SET_PED_CAPSULE(p, 0.6f);

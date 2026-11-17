@@ -49,6 +49,7 @@ void DogRecord::fromKv(const KvFile& kv) {
     female = kv.getBool("female");
     model = kv.get("model");
     preset = int(kv.getInt("preset", -1));
+    collar = kv.get("collar");
     scale = int(kv.getInt("scale", 100));
     grade = Grade(std::clamp<long long>(kv.getInt("grade", 1), 0, 2));
     papers = kv.getBool("papers");
@@ -88,6 +89,7 @@ KvFile DogRecord::toKv() const {
     kv.setBool("female", female);
     kv.set("model", model);
     kv.setInt("preset", preset);
+    kv.set("collar", collar);
     kv.setInt("scale", scale);
     kv.setInt("grade", int(grade));
     kv.setBool("papers", papers);

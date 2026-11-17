@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "core/log.h"
+#include "dog/collars.h"
 #include "core/strutil.h"
 #include "dog/behaviour.h"
 #include "dog/care.h"
@@ -90,7 +91,7 @@ void Companion::spawn(bool outOfView, const Vector3* fixed) {
         d->preset = ctx().rng.range(0, presets - 1);
         dirty_ = true;
     }
-    if (d->preset >= 0) PED::_EQUIP_META_PED_OUTFIT_PRESET(dog, d->preset, false);
+    collars::dress(dog, *d);
     setup(dog);
     lastArrival_ = now();
     FD_INFO("dog %s spawned %.0f m from Arthur (model %s, preset %d, scale %d)", d->name.c_str(), dist(dog, player()),
@@ -564,7 +565,7 @@ bool Companion::updateWounded() {
     if (dist(pos(player()), at) < 80.0f) {
         Ped dog = spawnPed(d->model.empty() ? "a_c_doghobo_01" : d->model, at, 0);
         if (dog) {
-            if (d->preset >= 0) PED::_EQUIP_META_PED_OUTFIT_PRESET(dog, d->preset, false);
+            collars::dress(dog, *d);
             setup(dog);
             ENTITY::SET_ENTITY_AS_MISSION_ENTITY(dog, true, true);
             ENTITY::SET_ENTITY_INVINCIBLE(dog, true);

@@ -20,6 +20,7 @@ struct Economy {
     int curePrice = 40, cureDays = 1;
     int pedigreePrice = 150, pedigreeDays = 7;
     int renamePrice = 2;
+    int collarPrice = 8;             // a collar from the stable hand (17.11)
     int swapPrice = 5, swapBringSeconds = 15;
     int deliveryMin = 5, deliveryMax = 15;  // by distance
     double deliveryPerKm = 2.0;

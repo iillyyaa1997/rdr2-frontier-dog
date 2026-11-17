@@ -8,6 +8,7 @@
 #include "core/fs.h"
 #include "core/log.h"
 #include "core/strutil.h"
+#include "dog/collars.h"
 #include "dog/companion.h"
 #include "dog/delivery.h"
 #include "dog/hunting.h"
@@ -154,8 +155,8 @@ static void run(const std::vector<std::string>& a) {
     } else if (cmd == "presets" && comp.present()) {
         FD_INFO("test: model 0x%08X has %d outfit presets", ENTITY::GET_ENTITY_MODEL(comp.ped()), PED::GET_NUM_META_PED_OUTFITS(comp.ped()));
     } else if (cmd == "dogmodel" && a.size() >= 2) {
-        // dogmodel <model> [preset]: a dog of that model in front of Arthur (look / collar search)
-        Ped s = spawnPed(a[1], add(p, scale(fwd, 3)), 0);
+        // dogmodel <model> [preset] [metres]: a dog of that model in front of Arthur (look / collar search)
+        Ped s = spawnPed(a[1], add(p, scale(fwd, float(num(3, 3)))), 0);
         if (s) {
             g_spawned.push_back(s);
             FD_INFO("test: %s has %d presets", a[1].c_str(), PED::GET_NUM_META_PED_OUTFITS(s));
@@ -245,6 +246,20 @@ static void run(const std::vector<std::string>& a) {
             PED::GET_META_PED_ASSET_GUIDS(t, i, &d, &al, &nm, &mt);
             FD_INFO("test:  %d item 0x%08X cat 0x%08X drawable 0x%08X albedo 0x%08X", i, item, cat, d, al);
         }
+    } else if (cmd == "collar" && a.size() >= 2 && comp.record()) {
+        // collar <id|off>: what the stable hand does, free (Collars.dat ids)
+        if (a[1] != "off" && !collars::known(a[1])) { FD_INFO("test: no collar %s", a[1].c_str()); return; }
+        comp.record()->collar = a[1] == "off" ? "" : a[1];
+        comp.save();
+        collars::dress(comp.ped(), *comp.record());
+        FD_INFO("test: collar %s", a[1].c_str());
+    } else if (cmd == "dogfront" && comp.present()) {
+        // dogfront: the companion stands 2.5 m in front of Arthur, facing him (screenshots of the dog)
+        Ped d = comp.ped();
+        Vector3 at = add(p, scale(fwd, 2.5f));
+        ENTITY::SET_ENTITY_COORDS(d, at.x, at.y, at.z, false, false, false, true);
+        ENTITY::SET_ENTITY_HEADING(d, ENTITY::GET_ENTITY_HEADING(pl) + 180.0f);
+        TASK::TASK_STAND_STILL(d, 15000);
     } else if (cmd == "tagcopy" && a.size() >= 2) {
         // tagcopy <index> [prev]: copy one metaped component (drawable, textures, tint) of the last spawned ped onto the
         // companion, or with 'prev' onto the ped spawned before it (a collar from a hound onto another dog)

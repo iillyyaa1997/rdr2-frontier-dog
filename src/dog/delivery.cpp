@@ -8,6 +8,7 @@
 
 #include "core/fs.h"
 #include "core/log.h"
+#include "dog/collars.h"
 #include "core/strutil.h"
 #include "dog/companion.h"
 #include "dog/home.h"
@@ -221,7 +222,7 @@ static bool spawnPartyAt(const Vector3& from) {
     PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(g_rider, true);
     ENTITY::SET_ENTITY_INVINCIBLE(g_dog, true);
     DECORATOR::DECOR_SET_INT(g_dog, "FD_shop", 1);
-    if (d.preset >= 0) PED::_EQUIP_META_PED_OUTFIT_PRESET(g_dog, d.preset, false);
+    collars::dress(g_dog, d);
     if (d.scale > 0 && d.scale != 100) PED::_SET_PED_SCALE(g_dog, d.scale / 100.0f);
     TASK::TASK_FOLLOW_TO_OFFSET_OF_ENTITY(g_dog, g_horse, 1.5f, -1.0f, 0, 3.0f, -1, 2.0f, true, false, false, false, false, false);
     courierBlip(g_horse, from);

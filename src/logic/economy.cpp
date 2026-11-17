@@ -22,6 +22,7 @@ void Economy::load(const KvFile& k) {
     pedigreePrice = int(k.getInt("vet.pedigree_price", pedigreePrice));
     pedigreeDays = int(k.getInt("vet.pedigree_days", pedigreeDays));
     renamePrice = int(k.getInt("rename.price", renamePrice));
+    collarPrice = int(k.getInt("collar.price", collarPrice));
     swapPrice = int(k.getInt("swap.price", swapPrice));
     swapBringSeconds = int(k.getInt("swap.bring_seconds", swapBringSeconds));
     deliveryMin = int(k.getInt("delivery.min", deliveryMin));

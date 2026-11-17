@@ -64,8 +64,8 @@ better, and has a character of its own. Every system below can be switched off i
 - Dogs for sale outside all eight stables: three of the region's breeds, standard or pedigree, re-stocked every three
   in-game days.
 - The stable hand trains skills, cures an Ailing dog ($40, one day), makes a breed dog Pedigree ($150, seven days), issues
-  papers, makes a new name collar (rename), buys your dog (60 % with papers, 30 % without) and brings a dog from home
-  ($5, 15 seconds).
+  papers, makes a new name collar (rename), puts on a studded leather collar ($8; any dog, kept through reloads) or
+  takes it off, buys your dog (60 % with papers, 30 % without) and brings a dog from home ($5, 15 seconds).
 
 ## Delivery from camp
 - Send for a dog at your own campfire in the wild, by telegram at any post office, or through a passer-by ($2) — each
@@ -78,7 +78,7 @@ better, and has a character of its own. Every system below can be switched off i
 - Tame one with food or a pat; a Street-hardened mutt keeps its distance until fed on two or three different days and
   runs off when you fire near it.
 - Now and then a lone mutt begs by the door of a butcher or a saloon (all six butchers and nine saloons): when you come
-  by with food it trots up and sits begging.
+  within 25 m with food it trots up and sits begging.
 - A fed stray may tag along for a while, or turn up by the gang camp within a few days; a standard mutt becomes Street-hardened through seven deeds with you — hunting, fights,
   guarding, swimming, the road (every kilometre, and every night out in the wild together) and obeying.
 
@@ -99,5 +99,7 @@ better, and has a character of its own. Every system below can be switched off i
 - Publishing on Nexus: README in English and Russian, the page text, a Vortex-ready archive.
 
 ## Not possible yet
-- Collars and bandanas: the game has no collar model; coat variants with a collar drawn on are still to be looked for.
+- More collars and bandanas: the game draws only one collar as a part of its own (the bloodhound's studded leather
+  one, now in the mod); the foxhound's collar is painted into its coat, and no bandana was found on any of the 14 dog
+  models (57 coats looked at, 17.11).
 - The game's own dirt level reads 0 on dogs, so the mod keeps its own dirt counter (that one works).
