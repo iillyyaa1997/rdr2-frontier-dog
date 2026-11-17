@@ -339,12 +339,14 @@ void CarryTask::deliver() {
         FD_INFO("carry: delivered (%s)", job_.body ? "a body" : "a pelt");
     }
     TASK::TASK_TURN_PED_TO_FACE_ENTITY(dog_, player(), 1500, 0, 0, 0);
-    // a pelt is not stowed: TASK_CARRIABLE with the pelt's own config laid it flat across the horse's side, flesh up, in
-    // the carcass slot, so Arthur could not stow a carcass any more (his play, 17.11). The game keeps pelts on a horse
-    // as a stack of its own (_SET_PELT_FOR_HORSE) - to be tried with the 'peltstow' hook; until then it is left by the horse.
-    if (job_.horse && dist(dog_, job_.horse) < 4.0f && ctx().ini.getBool("CarryStowOnHorse", true) && !job_.pelt &&
-        !ENTITY::_GET_IS_CARRIABLE_PELT(job_.carcass))
-        stowOnHorse();
+    // A pelt goes into the horse's pelt stack the game's way (_SET_PELT_FOR_HORSE), never TASK_CARRIABLE: that laid it
+    // flat across the horse's side, flesh up, in the carcass slot, so Arthur could not stow a carcass and the pelt was not
+    // in the horse's cargo (his play, 17.11). checkStow sees whether the horse took it; if not, it stays by the horse.
+    bool pelt = job_.pelt || ENTITY::_GET_IS_CARRIABLE_PELT(job_.carcass);
+    if (job_.horse && dist(dog_, job_.horse) < 4.0f && ctx().ini.getBool("CarryStowOnHorse", true)) {
+        if (pelt) stowPeltOnHorse(job_.carcass, job_.horse);
+        else stowOnHorse();
+    }
     lastDelivered_ = true;
     ++deliveries_;
 }
@@ -399,8 +401,32 @@ void CarryTask::stowOnHorse() {
                        ctx().ini.getBool("CarryStowDeadConfig", true));
 }
 
+void CarryTask::stowPeltOnHorse(Entity pelt, Ped horse) {
+    if (!exists(pelt) || !alive(horse)) return;
+    PED::_SET_PELT_FOR_HORSE(horse, pelt);
+    FD_INFO("carry: the pelt into the horse's pelt stack");
+    stowCarcass_ = pelt;
+    stowHorse_ = horse;
+    stowSlot_ = -1;
+    stowPelt_ = true;
+    stowCheckAt_ = now() + 1500;
+}
+
 void CarryTask::checkStow() {
     stowCheckAt_ = 0;
+    if (stowPelt_) {
+        stowPelt_ = false;
+        int at = -1, count = 0;
+        for (int i = 0; i < 16; ++i) {
+            int id = PED::_GET_PELT_FROM_HORSE(stowHorse_, i);
+            if (!id) continue;
+            ++count;
+            if (id == stowCarcass_) at = i;
+        }
+        FD_INFO("carry: pelt check - in the horse's stack at %d (%d pelts), pelt exists %d, attached %d", at, count,
+                int(exists(stowCarcass_)), exists(stowCarcass_) ? int(ENTITY::IS_ENTITY_ATTACHED_TO_ENTITY(stowCarcass_, stowHorse_)) : 0);
+        return;
+    }
     if (!exists(stowCarcass_) || !exists(stowHorse_)) {
         FD_INFO("carry: stow check - carcass %d / horse %d gone", int(exists(stowCarcass_)), int(exists(stowHorse_)));
         return;

@@ -66,6 +66,8 @@ private:
     // 03:58: the horse froze mid-step after TASK_CARRIABLE with slot 0)
     Ped stowCarcass_ = 0, stowHorse_ = 0;
     int stowCheckAt_ = 0;
+    bool stowPelt_ = false;  // the last stow was a pelt into the horse's pelt stack
+    void stowPeltOnHorse(Entity pelt, Ped horse);
     void checkStow();
     int stowSlot_ = -1;
 
