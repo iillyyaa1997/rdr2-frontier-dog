@@ -41,7 +41,7 @@ struct SpawnRequest {
 Ped stepSpawn(SpawnRequest& r);
 
 // A spot on the navmesh near 'around' that the camera does not see (arrival out of view, like the horse).
-bool hiddenSpotNear(const Vector3& around, float minDist, float maxDist, Vector3& out);
+bool hiddenSpotNear(const Vector3& around, float minDist, float maxDist, Vector3& out, bool outdoors = false);  // outdoors: skip points inside buildings
 bool safeCoord(const Vector3& around, Vector3& out);
 
 const char* literal(const std::string& text);  // VAR_STRING(10, "LITERAL_STRING", text)

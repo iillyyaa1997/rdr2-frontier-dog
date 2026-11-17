@@ -14,4 +14,6 @@ bool wary(Ped dog);               // street-hardened and not trusting Arthur yet
 void forget(Ped dog);             // tamed or gone
 void spawnNow();                  // test hook: a stray encounter now (ignores the timer, keeps the cap)
 void beggarNow();                 // test hook: a beggar by the nearest butcher/saloon within reach, no roll
+void hardNow();                   // test hook: a wary street-hardened mutt 20-35 m away, unseen
+void visitorNow();                // test hook: a fed stray that waits near camp (as after feeding, no roll)
 }

@@ -94,7 +94,7 @@ bool safeCoord(const Vector3& around, Vector3& out) {
     return PATH::GET_SAFE_COORD_FOR_PED(around.x, around.y, around.z, false, &out, 16) != 0;  // onGround false as in 0.14 (tested)
 }
 
-bool hiddenSpotNear(const Vector3& around, float minDist, float maxDist, Vector3& out) {
+bool hiddenSpotNear(const Vector3& around, float minDist, float maxDist, Vector3& out, bool outdoors) {
     // try points on rings around Arthur, prefer the ones behind the camera; must be on the navmesh and unseen
     Vector3 cam = CAMERA::GET_GAMEPLAY_CAM_ROT(2);
     float camHeading = cam.z * 3.14159265f / 180.0f;
@@ -107,6 +107,7 @@ bool hiddenSpotNear(const Vector3& around, float minDist, float maxDist, Vector3
             if (!safeCoord(p, safe)) continue;
             if (std::fabs(safe.z - around.z) > 25.0f) continue;
             if (CAMERA::IS_SPHERE_VISIBLE(safe.x, safe.y, safe.z + 0.5f, 1.0f)) continue;
+            if (outdoors && INTERIOR::GET_INTERIOR_AT_COORDS(safe.x, safe.y, safe.z)) continue;
             out = safe;
             return true;
         }

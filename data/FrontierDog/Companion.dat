@@ -74,6 +74,8 @@ strays.camp_visit_days=3
 # a mutt begging by a butcher's or saloon's door (D106 idea 3): chance per place per game day, how near Arthur must be
 strays.beggar_chance=0.6
 strays.beggar_radius=90
+# metres: a beggar that sees Arthur with food this near trots up and sits begging
+strays.beggar_notice=25
 ; the courier (D144): leaves camp and rides on the map at this pace, real rider within live range
 courier.speed_mps=9
 courier.live_range=140

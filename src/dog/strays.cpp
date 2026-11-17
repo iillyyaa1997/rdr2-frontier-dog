@@ -193,6 +193,8 @@ struct BeggarSpot {
 };
 static std::vector<BeggarSpot> g_spots;
 static int g_nextBeggar = 0;
+static std::string g_beggarWhy;
+static bool g_beggarVerbose = false;  // set by the test hook: log every reason a beggar does not come
 
 static void loadBeggarSpots() {
     g_spots.clear();  // again after a save load (the script restarts, the list stays)
@@ -216,8 +218,9 @@ static void tickBeggar(int t) {
         auto it = g_known.find(g_beggar);
         if (it == g_known.end()) { g_beggar = 0; return; }
         float d = dist(g_beggar, pl);
+        float notice = float(c.tunef("strays.beggar_notice", 25));
         bool food = foodInSatchel() != nullptr && it->second.lastFedDay != gameDay();
-        if (food && d < 15.0f && !onMission()) {
+        if (food && d < notice && !onMission()) {
             if (d > 2.5f) {
                 TASK::TASK_GO_TO_ENTITY(g_beggar, pl, -1, 1.8f, 1.2f, 0, 0);
             } else if (!g_begging) {
@@ -228,7 +231,7 @@ static void tickBeggar(int t) {
                 helpText(c.t("help.stray_begs"));
                 FD_INFO("beggar sits by Arthur");
             }
-        } else if (g_begging && (d > 20.0f || !food)) {
+        } else if (g_begging && (d > notice + 5.0f || !food)) {
             g_begging = false;  // he walked off or fed it: back to the door
             TASK::CLEAR_PED_TASKS(g_beggar, true, true);
             const Vector3& home = it->second.home;
@@ -236,9 +239,16 @@ static void tickBeggar(int t) {
         }
         return;
     }
-    if (!g_pending.empty() || onMission() || INTERIOR::GET_INTERIOR_FROM_ENTITY(pl) ||
-        oursAround() >= c.tune("strays.cap", 3))
-        return;
+    // why no beggar now: logged once per change (always for a door with no unseen spot; the rest after the test hook)
+    auto why = [](const char* reason, const std::string& at, bool always) {
+        std::string w = std::string(reason) + at;
+        if (w != g_beggarWhy && (always || g_beggarVerbose)) FD_INFO("beggar waits: %s", w.c_str());
+        g_beggarWhy = w;
+    };
+    if (!g_pending.empty()) return why("a stray is still streaming in", "", false);
+    if (onMission()) return why("a mission", "", false);
+    if (INTERIOR::GET_INTERIOR_FROM_ENTITY(pl)) return why("Arthur is indoors", "", false);
+    if (oursAround() >= c.tune("strays.cap", 3)) return why("the strays cap is full", "", false);
     float radius = float(c.tunef("strays.beggar_radius", 90));
     long long day = gameDay();
     for (auto& s : g_spots) {
@@ -250,7 +260,8 @@ static void tickBeggar(int t) {
         }
         if (!s.wanted) continue;
         Vector3 door(s.at.x, s.at.y, pp.z), at;
-        if (!hiddenSpotNear(door, 5, 16, at) || INTERIOR::GET_INTERIOR_AT_COORDS(at.x, at.y, at.z)) return;  // retry later
+        if (!hiddenSpotNear(door, 5, 16, at, true))  // retry later: every spot by the door is in view or indoors
+            return why("no unseen spot outdoors by ", s.id, true);
         const BreedDef* mutt = c.breeds.find("mutt");
         if (!mutt) return;
         PendingStray ps;
@@ -263,13 +274,58 @@ static void tickBeggar(int t) {
         g_pending.push_back(ps);
         s.wanted = false;
         FD_INFO("beggar queued by %s, %.0f m from Arthur", s.id.c_str(), dist(at, pp));
+        g_beggarWhy.clear();
+        g_beggarVerbose = false;
         return;
     }
 }
 
 void spawnNow() { spawnMutts(); }
 
+void hardNow() {
+    auto& c = ctx();
+    const BreedDef* mutt = c.breeds.find("mutt");
+    Vector3 at;
+    if (!mutt || !hiddenSpotNear(pos(player()), 20, 35, at, true)) {
+        FD_INFO("test: no street-hardened mutt (no mutt breed or no unseen spot)");
+        return;
+    }
+    PendingStray ps;
+    ps.card = makeDog(*mutt, c.breeds, Grade::Pedigree, c.rng, c.chances, biasAt(at));
+    ps.card.papers = false;
+    ps.req.model = ps.card.model.empty() ? "a_c_doghobo_01" : ps.card.model;
+    ps.req.fallback = "a_c_doghobo_01";
+    ps.req.at = at;
+    ps.area = at;
+    g_pending.push_back(ps);
+    FD_INFO("test: a street-hardened mutt queued %.0f m away", dist(at, pos(player())));
+}
+
+void visitorNow() {
+    auto& c = ctx();
+    const BreedDef* mutt = c.breeds.find("mutt");
+    if (!mutt) return;
+    g_visitor = CampVisitor{rollStray(*mutt, c.breeds, c.rng, c.chances, biasAt(pos(player()))),
+                            gameDay() + c.tune("strays.camp_visit_days", 3), false};
+    g_nextVisitor = 0;
+    FD_INFO("test: stray will wait near camp until day %lld", g_visitor.untilDay);
+}
+
 void beggarNow() {
+    if (g_beggar && alive(g_beggar)) {
+        Vector3 b = pos(g_beggar);
+        FD_INFO("test: the beggar is at %.1f %.1f %.1f, %.0f m from Arthur, %s", b.x, b.y, b.z, dist(g_beggar, player()),
+                g_begging ? "begging" : "waiting");
+        return;
+    }
+    g_beggarVerbose = true;
+    g_beggarWhy.clear();
+    float radius = float(ctx().tunef("strays.beggar_radius", 90));
+    Vector3 pp = pos(player());
+    int inReach = 0;
+    for (auto& s : g_spots)
+        if (std::hypot(s.at.x - pp.x, s.at.y - pp.y) <= radius) ++inReach;
+    FD_INFO("test: beggar spots within %.0f m: %d", radius, inReach);
     for (auto& s : g_spots) {
         s.rolledDay = gameDay();
         s.wanted = true;

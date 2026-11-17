@@ -231,6 +231,60 @@ static void run(const std::vector<std::string>& a) {
         std::string line;
         for (int i = 0; i < 100; ++i) line += std::to_string(i) + ":" + std::to_string(HUD::_GET_HUD_VISIBILITY_SLOT_STATE(i)) + " ";
         FD_INFO("test: slots %s", line.c_str());
+    } else if (cmd == "comps") {
+        // comps [dog]: the metaped components of the last spawned ped (or the companion) - collar search
+        Ped t = (a.size() > 1 && comp.present()) ? comp.ped() : (g_spawned.empty() ? 0 : g_spawned.back());
+        if (!t) return;
+        int n = PED::_GET_NUM_COMPONENTS_IN_PED(t);
+        FD_INFO("test: comps of 0x%08X: %d", ENTITY::GET_ENTITY_MODEL(t), n);
+        for (int i = 0; i < n; ++i) {
+            BOOL st = 0;
+            Hash wear = 0, d = 0, al = 0, nm = 0, mt = 0;
+            Hash item = PED::_GET_SHOP_ITEM_COMPONENT_AT_INDEX(t, i, true, &st, &wear);
+            Hash cat = PED::_GET_PED_COMPONENT_CATEGORY_BY_INDEX(t, i);
+            PED::GET_META_PED_ASSET_GUIDS(t, i, &d, &al, &nm, &mt);
+            FD_INFO("test:  %d item 0x%08X cat 0x%08X drawable 0x%08X albedo 0x%08X", i, item, cat, d, al);
+        }
+    } else if (cmd == "tagcopy" && a.size() >= 2) {
+        // tagcopy <index> [prev]: copy one metaped component (drawable, textures, tint) of the last spawned ped onto the
+        // companion, or with 'prev' onto the ped spawned before it (a collar from a hound onto another dog)
+        if (g_spawned.empty()) return;
+        Ped src = g_spawned.back();
+        Ped dst = (a.size() > 2 && g_spawned.size() > 1) ? g_spawned[g_spawned.size() - 2] : comp.ped();
+        if (!dst) return;
+        int i = int(num(1, 0));
+        Hash d = 0, al = 0, nm = 0, mt = 0, pal = 0;
+        int t0 = 0, t1 = 0, t2 = 0;
+        PED::GET_META_PED_ASSET_GUIDS(src, i, &d, &al, &nm, &mt);
+        PED::GET_META_PED_ASSET_TINT(src, i, &pal, &t0, &t1, &t2);
+        PED::_SET_META_PED_TAG(dst, d, al, nm, mt, pal, t0, t1, t2);
+        PED::_UPDATE_PED_VARIATION(dst, false, true, true, true, false);
+        FD_INFO("test: tagcopy %d: drawable 0x%08X albedo 0x%08X normal 0x%08X material 0x%08X palette 0x%08X tint %d,%d,%d -> 0x%08X",
+                i, d, al, nm, mt, pal, t0, t1, t2, ENTITY::GET_ENTITY_MODEL(dst));
+    } else if (cmd == "applycomp" && a.size() >= 2) {
+        // applycomp <hash> [dog]: put a shop item (metaped component) on the last spawned ped or the companion
+        Ped t = (a.size() > 2 && comp.present()) ? comp.ped() : (g_spawned.empty() ? 0 : g_spawned.back());
+        if (!t) return;
+        Hash h = Hash(std::stoul(a[1], nullptr, 0));
+        PED::_APPLY_SHOP_ITEM_TO_PED(t, h, true, false, false);
+        PED::_UPDATE_PED_VARIATION(t, false, true, true, true, false);
+        FD_INFO("test: applycomp 0x%08X on 0x%08X", h, ENTITY::GET_ENTITY_MODEL(t));
+    } else if (cmd == "hardstray") {
+        strays::hardNow();
+    } else if (cmd == "visitor") {
+        strays::visitorNow();
+    } else if (cmd == "shoot") {
+        // shoot [ms]: Arthur fires his gun into the air ahead (wary strays run from shots)
+        TASK::TASK_SHOOT_AT_COORD(pl, p.x + fwd.x * 10, p.y + fwd.y * 10, p.z + 12, int(num(1, 2000)),
+                                  MISC::GET_HASH_KEY("FIRING_PATTERN_FULL_AUTO"), 0);
+    } else if (cmd == "killfoe") {
+        // killfoe: Arthur kills the last 'foe', man or animal (honor shield and its hidden honor flash)
+        for (auto it = g_spawned.rbegin(); it != g_spawned.rend(); ++it)
+            if (alive(*it) && PED::IS_PED_IN_COMBAT(*it, pl)) {
+                PED::APPLY_DAMAGE_TO_PED(*it, 1000, false, 0, pl);
+                FD_INFO("test: killfoe %d", *it);
+                break;
+            }
     } else if (cmd == "beggar") {
         // beggar: a begging mutt by the nearest butcher/saloon within strays.beggar_radius (Arthur must be in town)
         strays::beggarNow();
