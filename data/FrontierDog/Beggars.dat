@@ -1,0 +1,18 @@
+# Butchers and saloons where a begging stray may wait by the door (D106 idea 3): from jeanropke/RDOMap
+# data/shops.json @ edae49df624b (Unlicense); beggar.<shop>=x,y (game coordinates, no height)
+beggars=blk_butcher,rho_butcher,sdn_butcher,str_butcher,tbl_butcher,val_butcher,amd_bartender,blk_bartender,rho_bartender,sdn_bartender,sdn_bartender_slum,tbl_bartender,val_bartender,val_bartender_keane,van_bartender
+beggar.blk_butcher=-753.1,-1284.7
+beggar.rho_butcher=1297.7,-1277.6
+beggar.sdn_butcher=2819.5,-1331.3
+beggar.str_butcher=-1751.9,-393.5
+beggar.tbl_butcher=-5509.0,-2946.3
+beggar.val_butcher=-339.7,766.3
+beggar.amd_bartender=-3699.0,-2595.5
+beggar.blk_bartender=-817.8,-1320.2
+beggar.rho_bartender=1339.2,-1375.3
+beggar.sdn_bartender=2639.9,-1222.9
+beggar.sdn_bartender_slum=2793.2,-1166.8
+beggar.tbl_bartender=-5518.9,-2906.4
+beggar.val_bartender=-313.9,807.7
+beggar.val_bartender_keane=-238.5,769.1
+beggar.van_bartender=2947.7,529.1

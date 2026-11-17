@@ -231,6 +231,9 @@ static void run(const std::vector<std::string>& a) {
         std::string line;
         for (int i = 0; i < 100; ++i) line += std::to_string(i) + ":" + std::to_string(HUD::_GET_HUD_VISIBILITY_SLOT_STATE(i)) + " ";
         FD_INFO("test: slots %s", line.c_str());
+    } else if (cmd == "beggar") {
+        // beggar: a begging mutt by the nearest butcher/saloon within strays.beggar_radius (Arthur must be in town)
+        strays::beggarNow();
     } else if (cmd == "coreshow") {
         // coreshow [seconds]: the dog's core on screen whatever the game's cores do
         ui::coreForce(now() + int(num(1, 20) * 1000));

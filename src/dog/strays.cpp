@@ -5,6 +5,8 @@
 #include <map>
 #include <vector>
 
+#include "core/fs.h"
+#include "core/kvfile.h"
 #include "core/log.h"
 #include "core/strutil.h"
 #include "dog/companion.h"
@@ -21,8 +23,19 @@ struct Known {
     int trust = 0;
     long long lastFedDay = -1;
     bool ours = false;  // spawned by the mod
+    bool beggar = false;  // waits by a butcher's or a saloon's door
+    Vector3 home;         // where a beggar waits
     int bornAt = 0;
 };
+
+// what Arthur can feed a stray from his satchel
+static const char* kFood[] = {"PROVISION_GAME_MEAT", "PROVISION_GAMEY_BIRD_MEAT", "PROVISION_PLUMP_BIRD_MEAT",
+                              "PROVISION_TENDER_PORK", "PROVISION_PRIME_BEEF", "CONSUMABLE_DOG_FOOD"};
+static const char* foodInSatchel() {
+    for (const char* f : kFood)
+        if (game::itemCount(f) > 0) return f;
+    return nullptr;
+}
 
 static std::map<int, Known> g_known;
 static int g_nextSpawn = 0, g_nextClean = 0, g_followUntil = 0;
@@ -75,6 +88,7 @@ struct PendingStray {
     SpawnRequest req;
     DogRecord card;
     Vector3 area;
+    bool beggar = false;
 };
 static std::vector<PendingStray> g_pending;  // streams in over frames (stepSpawn), never a blocking wait
 
@@ -85,7 +99,10 @@ static int oursAround() {
     return n;
 }
 
-static void setupStray(Ped p, DogRecord card, const Vector3& at) {
+static Ped g_beggar = 0;
+static bool g_begging = false;
+
+static void setupStray(Ped p, DogRecord card, const Vector3& at, bool beggar) {
     auto& c = ctx();
     ENTITY::SET_ENTITY_AS_MISSION_ENTITY(p, true, true);
     int presets = PED::GET_NUM_META_PED_OUTFITS(p);
@@ -98,10 +115,16 @@ static void setupStray(Ped p, DogRecord card, const Vector3& at) {
         if (card.scale < 100) PED::SET_PED_CAPSULE(p, 0.6f);
     }
     card.female = !PED::IS_PED_MALE(p);
-    TASK::TASK_WANDER_IN_AREA(p, at.x, at.y, at.z, 25.0f, 2.0f, 4.0f, 0);
+    TASK::TASK_WANDER_IN_AREA(p, at.x, at.y, at.z, beggar ? 4.0f : 25.0f, 2.0f, 4.0f, 0);
     Known k;
     k.card = card;
     k.ours = true;
+    k.beggar = beggar;
+    k.home = at;
+    if (beggar) {
+        g_beggar = p;
+        g_begging = false;
+    }
     k.bornAt = now();
     g_known[p] = k;
 }
@@ -111,7 +134,7 @@ static void stepStrays() {
         if (Ped p = stepSpawn(it->req)) {
             PendingStray ps = *it;
             g_pending.erase(it);
-            setupStray(p, ps.card, ps.area);
+            setupStray(p, ps.card, ps.area, ps.beggar);
             return;  // at most one ped per frame
         }
         it = it->req.done ? g_pending.erase(it) : it + 1;
@@ -149,7 +172,100 @@ static void spawnMutts() {
     FD_INFO("strays: %d mutt(s) queued %.0f m away%s", pack, dist(at, pp), nearTown ? " near a town" : "");
 }
 
+// Beggars (D106 idea 3): now and then a lone mutt waits by the door of a butcher or a saloon (Beggars.dat, RDOMap
+// shops) - one roll per place per game day; when Arthur comes by with food in his satchel it trots up and sits begging,
+// and feeding it is the usual stray feeding (trust, maybe it tags along).
+struct BeggarSpot {
+    std::string id;
+    Vector3 at;
+    long long rolledDay = -1;
+    bool wanted = false;  // the roll said yes, waiting for a spot out of view
+};
+static std::vector<BeggarSpot> g_spots;
+static int g_nextBeggar = 0;
+
+static void loadBeggarSpots() {
+    g_spots.clear();  // again after a save load (the script restarts, the list stays)
+    KvFile kv;
+    if (kv.load(fs::join(ctx().dataDir, "Beggars.dat")))
+        for (const auto& k : kv.getList("beggars")) {
+            auto v = kv.getFloats("beggar." + k);
+            if (v.size() == 2) g_spots.push_back({k, Vector3(float(v[0]), float(v[1]), 0)});
+        }
+    FD_INFO("beggar spots: %d", int(g_spots.size()));
+}
+
+static void tickBeggar(int t) {
+    auto& c = ctx();
+    if (t < g_nextBeggar) return;
+    g_nextBeggar = t + 2000;
+    Ped pl = player();
+    Vector3 pp = pos(pl);
+    if (g_beggar && !alive(g_beggar)) g_beggar = 0;
+    if (g_beggar) {
+        auto it = g_known.find(g_beggar);
+        if (it == g_known.end()) { g_beggar = 0; return; }
+        float d = dist(g_beggar, pl);
+        bool food = foodInSatchel() != nullptr && it->second.lastFedDay != gameDay();
+        if (food && d < 15.0f && !onMission()) {
+            if (d > 2.5f) {
+                TASK::TASK_GO_TO_ENTITY(g_beggar, pl, -1, 1.8f, 1.2f, 0, 0);
+            } else if (!g_begging) {
+                g_begging = true;
+                TASK::TASK_TURN_PED_TO_FACE_ENTITY(g_beggar, pl, 1500, 0, 0, 0);
+                TASK::TASK_START_SCENARIO_IN_PLACE_HASH(g_beggar, MISC::GET_HASH_KEY("WORLD_ANIMAL_DOG_SITTING"), -1, true, 0,
+                                                       -1.0f, false);
+                helpText(c.t("help.stray_begs"));
+                FD_INFO("beggar sits by Arthur");
+            }
+        } else if (g_begging && (d > 20.0f || !food)) {
+            g_begging = false;  // he walked off or fed it: back to the door
+            TASK::CLEAR_PED_TASKS(g_beggar, true, true);
+            const Vector3& home = it->second.home;
+            TASK::TASK_WANDER_IN_AREA(g_beggar, home.x, home.y, home.z, 4.0f, 2.0f, 4.0f, 0);
+        }
+        return;
+    }
+    if (!g_pending.empty() || onMission() || INTERIOR::GET_INTERIOR_FROM_ENTITY(pl) ||
+        oursAround() >= c.tune("strays.cap", 3))
+        return;
+    float radius = float(c.tunef("strays.beggar_radius", 90));
+    long long day = gameDay();
+    for (auto& s : g_spots) {
+        if (std::hypot(s.at.x - pp.x, s.at.y - pp.y) > radius) continue;
+        if (s.rolledDay != day) {
+            s.rolledDay = day;
+            s.wanted = c.rng.chance(c.tunef("strays.beggar_chance", 0.6));
+            FD_INFO("beggar roll at %s: %s", s.id.c_str(), s.wanted ? "yes" : "no");
+        }
+        if (!s.wanted) continue;
+        Vector3 door(s.at.x, s.at.y, pp.z), at;
+        if (!hiddenSpotNear(door, 5, 16, at) || INTERIOR::GET_INTERIOR_AT_COORDS(at.x, at.y, at.z)) return;  // retry later
+        const BreedDef* mutt = c.breeds.find("mutt");
+        if (!mutt) return;
+        PendingStray ps;
+        ps.card = rollStray(*mutt, c.breeds, c.rng, c.chances, biasAt(at));
+        ps.req.model = ps.card.model.empty() ? "a_c_doghobo_01" : ps.card.model;
+        ps.req.fallback = "a_c_doghobo_01";
+        ps.req.at = at;
+        ps.area = at;
+        ps.beggar = true;
+        g_pending.push_back(ps);
+        s.wanted = false;
+        FD_INFO("beggar queued by %s, %.0f m from Arthur", s.id.c_str(), dist(at, pp));
+        return;
+    }
+}
+
 void spawnNow() { spawnMutts(); }
+
+void beggarNow() {
+    for (auto& s : g_spots) {
+        s.rolledDay = gameDay();
+        s.wanted = true;
+    }
+    g_nextBeggar = 0;
+}
 
 void tick() {
     if (!ctx().feature("Strays")) return;
@@ -159,6 +275,7 @@ void tick() {
         g_started = true;
         g_feed.create("INPUT_INTERACT_OPTION1", c.t("prompt.feed"), 800);
         g_nextSpawn = t + 60000;
+        loadBeggarSpots();
     }
     if (t >= g_nextClean) {
         g_nextClean = t + 5000;
@@ -178,6 +295,7 @@ void tick() {
         }
     }
     stepStrays();
+    tickBeggar(t);
     if (t >= g_nextSpawn) {
         g_nextSpawn = t + c.tune("strays.spawn_every_ms", 240000);
         if (c.rng.chance(c.tunef("strays.spawn_chance", 0.5))) spawnMutts();
@@ -192,11 +310,7 @@ void tick() {
         float d = dist(p, pl);
         if (wary(p) && d < 6.0f && !PED::IS_PED_FLEEING(p)) TASK::TASK_SMART_FLEE_PED(p, pl, 12.0f, 4000, 0, 2.0f, 0);
         if (focus == p && d < 10.0f && !offered) {
-            static const char* food[] = {"PROVISION_GAME_MEAT", "PROVISION_GAMEY_BIRD_MEAT", "PROVISION_PLUMP_BIRD_MEAT",
-                                         "PROVISION_TENDER_PORK", "PROVISION_PRIME_BEEF", "CONSUMABLE_DOG_FOOD"};
-            const char* have = nullptr;
-            for (const char* f : food)
-                if (itemCount(f) > 0) { have = f; break; }
+            const char* have = foodInSatchel();
             long long day = gameDay();
             bool can = have && k.lastFedDay != day;
             g_feed.setTarget(p);

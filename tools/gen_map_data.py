@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate data/FrontierDog/Herbs.dat and Telegraph.dat from jeanropke/RDOMap (Unlicense) data files.
+"""Generate data/FrontierDog/Herbs.dat, Telegraph.dat and Beggars.dat from jeanropke/RDOMap (Unlicense) data files.
 
 Map coordinates (lat, lng) -> game (x, y): x = (lng - 111.29) / 0.01552, y = (lat + 63.6) / 0.01552 (checked against the
 Valentine stable: map -> (-369.5, 787.9), bcc-stables config (-367.9, 784.3)). Heights are found in game (ground probe).
@@ -33,4 +33,17 @@ for s in json.load(open(shops)):
         tel.append(f"telegraph.{k}=%.1f,%.1f" % (x, y))
 tel.insert(1, "telegraphs=" + ",".join(names))
 open("data/FrontierDog/Telegraph.dat", "w").write("\n".join(tel) + "\n")
-print(len(kinds), "herb kinds,", len(names), "post offices")
+beg = ["# Butchers and saloons where a begging stray may wait by the door (D106 idea 3): from jeanropke/RDOMap",
+       "# data/shops.json @ " + rev + " (Unlicense); beggar.<shop>=x,y (game coordinates, no height)"]
+spots = []
+for s in json.load(open(shops)):
+    if s["key"] not in ("butcher", "saloon"):
+        continue
+    for l in s["locations"]:
+        k = l["text"].replace("shop_", "")
+        spots.append(k)
+        x, y = conv(l)
+        beg.append(f"beggar.{k}=%.1f,%.1f" % (x, y))
+beg.insert(2, "beggars=" + ",".join(spots))
+open("data/FrontierDog/Beggars.dat", "w").write("\n".join(beg) + "\n")
+print(len(kinds), "herb kinds,", len(names), "post offices,", len(spots), "butchers and saloons")

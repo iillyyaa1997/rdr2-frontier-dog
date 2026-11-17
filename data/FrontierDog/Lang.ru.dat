@@ -192,6 +192,7 @@ help.courier_done={name} с тобой
 help.message_sent=Прохожий поскакал с весточкой в лагерь
 help.stray_wary=Собака не подпускает к себе. Покорми её ещё в другой день
 help.stray_trusts=Собака начинает тебе доверять
+help.stray_begs=Бродячая собака просит у тебя еды
 prompt.flush=Вспугнуть дичь
 prompt.bring_body=Притащить тело
 prompt.pelt_to_horse=Отнести к лошади
