@@ -30,8 +30,8 @@ struct Known {
 };
 
 // what Arthur can feed a stray from his satchel
-static const char* kFood[] = {"PROVISION_GAME_MEAT", "PROVISION_GAMEY_BIRD_MEAT", "PROVISION_PLUMP_BIRD_MEAT",
-                              "PROVISION_TENDER_PORK", "PROVISION_PRIME_BEEF", "CONSUMABLE_DOG_FOOD"};
+static const char* kFood[] = {"CONSUMABLE_DOG_FOOD", "PROVISION_GAME_MEAT", "PROVISION_GAMEY_BIRD_MEAT",
+                              "PROVISION_PLUMP_BIRD_MEAT", "PROVISION_TENDER_PORK", "PROVISION_PRIME_BEEF"};
 static const char* foodInSatchel() {
     for (const char* f : kFood)
         if (game::itemCount(f) > 0) return f;
@@ -406,6 +406,7 @@ void tick() {
             long long day = gameDay();
             bool can = have && k.lastFedDay != day;
             g_feed.setTarget(p);
+            if (have) g_feed.setText(c.f("prompt.feed_with", {{"food", c.t(std::string("food.") + have)}}));
             g_feed.show(can);
             offered = can;
             if (can && g_feed.fired() && takeItem(have)) {

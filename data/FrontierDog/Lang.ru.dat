@@ -217,3 +217,24 @@ prompt.telegram=Телеграмма в лагерь: привезти {name}
 help.herbs_here={name} нашёл травы
 help.herbs_here.f={name} нашла травы
 help.no_herbs={name} не чует трав поблизости
+
+# feeding: the prompt names what will be eaten, the notice what was
+prompt.feed_with=Покормить: {food}
+help.fed={name} съел: {food}
+help.fed.f={name} съела: {food}
+food.CONSUMABLE_DOG_FOOD=корм для собак
+food.PROVISION_GAMEY_BIRD_MEAT=сырое мясо дичи-птицы
+food.PROVISION_PLUMP_BIRD_MEAT=сырое мясо упитанной птицы
+food.PROVISION_TENDER_PORK=сырая свинина
+food.PROVISION_GAME_MEAT=сырое мясо дичи
+food.PROVISION_GRISTLY_MUTTON=сырая баранина
+food.PROVISION_MATURE_VENISON=сырая оленина
+food.PROVISION_PRIME_BEEF=сырая говядина
+food.PROVISION_BIG_GAME_MEAT=сырое мясо крупной дичи
+food.CONSUMABLE_GAMEY_BIRD_COOKED=жареная птица
+food.CONSUMABLE_PLUMP_BIRD_COOKED=жареная упитанная птица
+food.CONSUMABLE_TENDER_PORK_COOKED=жареная свинина
+food.CONSUMABLE_GAME_MEAT_COOKED=жареная дичь
+food.CONSUMABLE_GRISTLY_MUTTON_COOKED=жареная баранина
+food.CONSUMABLE_MATURE_VENISON_COOKED=жареная оленина
+food.CONSUMABLE_DOG_TREAT=лакомство для собак

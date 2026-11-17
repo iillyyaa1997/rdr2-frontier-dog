@@ -170,3 +170,23 @@ prompt.find_herbs=Find herbs
 prompt.telegram=Telegram to camp: bring {name}
 help.herbs_here={name} found herbs.
 help.no_herbs={name} smells no herbs nearby.
+
+# feeding: the prompt names what will be eaten, the notice what was
+prompt.feed_with=Feed: {food}
+help.fed={name} ate: {food}
+food.CONSUMABLE_DOG_FOOD=dog food
+food.PROVISION_GAMEY_BIRD_MEAT=raw gamey bird
+food.PROVISION_PLUMP_BIRD_MEAT=raw plump bird
+food.PROVISION_TENDER_PORK=raw tender pork
+food.PROVISION_GAME_MEAT=raw game meat
+food.PROVISION_GRISTLY_MUTTON=raw gristly mutton
+food.PROVISION_MATURE_VENISON=raw mature venison
+food.PROVISION_PRIME_BEEF=raw prime beef
+food.PROVISION_BIG_GAME_MEAT=raw big game meat
+food.CONSUMABLE_GAMEY_BIRD_COOKED=cooked gamey bird
+food.CONSUMABLE_PLUMP_BIRD_COOKED=cooked plump bird
+food.CONSUMABLE_TENDER_PORK_COOKED=cooked tender pork
+food.CONSUMABLE_GAME_MEAT_COOKED=cooked game meat
+food.CONSUMABLE_GRISTLY_MUTTON_COOKED=cooked gristly mutton
+food.CONSUMABLE_MATURE_VENISON_COOKED=cooked mature venison
+food.CONSUMABLE_DOG_TREAT=dog treat

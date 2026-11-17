@@ -272,6 +272,17 @@ static void run(const std::vector<std::string>& a) {
         cam = CAMERA::CREATE_CAM_WITH_PARAMS("DEFAULT_SCRIPTED_CAMERA", at.x, at.y, at.z, pitch, 0, yaw, float(num(4, 35)), false, 2);
         CAMERA::SET_CAM_ACTIVE(cam, true);
         CAMERA::RENDER_SCRIPT_CAMS(true, false, 0, true, true, 0);
+    } else if (cmd == "camat" && a.size() >= 7) {
+        // camat <x y z> <tx ty tz> [fov]: a script camera at x,y,z looking at tx,ty,tz (spot checks); 'dogcam off' ends it
+        CAMERA::RENDER_SCRIPT_CAMS(false, false, 0, true, true, 0);
+        CAMERA::DESTROY_ALL_CAMS(false);
+        float x = float(num(1, 0)), y = float(num(2, 0)), z = float(num(3, 0));
+        float dx = float(num(4, 0)) - x, dy = float(num(5, 0)) - y, dz = float(num(6, 0)) - z;
+        float yaw = std::atan2(-dx, dy) * 180.0f / 3.14159265f;
+        float pitch = std::atan2(dz, std::sqrt(dx * dx + dy * dy)) * 180.0f / 3.14159265f;
+        Cam c = CAMERA::CREATE_CAM_WITH_PARAMS("DEFAULT_SCRIPTED_CAMERA", x, y, z, pitch, 0, yaw, float(num(7, 50)), false, 2);
+        CAMERA::SET_CAM_ACTIVE(c, true);
+        CAMERA::RENDER_SCRIPT_CAMS(true, false, 0, true, true, 0);
     } else if (cmd == "trader") {
         // trader [x y z [heading]]: where the dog trader stands; with coordinates he is moved there (placing him by eye)
         Ped t = stables::trader();

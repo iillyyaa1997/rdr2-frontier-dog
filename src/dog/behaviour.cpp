@@ -28,12 +28,14 @@ static unsigned g_leaveZone = 0;
 static bool g_waitingOutside = false, g_hiddenForCutscene = false;
 static std::map<int, int> g_warned;  // predator -> time it was last warned about
 
-static const char* kFood[] = {"PROVISION_GAMEY_BIRD_MEAT", "PROVISION_PLUMP_BIRD_MEAT", "PROVISION_TENDER_PORK",
-                              "PROVISION_GAME_MEAT", "PROVISION_GRISTLY_MUTTON", "PROVISION_MATURE_VENISON",
-                              "PROVISION_PRIME_BEEF", "PROVISION_BIG_GAME_MEAT", "CONSUMABLE_GAMEY_BIRD_COOKED",
-                              "CONSUMABLE_PLUMP_BIRD_COOKED", "CONSUMABLE_TENDER_PORK_COOKED", "CONSUMABLE_GAME_MEAT_COOKED",
-                              "CONSUMABLE_GRISTLY_MUTTON_COOKED", "CONSUMABLE_MATURE_VENISON_COOKED", "CONSUMABLE_DOG_FOOD",
-                              "CONSUMABLE_DOG_TREAT"};
+// what the dog eats from the satchel, in this order: its own food first, then raw meat, cooked meat last (17.11 he
+// could not tell what was spent - the prompt names it now and a notice says what was eaten); the treat is not a meal
+static const char* kFood[] = {"CONSUMABLE_DOG_FOOD", "PROVISION_GAMEY_BIRD_MEAT", "PROVISION_PLUMP_BIRD_MEAT",
+                              "PROVISION_TENDER_PORK", "PROVISION_GAME_MEAT", "PROVISION_GRISTLY_MUTTON",
+                              "PROVISION_MATURE_VENISON", "PROVISION_PRIME_BEEF", "PROVISION_BIG_GAME_MEAT",
+                              "CONSUMABLE_GAMEY_BIRD_COOKED", "CONSUMABLE_PLUMP_BIRD_COOKED", "CONSUMABLE_TENDER_PORK_COOKED",
+                              "CONSUMABLE_GAME_MEAT_COOKED", "CONSUMABLE_GRISTLY_MUTTON_COOKED",
+                              "CONSUMABLE_MATURE_VENISON_COOKED", "CONSUMABLE_DOG_TREAT"};
 
 static const char* foodInSatchel() {
     for (const char* f : kFood)
@@ -126,6 +128,7 @@ static void updateFeed(Ped dog, DogRecord& d) {
     bool close = dist(dog, player()) < 3.0f && !PED::IS_PED_ON_MOUNT(player());
     bool hungry = d.hunger >= ctx().tunef("hunger.feed_from", 20);
     g_feed.setTarget(dog);
+    if (food) g_feed.setText(ctx().f("prompt.feed_with", {{"food", ctx().t(std::string("food.") + food)}}));
     g_feedOffered = close && hungry && food;
     g_feed.show(g_feedOffered);
     if (food && g_feed.fired() && takeItem(food)) {
@@ -136,6 +139,7 @@ static void updateFeed(Ped dog, DogRecord& d) {
         companion().addBond(ctx().tunef(treat ? "bond.treat" : "bond.feed", treat ? 5 : 8), treat ? "treat" : "feed",
                             ctx().tune(treat ? "bond.treat_cooldown_ms" : "bond.feed_cooldown_ms", 60000));
         FD_INFO("fed the dog: %s, hunger %.0f", food, d.hunger);
+        helpText(ctx().f("help.fed", {{"name", d.name}, {"food", ctx().t(std::string("food.") + food)}}, d.female), 5000);
     }
 }
 
