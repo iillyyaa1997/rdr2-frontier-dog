@@ -92,3 +92,12 @@ better, and has a character of its own. Every system below can be switched off i
 ## Also
 - English and Russian, picked from the game's language; other languages via text files.
 - Script events (`FRONTIER_DOG_*`) for other mods.
+
+## Planned
+- Real Shiba coats (red, sesame, black and tan) as own textures — own texture dictionaries work in game now.
+- A wet coat after swimming (how the game draws it, to be researched).
+- Publishing on Nexus: README in English and Russian, the page text, a Vortex-ready archive.
+
+## Not possible yet
+- Collars and bandanas: the game has no collar model; coat variants with a collar drawn on are still to be looked for.
+- The game's own dirt level reads 0 on dogs, so the mod keeps its own dirt counter (that one works).
