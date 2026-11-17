@@ -338,6 +338,7 @@ static void run(const std::vector<std::string>& a) {
         ENTITY::SET_ENTITY_COORDS(d, at.x, at.y, at.z, false, false, false, true);
         ENTITY::SET_ENTITY_HEADING(d, ENTITY::GET_ENTITY_HEADING(pl) + 180.0f);
         TASK::TASK_STAND_STILL(d, 15000);
+        ENTITY::FREEZE_ENTITY_POSITION(d, a.size() > 1 && a[1] == "freeze");  // 'dogfront freeze': it stays for shots
     } else if (cmd == "tagcopy" && a.size() >= 2) {
         // tagcopy <index> [prev]: copy one metaped component (drawable, textures, tint) of the last spawned ped onto the
         // companion, or with 'prev' onto the ped spawned before it (a collar from a hound onto another dog)
