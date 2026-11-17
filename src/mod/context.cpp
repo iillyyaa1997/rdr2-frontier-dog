@@ -35,6 +35,13 @@ std::string Context::gradeText(const DogRecord& d) const {
     return t(gradeKey(d.grade, b && b->mutt), d.female);
 }
 
+std::string Context::gradeBeforeBreed(const DogRecord& d) const {
+    const BreedDef* b = breeds.find(d.breed);
+    std::string noun = t("breed." + d.breed + ".noun", false);
+    bool female = noun == "f" ? true : (noun == "m" ? false : d.female);
+    return t(gradeKey(d.grade, b && b->mutt), female);
+}
+
 std::string Context::breedText(const DogRecord& d) const { return t("breed." + d.breed, d.female); }
 
 }  // namespace fd

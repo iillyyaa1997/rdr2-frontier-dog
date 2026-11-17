@@ -1,6 +1,7 @@
 #include "dog/stables.h"
 
 #include <algorithm>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -20,6 +21,7 @@ using namespace game;
 struct Stable {
     std::string id;
     Vector3 at, dogs;
+    bool measured = false;  // a .yard measured in game; otherwise .dogs is checked for being indoors
     std::vector<std::string> breeds;
 };
 
@@ -58,7 +60,8 @@ void start() {
         Stable s;
         s.id = id;
         s.at = vec(kv.getFloats(id + ".pos"));
-        s.dogs = vec(kv.getFloats(id + ".dogs"));
+        s.measured = kv.has(id + ".yard");
+        s.dogs = vec(kv.getFloats(id + (s.measured ? ".yard" : ".dogs")));
         s.breeds = kv.getList(id + ".breeds");
         g_stables.push_back(s);
     }
@@ -82,7 +85,31 @@ static void clearSale() {
 }
 
 // Queues the period's stock; the dogs appear over the next frames (stepSale), never blocking the script.
-static void spawnSale(const Stable& st) {
+// The yard (.dogs) must be outdoors: inside the building the game opens its own stable menu and hides ours. Five yards
+// were measured on 17.11 (where the game walks Arthur out after its menu, 3 m further out); for the others, if the
+// spot is inside a building, the nearest outdoor navmesh point 10-18 m from the stable hand is used instead.
+static void yardOutdoors(Stable& st) {
+    // GET_INTERIOR_AT_COORDS goes by the building's box and also says "inside" right outside the door (Valentine's yard)
+    if (st.measured || !INTERIOR::GET_INTERIOR_AT_COORDS(st.dogs.x, st.dogs.y, st.dogs.z)) return;
+    Vector3 best;
+    float bd = 1e9f;
+    for (float r = 10.0f; r <= 18.0f; r += 4.0f)
+        for (int k = 0; k < 16; ++k) {
+            float a = k * 3.14159265f / 8.0f;
+            Vector3 safe;
+            if (!safeCoord(Vector3(st.at.x + std::cos(a) * r, st.at.y + std::sin(a) * r, st.at.z), safe)) continue;
+            if (std::fabs(safe.z - st.at.z) > 3.0f || INTERIOR::GET_INTERIOR_AT_COORDS(safe.x, safe.y, safe.z)) continue;
+            float d = dist(safe, st.dogs);
+            if (d < bd) { bd = d; best = safe; }
+        }
+    if (bd < 1e8f) {
+        FD_INFO("stable %s: the yard was inside the building, moved to %.1f %.1f %.1f", st.id.c_str(), best.x, best.y, best.z);
+        st.dogs = best;
+    }
+}
+
+static void spawnSale(Stable& st) {
+    yardOutdoors(st);
     clearSale();
     auto& c = ctx();
     long long day = gameDay();
@@ -91,8 +118,13 @@ static void spawnSale(const Stable& st) {
         PendingSale ps;
         ps.req.model = stock[i].dog.model;
         ps.req.fallback = "a_c_doghobo_01";  // a model that always loads (the mutt freeze of 15.11)
-        ps.req.at = add(st.dogs, Vector3(float(i) * 1.6f, 0, 0));
-        ps.req.heading = 180;
+        // in a row across the way out (same distance from the building), facing out to whoever comes to the stable
+        Vector3 out(st.dogs.x - st.at.x, st.dogs.y - st.at.y, 0);
+        float len = std::sqrt(out.x * out.x + out.y * out.y);
+        if (len < 0.1f) out = Vector3(1, 0, 0), len = 1;
+        Vector3 across(-out.y / len, out.x / len, 0);
+        ps.req.at = add(st.dogs, scale(across, (float(i) - 1.0f) * 1.6f));
+        ps.req.heading = std::atan2(-out.x, out.y) * 180.0f / 3.14159265f;
         ps.stock = stock[i];
         g_pending.push_back(ps);
     }
@@ -129,12 +161,39 @@ static void stepSale() {
     }
 }
 
+// Buy dog i for sale: it becomes Arthur's dog, with papers. From the yard menu («Купить: …») or the prompt on the dog -
+// on a dog for sale the game puts its own «Погладить» on the same key, which wins (17.11), so the menu is the sure way.
+static bool pay(int dollars);
+
+static void buy(size_t i) {
+    auto& c = ctx();
+    if (i >= g_sale.size()) return;
+    ForSale& f = g_sale[i];
+    if (!f.ped || !exists(f.ped) || !pay(f.stock.price)) return;
+    DogRecord d = f.stock.dog;
+    d.uid += "-" + std::to_string(unixNow());
+    d.name = c.t("dog.default_name");
+    d.papers = true;
+    Ped bought = f.ped;
+    DECORATOR::DECOR_SET_INT(bought, "FD_shop", 0);
+    f.ped = 0;
+    g_buyPrompts[i].show(false);
+    if (companion().adopt(bought, d)) {
+        FD_INFO("stable: bought %s (%s) for $%d", d.breed.c_str(), c.gradeText(d).c_str(), f.stock.price);
+        helpText(c.f("help.bought", {{"grade", c.gradeText(d)}, {"breed", c.breedText(d)}}, d.female), 6000);
+    } else {
+        giveCash(f.stock.price * 100);  // no room: money back
+        f.ped = bought;
+        DECORATOR::DECOR_SET_INT(bought, "FD_shop", 1);
+    }
+}
+
 // ---- the stable hand's menu for the dog with Arthur ----
 
 struct MenuItem {
     std::string text;
     int price = 0;  // dollars
-    int kind = 0;   // 1 train, 2 cure, 3 pedigree, 4 papers, 5 rename, 6 sell, 7 bring, 8 collar on, 9 collar off
+    int kind = 0;   // 1 train, 2 cure, 3 pedigree, 4 papers, 5 rename, 6 sell, 7 bring, 8 collar on, 9 collar off, 10 buy
     std::string arg;
     int slot = -1;
 };
@@ -142,6 +201,12 @@ struct MenuItem {
 static std::vector<MenuItem> menu(DogRecord* d) {
     auto& c = ctx();
     std::vector<MenuItem> out;
+    for (size_t i = 0; i < g_sale.size(); ++i)  // the dogs for sale first: buying is what most come for
+        if (g_sale[i].ped && exists(g_sale[i].ped)) {
+            const DogRecord& s = g_sale[i].stock.dog;
+            out.push_back({c.f("stable.buy_item", {{"grade", c.gradeBeforeBreed(s)}, {"breed", c.breedText(s)}}, s.female),
+                           g_sale[i].stock.price, 10, "", int(i)});
+        }
     if (d) {
         // training: every skill below 3 (ailing dogs only to 3 anyway); price × trainability (old D61)
         for (const auto& sk : c.breeds.skills()) {
@@ -183,6 +248,10 @@ static void doItem(const MenuItem& m, const Stable& st) {
     auto& c = ctx();
     auto& comp = companion();
     DogRecord* d = comp.record();
+    if (m.kind == 10) {
+        buy(size_t(m.slot));
+        return;
+    }
     if (m.kind != 6 && m.kind != 5 && !pay(m.price)) return;
     switch (m.kind) {
         case 1:
@@ -309,32 +378,17 @@ void tick() {
         if (!f.ped || !exists(f.ped)) { pr.show(false); continue; }
         bool closeTo = dist(f.ped, player()) < 3.0f;
         pr.setTarget(f.ped);
-        pr.setText(c.f("stable.buy", {{"grade", c.gradeText(f.stock.dog)}, {"breed", c.breedText(f.stock.dog)},
+        pr.setText(c.f("stable.buy", {{"grade", c.gradeBeforeBreed(f.stock.dog)}, {"breed", c.breedText(f.stock.dog)},
                                        {"price", std::to_string(f.stock.price)}}, f.stock.dog.female));
         pr.show(closeTo);
         if (focus == f.ped && PAD::IS_CONTROL_JUST_PRESSED(0, MISC::GET_HASH_KEY("INPUT_INTERACT_LOCKON_DETAILS_ANIMAL")))
             ui::cardShow(f.stock.dog, f.ped);
-        if (closeTo && pr.fired() && pay(f.stock.price)) {
-            DogRecord d = f.stock.dog;
-            d.uid += "-" + std::to_string(unixNow());
-            d.name = c.t("dog.default_name");
-            d.papers = true;
-            Ped bought = f.ped;
-            DECORATOR::DECOR_SET_INT(bought, "FD_shop", 0);
-            f.ped = 0;
-            pr.show(false);
-            if (companion().adopt(bought, d)) {
-                FD_INFO("stable: bought %s (%s) for $%d", d.breed.c_str(), c.gradeText(d).c_str(), f.stock.price);
-                helpText(c.f("help.bought", {{"grade", c.gradeText(d)}, {"breed", c.breedText(d)}}, d.female), 6000);
-            } else {
-                giveCash(f.stock.price * 100);  // no room: money back
-                f.ped = bought;
-                DECORATOR::DECOR_SET_INT(bought, "FD_shop", 1);
-            }
-        }
+        if (closeTo && pr.fired()) buy(i);
     }
-    // the stable hand's menu: near the stable, on foot
-    bool atStable = dist(pos(player()), st.at) < 6.0f && PED::IS_PED_ON_FOOT(player()) && !PED::IS_PED_IN_COMBAT(player(), 0);
+    // the stable hand's dog menu: in the yard by the dogs for sale, on foot. Never inside the building: the game opens
+    // its own stable menu as soon as Arthur walks in and, on Back, walks him out to the yard (17.11, Valentine)
+    bool atStable = dist(pos(player()), st.dogs) < float(c.tunef("stables.menu_radius", 5)) && PED::IS_PED_ON_FOOT(player()) &&
+                    !PED::IS_PED_IN_COMBAT(player(), 0);
     auto items = menu(companion().record());
     if (!atStable || items.empty() || g_keyboard) {
         g_menuNext.show(false);

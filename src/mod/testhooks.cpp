@@ -119,10 +119,11 @@ static void run(const std::vector<std::string>& a) {
         int mx = ENTITY::GET_ENTITY_MAX_HEALTH(comp.ped(), false);
         ENTITY::SET_ENTITY_HEALTH(comp.ped(), std::max(1, int(mx * num(1, 10) / 100.0)), 0);
     } else if (cmd == "stable" && a.size() >= 2) {
-        // stable <id>: outside that stable, next to the dogs for sale (never inside: trespass)
+        // stable <id>: outside that stable, 12 m and 14 m off the dogs for sale in the yard (never inside: the game opens
+        // its stable menu)
         KvFile st;
         st.load(fs::join(c.dataDir, "Stables.dat"));
-        auto v = st.getFloats(a[1] + ".dogs");
+        auto v = st.getFloats(a[1] + (st.has(a[1] + ".yard") ? ".yard" : ".dogs"));
         if (v.size() == 3) ENTITY::SET_ENTITY_COORDS(pl, float(v[0]) + 12, float(v[1]) - 14, float(v[2]) + 1, false, false, false, true);  // well outside the building
     } else if (cmd == "set" && a.size() >= 3 && comp.record()) {
         // set grade|hunger|dirt|bond|scale|preset|maxhp|stat<1-5> <value>; skill <id> <level>; trait <id>; untrait <id>
@@ -253,6 +254,20 @@ static void run(const std::vector<std::string>& a) {
         comp.save();
         collars::dress(comp.ped(), *comp.record());
         FD_INFO("test: collar %s", a[1].c_str());
+    } else if ((cmd == "walkto" || cmd == "walkstraight") && a.size() >= 3) {
+        // walkto <x> <y> [speed 1 walk .. 3 sprint] [z]: Arthur walks there on the navmesh like a player would (a stable
+        // hand's menu reached on foot, not by a teleport into the building); walkstraight ignores the navmesh
+        float x = float(num(1, 0)), y = float(num(2, 0)), z = a.size() >= 5 ? float(num(4, p.z)) : p.z;
+        if (cmd == "walkto") TASK::TASK_FOLLOW_NAV_MESH_TO_COORD(pl, x, y, z, float(num(3, 1)), -1, 0.5f, 0, 40000.0f);
+        else TASK::TASK_GO_STRAIGHT_TO_COORD(pl, x, y, z, float(num(3, 1)), -1, 40000.0f, 0.5f, 0);
+        FD_INFO("test: %s to %.1f %.1f %.1f", cmd.c_str(), x, y, z);
+    } else if (cmd == "face" && a.size() >= 3) {
+        TASK::TASK_TURN_PED_TO_FACE_COORD(pl, float(num(1, 0)), float(num(2, 0)), p.z, 2000);
+    } else if (cmd == "camfront") {
+        CAMERA::SET_GAMEPLAY_CAM_RELATIVE_HEADING(0.0f, 1.0f);
+        CAMERA::SET_GAMEPLAY_CAM_RELATIVE_PITCH(-8.0f, 1.0f);
+    } else if (cmd == "stop") {
+        TASK::CLEAR_PED_TASKS(pl, true, true);
     } else if (cmd == "dogfront" && comp.present()) {
         // dogfront: the companion stands 2.5 m in front of Arthur, facing him (screenshots of the dog)
         Ped d = comp.ped();

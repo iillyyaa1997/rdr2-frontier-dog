@@ -36,6 +36,9 @@ struct Context {
     std::vector<std::string> effectiveTraits(const DogRecord& d) const;  // + bond-3 traits of a pedigree
     bool hasTrait(const DogRecord& d, const std::string& id) const;
     std::string gradeText(const DogRecord& d) const;
+    // the grade right before the breed name («Стандартная Австралийская овчарка»): it agrees with the breed noun
+    // (Lang breed.<id>.noun=f|m), not with the dog's sex; breeds without it (Хаски, Сиба-ину, Бордер-колли) go by sex
+    std::string gradeBeforeBreed(const DogRecord& d) const;
     std::string breedText(const DogRecord& d) const;
 };
 

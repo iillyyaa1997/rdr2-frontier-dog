@@ -133,6 +133,7 @@ collar.studded=studded leather
 stable.sell=Sell {name}
 stable.bring=Bring {name}
 stable.buy={grade} {breed} — ${price}
+stable.buy_item=Buy: {grade} {breed}
 help.no_money=Not enough money
 help.away_days={name} goes with the stable hand for {days} day(s).
 help.papers_done=Papers done.

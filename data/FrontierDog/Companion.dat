@@ -76,6 +76,8 @@ strays.beggar_chance=0.6
 strays.beggar_radius=90
 # metres: a beggar that sees Arthur with food this near trots up and sits begging
 strays.beggar_notice=25
+# the stable hand's dog menu shows within this many metres of the dogs for sale (in the yard, outside the building)
+stables.menu_radius=5
 ; the courier (D144): leaves camp and rides on the map at this pace, real rider within live range
 courier.speed_mps=9
 courier.live_range=140
