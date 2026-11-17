@@ -36,6 +36,8 @@ public:
 private:
     Prompt handle_ = 0;
     int holdMs_ = 0;
+    Hash control_ = 0;
+    bool latched_ = false;  // fired; the key must be let go before it can fire again
     std::string text_;
     Entity target_ = 0;
     int group_ = 0;

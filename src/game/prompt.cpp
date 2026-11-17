@@ -46,7 +46,9 @@ void UiPrompt::create(const std::string& control, const std::string& text, int h
     }
     holdMs_ = holdMs;
     handle_ = HUD::_UI_PROMPT_REGISTER_BEGIN();
-    HUD::_UI_PROMPT_SET_CONTROL_ACTION(handle_, MISC::GET_HASH_KEY(control.c_str()));
+    control_ = MISC::GET_HASH_KEY(control.c_str());
+    latched_ = false;
+    HUD::_UI_PROMPT_SET_CONTROL_ACTION(handle_, control_);
     text_ = text;
     HUD::_UI_PROMPT_SET_TEXT(handle_, literal(text));
     if (holdMs > 0) HUD::_UI_PROMPT_SET_HOLD_MODE(handle_, holdMs);
@@ -119,6 +121,18 @@ bool UiPrompt::fired() {
     if (!handle_ || !visible_ || !enabled_) return false;
     bool done = holdMs_ > 0 ? HUD::_UI_PROMPT_HAS_HOLD_MODE_COMPLETED(handle_) != 0
                             : HUD::_UI_PROMPT_HAS_STANDARD_MODE_COMPLETED(handle_, 0) != 0;
+    // once per press: a hold prompt re-armed while the key is still down completes again at once (17.11: the stable
+    // hand put the collar on and took it off ten times in a second, $8 each). Wait for the key to be let go.
+    if (latched_) {
+        bool held = PAD::IS_CONTROL_PRESSED(0, control_) || PAD::IS_DISABLED_CONTROL_PRESSED(0, control_);
+        if (done) {
+            HUD::_UI_PROMPT_SET_ENABLED(handle_, false);
+            HUD::_UI_PROMPT_SET_ENABLED(handle_, true);
+        }
+        if (held) return false;
+        latched_ = false;
+        if (done) return false;
+    }
 #ifdef FD_TEST
     if (!done && !g_press.empty() && text_.find(g_press) != std::string::npos) {
         FD_INFO("test: pressed '%s'", text_.c_str());
@@ -130,6 +144,7 @@ bool UiPrompt::fired() {
         // re-arm: a completed prompt stays 'completed' until it is toggled
         HUD::_UI_PROMPT_SET_ENABLED(handle_, false);
         HUD::_UI_PROMPT_SET_ENABLED(handle_, true);
+        latched_ = true;
     }
     return done;
 }
