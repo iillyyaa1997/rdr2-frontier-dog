@@ -80,6 +80,9 @@ strays.beggar_notice=25
 stables.menu_radius=5
 # the dogs for sale walk about the yard within this many metres of it (sit, lie down, come up to Arthur)
 stables.yard_radius=5
+# the dog trader stands this many metres aside from the yard; his prompts show within stables.trader_reach of him
+stables.trader_aside=3
+stables.trader_reach=3
 # «Найди травы»: how far the dog searches when asked (× its nose, × 1.6 with the Herbalist trait)
 herbs.ask_range=80
 ; the courier (D144): leaves camp and rides on the map at this pace, real rider within live range

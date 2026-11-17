@@ -1,4 +1,5 @@
 #include "dog/behaviour.h"
+#include "dog/stables.h"
 
 #include <algorithm>
 #include <cmath>
@@ -60,7 +61,7 @@ bool trackOffered() { return g_trackOffered; }
 bool busy() { return now() < g_attackUntil || now() < g_trackUntil || now() < g_warnUntil || hunting::busy() || abilities::busy(); }
 
 static bool attackable(Ped t, Ped dog) {
-    if (!alive(t) || t == dog || t == player()) return false;
+    if (!alive(t) || t == dog || t == player() || stables::isTrader(t)) return false;
     if (PED::GET_PED_RELATIONSHIP_GROUP_HASH(t) == MISC::GET_HASH_KEY("REL_GANG_DUTCHS")) return false;
     if (!PED::IS_PED_ON_FOOT(t) || PED::_IS_THIS_MODEL_A_HORSE(ENTITY::GET_ENTITY_MODEL(t))) return false;
     if (ctx().breeds.byAnimalType(ENTITY::_GET_PED_ANIMAL_TYPE(t))) return false;  // not at other dogs

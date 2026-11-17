@@ -50,6 +50,15 @@ static int g_menuIndex = 0;
 static int g_nextCheck = 0;
 static int g_bringSlot = -1, g_bringAt = 0;
 static bool g_keyboard = false;
+// The dog trader (his wish, 17.11: «лучше если будет человек к которому можно подойти»): a man in the yard beside the
+// dogs; walk up to him and his prompts show under his name, like the game's shops.
+static SpawnRequest g_traderReq;
+static bool g_traderPending = false;
+static Ped g_trader = 0;
+static int g_traderGroup = 0, g_nextFace = 0;
+static std::string g_traderModel = "A_M_M_RANCHER_01";
+
+bool isTrader(Ped p) { return p && p == g_trader; }
 
 static Vector3 vec(const std::vector<double>& v) { return v.size() == 3 ? Vector3(float(v[0]), float(v[1]), float(v[2])) : Vector3(); }
 
@@ -69,6 +78,10 @@ void start() {
     for (auto& p : g_buyPrompts) p.create("INPUT_INTERACT_OPTION1", "", 1000, 2);
     g_menuNext.create(ctx().ini.get("StableNextControl", "INPUT_CONTEXT_X"), ctx().t("stable.next"));
     g_menuDo.create(ctx().ini.get("StableDoControl", "INPUT_INTERACT_OPTION1"), "", 1200);
+    g_traderModel = kv.get("trader_model", g_traderModel);
+    if (!g_traderGroup) g_traderGroup = MISC::GET_RANDOM_INT_IN_RANGE(0x100000, 0x7FFFFF);
+    g_menuNext.setGroup(g_traderGroup);  // shown under the trader's name (_UI_PROMPT_SET_ACTIVE_GROUP_THIS_FRAME)
+    g_menuDo.setGroup(g_traderGroup);
     FD_INFO("stables: %zu", g_stables.size());
 }
 
@@ -82,6 +95,9 @@ static void clearSale() {
     for (auto& s : g_sale) deletePed(s.ped);
     g_sale.clear();
     g_pending.clear();
+    if (g_trader) deletePed(g_trader);
+    g_trader = 0;
+    g_traderPending = false;
     for (auto& p : g_buyPrompts) p.show(false);
 }
 
@@ -129,13 +145,40 @@ static void spawnSale(Stable& st) {
         ps.stock = stock[i];
         g_pending.push_back(ps);
     }
+    // the trader stands beside the way out, facing out like the dogs, a little aside so the game's exit stays free
+    {
+        Vector3 out(st.dogs.x - st.at.x, st.dogs.y - st.at.y, 0);
+        float len = std::sqrt(out.x * out.x + out.y * out.y);
+        if (len < 0.1f) out = Vector3(1, 0, 0), len = 1;
+        Vector3 across(-out.y / len, out.x / len, 0);
+        g_traderReq = SpawnRequest{};
+        g_traderReq.model = g_traderModel;
+        g_traderReq.fallback = "A_M_M_RANCHER_01";
+        g_traderReq.at = add(st.dogs, scale(across, float(c.tunef("stables.trader_aside", 3))));
+        g_traderReq.heading = std::atan2(-out.x, out.y) * 180.0f / 3.14159265f;
+        g_traderPending = true;
+    }
     FD_INFO("stable %s: %zu dogs for sale queued (period %lld)", st.id.c_str(), g_pending.size(), day / c.econ.rotationDays);
 }
 
 // All models stream in parallel; at most one dog is created per frame.
 static void stepSale() {
-    if (g_pending.empty()) return;
     auto& c = ctx();
+    if (g_traderPending) {
+        if (Ped p = stepSpawn(g_traderReq)) {
+            g_traderPending = false;
+            g_trader = p;
+            ENTITY::SET_ENTITY_AS_MISSION_ENTITY(p, true, true);
+            ENTITY::SET_ENTITY_INVINCIBLE(p, true);
+            PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(p, true);
+            PED::_SET_PED_PROMPT_NAME(p, literal(c.t("stable.trader")));
+            TASK::TASK_STAND_STILL(p, -1);
+            FD_INFO("stable: the dog trader is in the yard");
+        } else if (g_traderReq.done) {
+            g_traderPending = false;
+        }
+    }
+    if (g_pending.empty()) return;
     for (auto it = g_pending.begin(); it != g_pending.end();) {
         Ped p = stepSpawn(it->req);
         if (!p) {
@@ -194,6 +237,10 @@ static void buy(size_t i) {
 static void yardLife(const Stable& st) {
     auto& c = ctx();
     int t = now();
+    if (g_trader && alive(g_trader) && t >= g_nextFace) {
+        g_nextFace = t + 3000;
+        if (dist(g_trader, player()) < 10.0f) TASK::TASK_TURN_PED_TO_FACE_ENTITY(g_trader, player(), 2500, 0, 0, 0);
+    }
     Entity focus = 0;
     PLAYER::GET_PLAYER_INTERACTION_TARGET_ENTITY(PLAYER::PLAYER_ID(), &focus, false, false);
     float radius = float(c.tunef("stables.yard_radius", 5));
@@ -422,14 +469,17 @@ void tick() {
     }
     // the stable hand's dog menu: in the yard by the dogs for sale, on foot. Never inside the building: the game opens
     // its own stable menu as soon as Arthur walks in and, on Back, walks him out to the yard (17.11, Valentine)
-    bool atStable = dist(pos(player()), st.dogs) < float(c.tunef("stables.menu_radius", 5)) && PED::IS_PED_ON_FOOT(player()) &&
-                    !PED::IS_PED_IN_COMBAT(player(), 0);
+    bool trader = g_trader && alive(g_trader);
+    bool atStable = (trader ? dist(g_trader, player()) < float(c.tunef("stables.trader_reach", 3))
+                            : dist(pos(player()), st.dogs) < float(c.tunef("stables.menu_radius", 5))) &&
+                    PED::IS_PED_ON_FOOT(player()) && !PED::IS_PED_IN_COMBAT(player(), 0);
     auto items = menu(companion().record());
     if (!atStable || items.empty() || g_keyboard) {
         g_menuNext.show(false);
         g_menuDo.show(false);
         return;
     }
+    HUD::_UI_PROMPT_SET_ACTIVE_GROUP_THIS_FRAME(g_traderGroup, literal(c.t("stable.trader")), 0, 0, 0, 0);
     g_menuIndex %= int(items.size());
     const MenuItem& m = items[g_menuIndex];
     std::string label = m.text + (m.price > 0 ? " — $" + std::to_string(m.price) : (m.price < 0 ? " — +$" + std::to_string(-m.price) : ""));

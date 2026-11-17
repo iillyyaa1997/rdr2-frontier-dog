@@ -10,4 +10,5 @@ namespace fd::stables {
 void start();
 void tick();
 bool saleCard(Ped ped, DogRecord& out);  // a dog for sale: its record (the inspect card)
+bool isTrader(Ped p);                    // the dog trader in a stable yard (never a target for «Взять!»)
 }

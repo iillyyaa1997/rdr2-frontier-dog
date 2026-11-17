@@ -122,6 +122,7 @@ help.skill_up={name}: {skill} is now level {level}
 prompt.brush=Brush
 prompt.heal=Treat
 stable.next=Other
+stable.trader=Dog trader
 stable.train=Train {skill} {from} → {to}
 stable.cure=Treat the illness
 stable.pedigree=Make pedigree

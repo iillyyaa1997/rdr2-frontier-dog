@@ -164,6 +164,7 @@ help.skill_up={name}: навык «{skill}» — уровень {level}
 prompt.brush=Почистить
 prompt.heal=Подлечить
 stable.next=Другое
+stable.trader=Торговец собаками
 stable.train=Обучить «{skill}» {from} → {to}
 stable.cure=Вылечить
 stable.pedigree=Сделать породистой
