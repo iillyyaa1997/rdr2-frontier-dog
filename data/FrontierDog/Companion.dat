@@ -78,6 +78,8 @@ strays.beggar_radius=90
 strays.beggar_notice=25
 # the stable hand's dog menu shows within this many metres of the dogs for sale (in the yard, outside the building)
 stables.menu_radius=5
+# the dogs for sale walk about the yard within this many metres of it (sit, lie down, come up to Arthur)
+stables.yard_radius=5
 ; the courier (D144): leaves camp and rides on the map at this pace, real rider within live range
 courier.speed_mps=9
 courier.live_range=140

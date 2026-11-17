@@ -67,7 +67,7 @@ better, and has a character of its own. Every system below can be switched off i
 
 ## Stables
 - Dogs for sale in the yard of all eight stables, by the door: three of the region's breeds, standard or pedigree,
-  re-stocked every three in-game days. The game opens its own stable menu as soon as Arthur steps inside, so the dog
+  re-stocked every three in-game days. They live there: walk about the yard, sit, lie down, come up to Arthur. The game opens its own stable menu as soon as Arthur steps inside, so the dog
   services are offered out in the yard, next to the dogs for sale.
 - The stable hand (in the yard: «Другое» leafs through the list, each item fires once per press) sells the dogs you see
   («Купить: Стандартная Дворняга — $15»; the game's own Pet prompt takes the key on a dog for sale, so buying is in this

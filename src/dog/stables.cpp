@@ -28,6 +28,7 @@ struct Stable {
 struct ForSale {
     Ped ped = 0;
     StockDog stock;
+    int nextAct = 0;  // when it picks its next thing to do in the yard
 };
 
 static std::vector<Stable> g_stables;
@@ -150,11 +151,11 @@ static void stepSale() {
         if (stock.dog.preset < 0 && presets > 0) stock.dog.preset = c.rng.range(0, presets - 1);
         if (stock.dog.preset >= 0) PED::_EQUIP_META_PED_OUTFIT_PRESET(p, stock.dog.preset, false);
         if (stock.dog.scale != 100) PED::_SET_PED_SCALE(p, stock.dog.scale / 100.0f);
-        TASK::TASK_START_SCENARIO_IN_PLACE_HASH(p, MISC::GET_HASH_KEY("WORLD_ANIMAL_DOG_SITTING"), -1, true, 0, -1.0f, false);
         PED::_SET_PED_PROMPT_NAME(p, literal(c.breedText(stock.dog)));  // the breed, not the model's species
         ForSale f;
         f.ped = p;
         f.stock = stock;
+        f.nextAct = 0;  // starts doing something of its own at once
         g_sale.push_back(f);
         if (g_pending.empty()) FD_INFO("stable: %zu dogs for sale spawned", g_sale.size());
         return;
@@ -185,6 +186,40 @@ static void buy(size_t i) {
         giveCash(f.stock.price * 100);  // no room: money back
         f.ped = bought;
         DECORATOR::DECOR_SET_INT(bought, "FD_shop", 1);
+    }
+}
+
+// The dogs for sale live in the yard (his pick, 17.11: «бродят по двору» instead of sitting in a row): each on its own
+// walks about within a few metres of the yard, sits, lies down, now and then trots up to Arthur; never while he focuses it.
+static void yardLife(const Stable& st) {
+    auto& c = ctx();
+    int t = now();
+    Entity focus = 0;
+    PLAYER::GET_PLAYER_INTERACTION_TARGET_ENTITY(PLAYER::PLAYER_ID(), &focus, false, false);
+    float radius = float(c.tunef("stables.yard_radius", 5));
+    for (auto& f : g_sale) {
+        if (!f.ped || !alive(f.ped) || t < f.nextAct || focus == f.ped) continue;
+        Ped p = f.ped;
+        float toArthur = dist(p, player());
+        if (dist(pos(p), st.dogs) > radius + 3.0f) {  // wandered off: back to the yard
+            TASK::TASK_GO_STRAIGHT_TO_COORD(p, st.dogs.x, st.dogs.y, st.dogs.z, 1.0f, -1, 0.0f, 1.5f, 0);
+            f.nextAct = t + 6000;
+            continue;
+        }
+        int r = c.rng.range(0, 99);
+        if (toArthur < 10.0f && r < 20) {
+            TASK::TASK_GO_TO_ENTITY(p, player(), 8000, 1.8f, 1.0f, 0, 0);
+            f.nextAct = t + c.rng.range(8000, 12000);
+        } else if (r < 60) {
+            TASK::TASK_WANDER_IN_AREA(p, st.dogs.x, st.dogs.y, st.dogs.z, radius, 2.0f, 4.0f, 0);
+            f.nextAct = t + c.rng.range(10000, 20000);
+        } else if (r < 80) {
+            TASK::TASK_START_SCENARIO_IN_PLACE_HASH(p, MISC::GET_HASH_KEY("WORLD_ANIMAL_DOG_SITTING"), -1, true, 0, -1.0f, false);
+            f.nextAct = t + c.rng.range(8000, 15000);
+        } else {
+            TASK::TASK_START_SCENARIO_IN_PLACE_HASH(p, MISC::GET_HASH_KEY("WORLD_ANIMAL_DOG_RESTING"), -1, true, 0, -1.0f, false);
+            f.nextAct = t + c.rng.range(15000, 30000);
+        }
     }
 }
 
@@ -361,6 +396,7 @@ void tick() {
         }
     }
     stepSale();
+    if (g_active >= 0) yardLife(g_stables[g_active]);
     if (g_active < 0) {
         g_menuNext.show(false);
         g_menuDo.show(false);
