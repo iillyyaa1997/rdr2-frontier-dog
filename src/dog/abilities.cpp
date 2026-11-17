@@ -29,6 +29,7 @@ using namespace game;
 static game::UiPrompt g_flush, g_body, g_pelt, g_herbPrompt;
 struct HerbSpot { float x, y; };
 static std::vector<HerbSpot> g_herbs;
+static std::vector<Hash> g_herbModels;  // the herb plants of the world as objects (models found in game 17.11)
 static Vector3 g_herbTarget;
 static bool g_herbGoing = false;
 static int g_herbUntil = 0, g_nextHerbalist = 0;
@@ -73,7 +74,9 @@ void start() {
                 double x, y;
                 if (xy.size() == 2 && str::parseFloat(xy[0], x) && str::parseFloat(xy[1], y)) g_herbs.push_back({float(x), float(y)});
             }
-    FD_INFO("herb spots: %zu", g_herbs.size());
+    g_herbModels.clear();
+    for (const auto& m : herbs.getList("plant_models")) g_herbModels.push_back(Hash(std::stoul(m, nullptr, 0)));
+    FD_INFO("herb spots: %zu, plant models: %zu", g_herbs.size(), g_herbModels.size());
 }
 
 static float noseFactor(const DogRecord& d);
@@ -83,6 +86,23 @@ static bool recently(Ped p, int ms);
 static bool nearestHerb(const Vector3& from, float range, Vector3& out) {
     float best = range;
     bool found = false;
+    // first the plants that really grow around (objects of the herb models; the map spots are sparse - 17.11 his asks
+    // found nothing within 80 m where the game had herbs)
+    if (!g_herbModels.empty()) {
+        static int objs[1024];
+        int n = worldGetAllObjects(objs, 1024);
+        for (int i = 0; i < n; ++i) {
+            Hash m = ENTITY::GET_ENTITY_MODEL(objs[i]);
+            if (std::find(g_herbModels.begin(), g_herbModels.end(), m) == g_herbModels.end()) continue;
+            Vector3 p = pos(objs[i]);
+            float d = dist(p, from);
+            if (d >= best || recently(int(p.x * 7 + p.y * 13), 600000)) continue;
+            best = d;
+            out = p;
+            found = true;
+        }
+        if (found) return true;
+    }
     for (const auto& h : g_herbs) {
         float dx = h.x - from.x, dy = h.y - from.y, d = std::sqrt(dx * dx + dy * dy);
         if (d >= best) continue;

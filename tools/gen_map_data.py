@@ -20,6 +20,12 @@ for p in json.load(open(plants)):
     pts = ";".join("%.0f,%.0f" % conv(l) for l in p["locations"])
     out.append(f"herb.{p['key']}={pts}")
 out.insert(3, "herbs=" + ",".join(kinds))
+# the plant models were found in game (17.11), not in RDOMap: kept from the file this one replaces
+try:
+    keep = [l.rstrip("\n") for l in open("data/FrontierDog/Herbs.dat") if l.startswith("plant_models=") or l.startswith("# the herb plants") or l.startswith("# of each kind")]
+except OSError:
+    keep = []
+out[3:3] = keep
 open("data/FrontierDog/Herbs.dat", "w").write("\n".join(out) + "\n")
 tel = ["# Post offices (telegraph) for delivery orders (D116): from jeanropke/RDOMap data/shops.json @ " + rev + " (Unlicense)"]
 names = []
