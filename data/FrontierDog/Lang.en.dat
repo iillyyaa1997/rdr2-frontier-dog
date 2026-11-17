@@ -168,4 +168,4 @@ help.hardened={name} is hardened by road and street: now {grade}.
 prompt.find_herbs=Find herbs
 prompt.telegram=Telegram to camp: bring {name}
 help.herbs_here={name} found herbs.
-help.no_herbs=No herbs nearby.
+help.no_herbs={name} smells no herbs nearby.

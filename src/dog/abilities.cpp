@@ -113,7 +113,9 @@ static void herbs(Ped dog, DogRecord& d) {
         return;
     }
     if (g_herbs.empty()) return;
-    float range = 30.0f * noseFactor(d) * (ctx().hasTrait(d, "herbalist") ? 1.6f : 1.0f);
+    // asked: the dog searches far (the herb spots are sparse - within 30 m there was mostly nothing, and a completed hold
+    // looked like nothing happened, his play 17.11); its nose and the Herbalist trait stretch it
+    float range = float(ctx().tunef("herbs.ask_range", 80)) * noseFactor(d) * (ctx().hasTrait(d, "herbalist") ? 1.6f : 1.0f);
     bool close = dist(dog, player()) < 4.0f && !hunting::busy();
     g_herbPrompt.setTarget(dog);
     g_herbPrompt.show(close && ctx().feature("HerbSearch"));
@@ -124,7 +126,11 @@ static void herbs(Ped dog, DogRecord& d) {
     if (!asked && !herbalist) return;
     Vector3 spot;
     if (!nearestHerb(pos(player()), herbalist && !asked ? 50.0f : range, spot)) {
-        if (asked) helpText(ctx().t("help.no_herbs"));
+        if (asked) {
+            helpText(ctx().f("help.no_herbs", {{"name", d.name}}, d.female));
+            AUDIO::PLAY_ANIMAL_VOCALIZATION(dog, "WHINE", true);
+            FD_INFO("herbs: asked, nothing within %.0f m", range);
+        }
         return;
     }
     g_noticed[int(spot.x * 7 + spot.y * 13)] = t;

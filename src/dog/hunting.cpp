@@ -192,9 +192,36 @@ bool bring(Ped carcass, bool keepQuality, bool body, bool pelt, bool toHorse) {
     return true;
 }
 
+// A pelt the old build laid on the horse as a carcass (TASK_CARRIABLE with the pelt's own carry config, in a horse slot,
+// not in the horse's pelt stack - his save of 17.11) is taken off and put into the pelt stack the game's way.
+static void fixStuckPelts() {
+    static int next = 0;
+    static std::vector<Entity> done;
+    int t = now();
+    if (t < next) return;
+    next = t + 5000;
+    Ped horse = PLAYER::_GET_SADDLE_HORSE_FOR_PLAYER(PLAYER::PLAYER_ID());
+    if (!alive(horse) || dist(horse, player()) > 60.0f) return;
+    for (int slot = 0; slot < 12; ++slot) {
+        CarriedInfo ci;
+        if (!carriedInSlot(horse, slot, ci) || !ci.entity || !exists(ci.entity)) continue;
+        Entity e = ci.entity;
+        if (!ENTITY::_GET_IS_CARRIABLE_PELT(e) || ci.config != ENTITY::_GET_ENTITY_CARRY_CONFIG(e)) continue;
+        if (std::find(done.begin(), done.end(), e) != done.end()) continue;
+        bool inStack = false;
+        for (int i = 0; i < 16 && !inStack; ++i) inStack = PED::_GET_PELT_FROM_HORSE(horse, i) == e;
+        if (inStack) continue;
+        done.push_back(e);
+        PED::DETACH_CARRIABLE_ENTITY(e, true, true);
+        PED::_SET_PELT_FOR_HORSE(horse, e);
+        FD_INFO("carry: a pelt laid as a carcass in horse slot %d (config 0x%08X) moved into the pelt stack", slot, ci.config);
+    }
+}
+
 void tick() {
     auto& comp = companion();
     scanKills();
+    fixStuckPelts();
     if (!comp.present()) {
         if (g_carry.active()) g_carry.release();
         return;
