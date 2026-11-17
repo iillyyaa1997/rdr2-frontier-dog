@@ -68,20 +68,25 @@ better, and has a character of its own. Every system below can be switched off i
   ($5, 15 seconds).
 
 ## Delivery from camp
-- Send for a dog at your own campfire in the wild, by telegram at any post office, or through a passer-by ($2).
+- Send for a dog at your own campfire in the wild, by telegram at any post office, or through a passer-by ($2) — each
+  time you pick which dog.
 - A courier really rides out of camp: his blip moves along the roads at a horse's pace, near you he becomes a rider with
   your dog running beside his horse, hands it over and rides off. $5–15 by distance; the trip survives a reload.
 
 ## Strays
 - Mutts along roads, packs of two or three near towns, never more than three around.
 - Tame one with food or a pat; a Street-hardened mutt keeps its distance until fed on two or three different days.
-- A fed stray may tag along; a standard mutt becomes Street-hardened through seven deeds with you.
+- Now and then a lone mutt begs by the door of a butcher or a saloon (all six butchers and nine saloons): when you come
+  by with food it trots up and sits begging.
+- A fed stray may tag along; a standard mutt becomes Street-hardened through seven deeds with you — hunting, fights,
+  guarding, swimming, the road (every kilometre, and every night out in the wild together) and obeying.
 
 ## Items (Lenny's Mod Loader)
 - Dog Reviver (stable hand), Dog Food and Dog Treat (butcher) as real items in the satchel.
 
 ## Companion mod: Honor Shield
-- Killing men or animals that attacked you first costs no honor (a separate .asi, optional).
+- Killing men or animals that attacked you first costs no honor (a separate .asi, optional); the honor flash for such a
+  kill is hidden (experimental).
 
 ## Also
 - English and Russian, picked from the game's language; other languages via text files.
