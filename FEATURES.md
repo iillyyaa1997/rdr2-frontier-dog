@@ -42,7 +42,8 @@ better, and has a character of its own. Every system below can be switched off i
 - Shots taken during a carry wait their turn; pelt quality depends on Soft mouth; tired dogs rest.
 - Huntress catches three-star game by herself; Point, Flush on command, trail and hold a wounded animal, bring bodies
   and pelts, retrieve from water (Diver from deep water).
-- «Find herbs»: leads you to nearby herbs; Herbalist shows them within 50 m by itself.
+- «Find herbs»: leads you to the herbs that really grow nearby (up to 80 m, further with a good nose); when there are
+  none it whines and says so. Herbalist shows them within 50 m by itself.
 
 ## Guarding
 - «Get him!» while aiming at a man or an animal; warns about predators once each; senses ambushes.
