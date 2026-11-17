@@ -1,7 +1,9 @@
-# Frontier Dog: collars the stable hand puts on a dog. Shipped data: an update replaces this file.
+# Frontier Dog: collars. Every dog of Arthur's wears one - its own, or the first in this list; the stable hand changes
+# it for another. Shipped data: an update replaces this file.
 # A collar is a part of a game dog's outfit (a metaped asset) put on any dog with _SET_META_PED_TAG:
 # collar.<id>=drawable,albedo,normal,material,palette,tint0,tint1,tint2 (read in game with the 'comps' and 'tagcopy'
-# test hooks); its name is collar.<id> in Lang.*.dat.
+# test hooks; the palette is a hash or a metaped_tint_* name, tints 0-254, colour survey with 'collartint'); its name is
+# collar.<id> in Lang.*.dat.
 #
 # studded: the bloodhound's studded leather collar (a_c_doghound_01 presets 3, 5, 6, 7 - the only collar the game
 # draws as a part of its own; the foxhound's is painted into its coat)

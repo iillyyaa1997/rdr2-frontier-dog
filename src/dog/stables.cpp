@@ -193,7 +193,7 @@ static void buy(size_t i) {
 struct MenuItem {
     std::string text;
     int price = 0;  // dollars
-    int kind = 0;   // 1 train, 2 cure, 3 pedigree, 4 papers, 5 rename, 6 sell, 7 bring, 8 collar on, 9 collar off, 10 buy
+    int kind = 0;   // 1 train, 2 cure, 3 pedigree, 4 papers, 5 rename, 6 sell, 7 bring, 8 collar, 10 buy
     std::string arg;
     int slot = -1;
 };
@@ -220,10 +220,10 @@ static std::vector<MenuItem> menu(DogRecord* d) {
         if (b && !b->mutt && d->grade == Grade::Ordinary) out.push_back({c.t("stable.pedigree"), c.econ.pedigreePrice, 3});
         if (!d->papers) out.push_back({c.t("stable.papers"), papersPrice(*d, c.econ), 4});
         out.push_back({c.t("stable.rename"), c.econ.renamePrice, 5});
+        std::string worn = collars::worn(*d);  // a dog of Arthur's is never without one: changed, not taken off
         for (const auto& id : collars::ids())
-            if (d->collar != id)
+            if (id != worn)
                 out.push_back({c.f("stable.collar", {{"collar", c.t("collar." + id)}}), c.econ.collarPrice, 8, id});
-        if (!d->collar.empty()) out.push_back({c.t("stable.collar_off"), 0, 9});
         out.push_back({c.f("stable.sell", {{"name", d->name}}, d->female), -sellPrice(*d, c.breeds, c.econ), 6});
     }
     for (int i = 0; i < DogStore::kSlots; ++i) {
@@ -291,13 +291,12 @@ static void doItem(const MenuItem& m, const Stable& st) {
             return;
         }
         case 8:
-        case 9:
             if (!d) return;
-            d->collar = m.kind == 8 ? m.arg : "";
+            d->collar = m.arg;
             comp.save();
             if (Ped p = comp.ped()) collars::dress(p, *d);
-            helpText(c.f(m.kind == 8 ? "help.collar_on" : "help.collar_off", {{"name", d->name}}, d->female));
-            FD_INFO("stable: %s collar %s", d->name.c_str(), m.kind == 8 ? m.arg.c_str() : "off");
+            helpText(c.f("help.collar_on", {{"name", d->name}}, d->female));
+            FD_INFO("stable: %s collar %s", d->name.c_str(), m.arg.c_str());
             return;
         case 7:
             g_bringSlot = m.slot;

@@ -1,4 +1,5 @@
 #include "dog/collars.h"
+#include <cctype>
 #include <map>
 #include "core/fs.h"
 #include "core/kvfile.h"
@@ -30,7 +31,12 @@ static void load() {
             FD_WARN("collar %s: 8 values expected, %d found", id.c_str(), int(v.size()));
             continue;
         }
-        auto h = [&](int i) { return Hash(std::stoul(v[i], nullptr, 0)); };
+        // a number (0x...) or a name hashed by the game (palettes: metaped_tint_*)
+        auto h = [&](int i) {
+            const std::string& s = v[i];
+            bool num = !s.empty() && (std::isdigit(static_cast<unsigned char>(s[0])) || s[0] == '-');
+            return num ? Hash(std::stoul(s, nullptr, 0)) : Hash(MISC::GET_HASH_KEY(s.c_str()));
+        };
         Collar c{h(0), h(1), h(2), h(3), h(4), std::atoi(v[5].c_str()), std::atoi(v[6].c_str()), std::atoi(v[7].c_str())};
         g_collars[id] = c;
         g_ids.push_back(id);
@@ -48,14 +54,18 @@ bool known(const std::string& id) {
     return g_collars.count(id) > 0;
 }
 
+std::string worn(const DogRecord& d) {
+    load();
+    if (g_collars.count(d.collar)) return d.collar;
+    return g_ids.empty() ? "" : g_ids.front();  // every dog of Arthur's wears a collar (his wish, 17.11)
+}
+
 void dress(Ped ped, const DogRecord& d) {
     if (!ped) return;
     if (d.preset >= 0) PED::_EQUIP_META_PED_OUTFIT_PRESET(ped, d.preset, false);
-    if (d.collar.empty()) return;
-    load();
-    auto it = g_collars.find(d.collar);
-    if (it == g_collars.end()) return;
-    const Collar& c = it->second;
+    std::string id = worn(d);
+    if (id.empty()) return;
+    const Collar& c = g_collars[id];
     PED::_SET_META_PED_TAG(ped, c.drawable, c.albedo, c.normal, c.material, c.palette, c.tint0, c.tint1, c.tint2);
     PED::_UPDATE_PED_VARIATION(ped, false, true, true, true, false);
 }

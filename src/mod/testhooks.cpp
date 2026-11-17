@@ -247,8 +247,16 @@ static void run(const std::vector<std::string>& a) {
             PED::GET_META_PED_ASSET_GUIDS(t, i, &d, &al, &nm, &mt);
             FD_INFO("test:  %d item 0x%08X cat 0x%08X drawable 0x%08X albedo 0x%08X", i, item, cat, d, al);
         }
+    } else if (cmd == "collartint" && a.size() >= 5 && comp.present()) {
+        // collartint <palette name|0> <tint0> <tint1> <tint2>: the studded collar recoloured on the companion (survey of
+        // collar colours; palettes are metaped_tint_*)
+        Hash pal = a[1] == "0" ? 0 : MISC::GET_HASH_KEY(a[1].c_str());
+        PED::_SET_META_PED_TAG(comp.ped(), 0x401AFD6D, 0x2878FA0B, 0xDC62DC1C, 0xB0582D1F, pal, int(num(2, 0)),
+                               int(num(3, 0)), int(num(4, 0)));
+        PED::_UPDATE_PED_VARIATION(comp.ped(), false, true, true, true, false);
+        FD_INFO("test: collar palette %s (0x%08X) tints %d %d %d", a[1].c_str(), pal, int(num(2, 0)), int(num(3, 0)), int(num(4, 0)));
     } else if (cmd == "collar" && a.size() >= 2 && comp.record()) {
-        // collar <id|off>: what the stable hand does, free (Collars.dat ids)
+        // collar <id>: what the stable hand does, free (Collars.dat ids); 'off' = back to the default one
         if (a[1] != "off" && !collars::known(a[1])) { FD_INFO("test: no collar %s", a[1].c_str()); return; }
         comp.record()->collar = a[1] == "off" ? "" : a[1];
         comp.save();

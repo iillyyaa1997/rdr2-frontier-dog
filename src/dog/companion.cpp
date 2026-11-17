@@ -201,6 +201,7 @@ bool Companion::adopt(Ped ped, DogRecord d) {
     slot_ = s;
     ENTITY::FREEZE_ENTITY_POSITION(ped, false);
     ENTITY::SET_ENTITY_INVINCIBLE(ped, false);
+    collars::dress(ped, c.store.at(s));  // now it is his: a collar
     setup(ped);
     return true;
 }

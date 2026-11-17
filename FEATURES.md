@@ -60,6 +60,11 @@ better, and has a character of its own. Every system below can be switched off i
 - Up to four dogs: one with Arthur, three at home in the gang camp, where you see them lying, sitting and sleeping.
 - Take one along for free or let one go for good; at home dogs are fed and rested and their bond grows slowly.
 
+## Collars
+- Every dog of yours wears a collar - the studded leather one by default (the bloodhound's, the only collar the game
+  draws as a part of its own; it fits any dog). Strays and dogs for sale go without until they are yours; a bought or
+  tamed dog puts it on at once.
+
 ## Stables
 - Dogs for sale in the yard of all eight stables, by the door: three of the region's breeds, standard or pedigree,
   re-stocked every three in-game days. The game opens its own stable menu as soon as Arthur steps inside, so the dog
@@ -67,8 +72,8 @@ better, and has a character of its own. Every system below can be switched off i
 - The stable hand (in the yard: «Другое» leafs through the list, each item fires once per press) sells the dogs you see
   («Купить: Стандартная Дворняга — $15»; the game's own Pet prompt takes the key on a dog for sale, so buying is in this
   list), trains skills, cures an Ailing dog ($40, one day), makes a breed dog Pedigree ($150, seven days), issues
-  papers, makes a new name collar (rename), puts on a studded leather collar ($8; any dog, kept through reloads) or
-  takes it off, buys your dog (60 % with papers, 30 % without) and brings a dog from home ($5, 15 seconds).
+  papers, makes a new name collar (rename), changes the collar for another one ($8), buys your dog (60 % with papers,
+  30 % without) and brings a dog from home ($5, 15 seconds).
 
 ## Delivery from camp
 - Send for a dog at your own campfire in the wild, by telegram at any post office, or through a passer-by ($2) — each
@@ -97,12 +102,14 @@ better, and has a character of its own. Every system below can be switched off i
 - Script events (`FRONTIER_DOG_*`) for other mods.
 
 ## Planned
+- Collars in several colours: the studded collar recoloured with the game's own palettes (metaped_tint_*), the
+  colours picked from an in-game survey; the stable hand sells them.
 - Real Shiba coats (red, sesame, black and tan) as own textures — own texture dictionaries work in game now.
 - A wet coat after swimming (how the game draws it, to be researched).
 - Publishing on Nexus: README in English and Russian, the page text, a Vortex-ready archive.
 
 ## Not possible yet
-- More collars and bandanas: the game draws only one collar as a part of its own (the bloodhound's studded leather
-  one, now in the mod); the foxhound's collar is painted into its coat, and no bandana was found on any of the 14 dog
-  models (57 coats looked at, 17.11).
+- Other collar shapes and bandanas: the game draws only one collar as a part of its own (the bloodhound's studded
+  leather one, now in the mod); the foxhound's collar is painted into its coat, and no bandana was found on any of the
+  14 dog models (57 coats looked at, 17.11).
 - The game's own dirt level reads 0 on dogs, so the mod keeps its own dirt counter (that one works).

@@ -22,7 +22,7 @@ vet.pedigree_price=150
 vet.pedigree_days=7
 [Stable]
 rename.price=2
-# a collar put on by the stable hand (Collars.dat); taking it off is free
+# another collar from the stable hand (Collars.dat)
 collar.price=8
 swap.price=5
 swap.bring_seconds=15
