@@ -64,7 +64,9 @@ better, and has a character of its own. Every system below can be switched off i
 - Dogs for sale in the yard of all eight stables, by the door: three of the region's breeds, standard or pedigree,
   re-stocked every three in-game days. The game opens its own stable menu as soon as Arthur steps inside, so the dog
   services are offered out in the yard, next to the dogs for sale.
-- The stable hand (in the yard: «Другое» leafs through the list) trains skills, cures an Ailing dog ($40, one day), makes a breed dog Pedigree ($150, seven days), issues
+- The stable hand (in the yard: «Другое» leafs through the list, each item fires once per press) sells the dogs you see
+  («Купить: Стандартная Дворняга — $15»; the game's own Pet prompt takes the key on a dog for sale, so buying is in this
+  list), trains skills, cures an Ailing dog ($40, one day), makes a breed dog Pedigree ($150, seven days), issues
   papers, makes a new name collar (rename), puts on a studded leather collar ($8; any dog, kept through reloads) or
   takes it off, buys your dog (60 % with papers, 30 % without) and brings a dog from home ($5, 15 seconds).
 
