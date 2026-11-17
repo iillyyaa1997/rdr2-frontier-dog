@@ -1,4 +1,5 @@
 #ifdef FD_TEST
+#include <cmath>
 #include "mod/testhooks.h"
 
 #include <algorithm>
@@ -9,6 +10,7 @@
 #include "core/log.h"
 #include "core/strutil.h"
 #include "dog/collars.h"
+#include "dog/stables.h"
 #include "dog/companion.h"
 #include "dog/delivery.h"
 #include "dog/hunting.h"
@@ -247,6 +249,40 @@ static void run(const std::vector<std::string>& a) {
             PED::GET_META_PED_ASSET_GUIDS(t, i, &d, &al, &nm, &mt);
             FD_INFO("test:  %d item 0x%08X cat 0x%08X drawable 0x%08X albedo 0x%08X", i, item, cat, d, al);
         }
+    } else if (cmd == "dogcam") {
+        // dogcam [off|dist height side]: a script camera on the companion's head and neck (collar shots); off = back
+        static Cam cam = 0;
+        if (cam) {
+            CAMERA::RENDER_SCRIPT_CAMS(false, false, 0, true, true, 0);
+            CAMERA::DESTROY_CAM(cam, false);
+            cam = 0;
+        }
+        if ((a.size() > 1 && a[1] == "off") || !comp.present()) return;
+        Ped d = comp.ped();
+        float h = ENTITY::GET_ENTITY_HEADING(d) * 3.14159265f / 180.0f;
+        Vector3 dfwd(-std::sin(h), std::cos(h), 0), side(std::cos(h), std::sin(h), 0);
+        Vector3 at = add(add(pos(d), scale(dfwd, float(num(1, 1.1)))), scale(side, float(num(3, 0.3))));
+        at.z += float(num(2, 0.35));
+        // aimed by hand (POINT_CAM_AT_ENTITY left the dog at the frame's edge): at the neck, 0.25 m above the origin
+        Vector3 look = pos(d);
+        look.z += 0.25f;
+        float dx = look.x - at.x, dy = look.y - at.y, dz = look.z - at.z;
+        float yaw = std::atan2(-dx, dy) * 180.0f / 3.14159265f;
+        float pitch = std::atan2(dz, std::sqrt(dx * dx + dy * dy)) * 180.0f / 3.14159265f;
+        cam = CAMERA::CREATE_CAM_WITH_PARAMS("DEFAULT_SCRIPTED_CAMERA", at.x, at.y, at.z, pitch, 0, yaw, float(num(4, 35)), false, 2);
+        CAMERA::SET_CAM_ACTIVE(cam, true);
+        CAMERA::RENDER_SCRIPT_CAMS(true, false, 0, true, true, 0);
+    } else if (cmd == "trader") {
+        // trader [x y z [heading]]: where the dog trader stands; with coordinates he is moved there (placing him by eye)
+        Ped t = stables::trader();
+        if (!t) { FD_INFO("test: no trader"); return; }
+        if (a.size() >= 4) {
+            ENTITY::SET_ENTITY_COORDS(t, float(num(1, 0)), float(num(2, 0)), float(num(3, 0)), false, false, false, true);
+            if (a.size() >= 5) ENTITY::SET_ENTITY_HEADING(t, float(num(4, 0)));
+            TASK::TASK_STAND_STILL(t, -1);
+        }
+        Vector3 tp = pos(t);
+        FD_INFO("test: trader %.2f %.2f %.2f heading %.0f, %.1f m from Arthur", tp.x, tp.y, tp.z, ENTITY::GET_ENTITY_HEADING(t), dist(t, pl));
     } else if (cmd == "peltstow") {
         // peltstow [clear]: the nearest pelt on the ground goes into the pelt stack of Arthur's horse the game's way
         // (_SET_PELT_FOR_HORSE), then the stack is listed; 'clear' empties it (17.11: the pelt laid like a carcass)
@@ -342,6 +378,32 @@ static void run(const std::vector<std::string>& a) {
                 FD_INFO("test: killfoe %d", *it);
                 break;
             }
+    } else if (cmd == "objs") {
+        // objs [metres]: every object within the radius with its model (looking for the herb plants of the world)
+        int objs[1024];
+        int n = worldGetAllObjects(objs, 1024), k = 0;
+        float r = float(num(1, 6));
+        for (int i = 0; i < n; ++i) {
+            if (!ENTITY::DOES_ENTITY_EXIST(objs[i]) || dist(objs[i], pl) > r) continue;
+            Vector3 o = pos(objs[i]);
+            FD_INFO("test: obj %d model 0x%08X at %.1f %.1f %.1f, %.1f m, pickup %d", objs[i], ENTITY::GET_ENTITY_MODEL(objs[i]),
+                    o.x, o.y, o.z, dist(objs[i], pl), int(OBJECT::DOES_PICKUP_EXIST(objs[i])));
+            ++k;
+        }
+        FD_INFO("test: %d objects within %.0f m (of %d)", k, r, n);
+    } else if (cmd == "killall") {
+        // killall [metres]: Arthur kills every man fighting him within the radius (clearing a Bandit Hideouts camp)
+        int peds[256];
+        int n = worldGetAllPeds(peds, 256), k = 0;
+        float r = float(num(1, 80));
+        for (int i = 0; i < n; ++i) {
+            Ped q = peds[i];
+            if (q == pl || q == comp.ped() || !alive(q) || !PED::IS_PED_HUMAN(q) || dist(q, pl) > r) continue;
+            if (!PED::IS_PED_IN_COMBAT(q, pl)) continue;
+            PED::APPLY_DAMAGE_TO_PED(q, 1000, false, 0, pl);
+            ++k;
+        }
+        FD_INFO("test: killall %d within %.0f m", k, r);
     } else if (cmd == "beggar") {
         // beggar: a begging mutt by the nearest butcher/saloon within strays.beggar_radius (Arthur must be in town)
         strays::beggarNow();

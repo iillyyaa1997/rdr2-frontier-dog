@@ -41,6 +41,12 @@ bool loadModel(Hash model, int timeoutMs) {
     return true;
 }
 
+// A man made by a script stays invisible until he gets an outfit (17.11: the dog trader stood in the yard, his prompts
+// worked, nobody was there); animals get their coat preset from the caller.
+static void dressNew(Ped p) {
+    if (p && PED::IS_PED_HUMAN(p)) PED::_SET_RANDOM_OUTFIT_VARIATION(p, true);
+}
+
 Ped spawnPed(const std::string& modelName, const Vector3& at, float heading, int timeoutMs) {
     Hash model = MISC::GET_HASH_KEY(modelName.c_str());
     if (!loadModel(model, timeoutMs)) {
@@ -48,6 +54,7 @@ Ped spawnPed(const std::string& modelName, const Vector3& at, float heading, int
         return 0;
     }
     Ped p = PED::CREATE_PED(model, at.x, at.y, at.z, heading, false, false, false, false);
+    dressNew(p);
     STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(model);
     if (!p) FD_WARN("CREATE_PED %s returned 0 (ped pool full?)", modelName.c_str());
     return p;
@@ -63,6 +70,7 @@ Ped stepSpawn(SpawnRequest& r) {
         STREAMING::REQUEST_MODEL(model, false);
         if (STREAMING::HAS_MODEL_LOADED(model)) {
             Ped p = PED::CREATE_PED(model, r.at.x, r.at.y, r.at.z, r.heading, false, false, false, false);
+            dressNew(p);
             STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(model);
             if (!p) FD_WARN("CREATE_PED %s returned 0 (ped pool full?)", name.c_str());
             r.done = true;

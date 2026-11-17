@@ -5,11 +5,13 @@
 # 17.11 (where the game walks Arthur out after its menu; the dogs stand in a row across that spot). Blackwater,
 # Armadillo and Tumbleweed (no .yard) get the nearest outdoor navmesh point 10-18 m from the stable hand at run time if
 # their .dogs spot is indoors (not seen in game: Arthur cannot get there).
-# the dog trader in the yard (a man beside the dogs, his prompts under «Торговец собаками»)
+# the dog trader in the yard (a man beside the dogs, his prompts under «Торговец собаками»); <id>.trader=x,y,z,heading
+# where he stands, placed by eye by the wall beside the door (17.11); without it he stands 3 m aside of the yard
 trader_model=A_M_M_RANCHER_01
 stables=valentine,strawberry,vanhorn,emerald,stdenis,blackwater,armadillo,tumbleweed
 valentine.pos=-367.87,784.27,115.95
 valentine.yard=-352.42,789.43,116.14
+valentine.trader=-356.6,793.4,116.2,290
 valentine.breeds=collie,australian,foxhound,mutt
 strawberry.pos=-1817.85,-564.86,156.06
 strawberry.yard=-1808.03,-564.34,155.98

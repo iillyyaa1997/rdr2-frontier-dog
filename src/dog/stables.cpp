@@ -22,6 +22,7 @@ struct Stable {
     std::string id;
     Vector3 at, dogs;
     bool measured = false;  // a .yard measured in game; otherwise .dogs is checked for being indoors
+    std::vector<double> trader;  // .trader = x,y,z,heading placed by eye; empty = beside the yard
     std::vector<std::string> breeds;
 };
 
@@ -59,6 +60,7 @@ static int g_traderGroup = 0, g_nextFace = 0;
 static std::string g_traderModel = "A_M_M_RANCHER_01";
 
 bool isTrader(Ped p) { return p && p == g_trader; }
+Ped trader() { return g_trader; }
 
 static Vector3 vec(const std::vector<double>& v) { return v.size() == 3 ? Vector3(float(v[0]), float(v[1]), float(v[2])) : Vector3(); }
 
@@ -73,6 +75,7 @@ void start() {
         s.measured = kv.has(id + ".yard");
         s.dogs = vec(kv.getFloats(id + (s.measured ? ".yard" : ".dogs")));
         s.breeds = kv.getList(id + ".breeds");
+        s.trader = kv.getFloats(id + ".trader");
         g_stables.push_back(s);
     }
     for (auto& p : g_buyPrompts) p.create("INPUT_INTERACT_OPTION1", "", 1000, 2);
@@ -145,7 +148,8 @@ static void spawnSale(Stable& st) {
         ps.stock = stock[i];
         g_pending.push_back(ps);
     }
-    // the trader stands beside the way out, facing out like the dogs, a little aside so the game's exit stays free
+    // the trader stands in the open yard a little further out than the spot the game walks Arthur out to (3 m aside
+    // put him in front of Valentine's doors), facing out like the dogs; a stable may place him by eye (.trader)
     {
         Vector3 out(st.dogs.x - st.at.x, st.dogs.y - st.at.y, 0);
         float len = std::sqrt(out.x * out.x + out.y * out.y);
@@ -154,8 +158,11 @@ static void spawnSale(Stable& st) {
         g_traderReq = SpawnRequest{};
         g_traderReq.model = g_traderModel;
         g_traderReq.fallback = "A_M_M_RANCHER_01";
-        g_traderReq.at = add(st.dogs, scale(across, float(c.tunef("stables.trader_aside", 3))));
+        g_traderReq.at = add(add(st.dogs, scale(across, float(c.tunef("stables.trader_aside", 0)))),
+                             scale(Vector3(out.x / len, out.y / len, 0), float(c.tunef("stables.trader_out", 2))));
         g_traderReq.heading = std::atan2(-out.x, out.y) * 180.0f / 3.14159265f;
+        if (st.trader.size() >= 3) g_traderReq.at = Vector3(float(st.trader[0]), float(st.trader[1]), float(st.trader[2]));
+        if (st.trader.size() >= 4) g_traderReq.heading = float(st.trader[3]);
         g_traderPending = true;
     }
     FD_INFO("stable %s: %zu dogs for sale queued (period %lld)", st.id.c_str(), g_pending.size(), day / c.econ.rotationDays);

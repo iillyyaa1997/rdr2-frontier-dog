@@ -11,4 +11,5 @@ void start();
 void tick();
 bool saleCard(Ped ped, DogRecord& out);  // a dog for sale: its record (the inspect card)
 bool isTrader(Ped p);                    // the dog trader in a stable yard (never a target for «Взять!»)
+Ped trader();                            // the dog trader of the stable Arthur is at (0 = none)
 }
