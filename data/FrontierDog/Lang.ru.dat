@@ -183,6 +183,7 @@ help.let_go={name} ушёл на волю
 help.let_go.f={name} ушла на волю
 prompt.send_for=Послать за собакой: {name}
 prompt.message=Передать весточку в лагерь — ${price}
+prompt.message_for=Передать весточку в лагерь: прислать {name} — ${price}
 help.courier_refuses=Сейчас никто не повезёт собаку
 help.courier_no_way=Курьер не нашёл дороги
 help.courier_left=Курьер выехал из лагеря с {name} — в пути около {min} мин (${fee})

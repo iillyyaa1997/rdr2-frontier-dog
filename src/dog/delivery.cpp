@@ -27,7 +27,7 @@ static Stage g_stage = Stage::Idle;
 static int g_slot = -1, g_stageAt = 0, g_orderedAt = 0, g_progressAt = 0;
 static float g_lastDist = 0;
 static Ped g_rider = 0, g_horse = 0, g_dog = 0, g_messenger = 0;
-static game::UiPrompt g_campNext, g_campOrder, g_message;
+static game::UiPrompt g_campNext, g_campOrder, g_message, g_messageNext;  // g_messageNext: which dog the passer-by asks for
 static int g_campIndex = 0, g_whistleSince = 0;
 static std::vector<Vector3> g_telegraphs;
 static Vector3 g_virt, g_wp;  // the courier while out of range (on the map) and his next road point
@@ -47,6 +47,7 @@ void start() {
     g_campNext.create("INPUT_CONTEXT_X", ctx().t("stable.next"));
     g_campOrder.create("INPUT_INTERACT_OPTION1", "", 1200);
     g_message.create("INPUT_INTERACT_OPTION1", ctx().t("prompt.message"), 1000, 2);
+    g_messageNext.create("INPUT_CONTEXT_X", ctx().t("stable.next"), 0, 2);
     KvFile tel;
     g_telegraphs.clear();  // again after a save load (the script restarts, the list stays)
     if (tel.load(fs::join(ctx().dataDir, "Telegraph.dat")))
@@ -489,15 +490,21 @@ void tick() {
                   PED::GET_PED_RELATIONSHIP_GROUP_HASH(focus) != MISC::GET_HASH_KEY("REL_GANG_DUTCHS") &&
                   !PED::IS_PED_IN_COMBAT(focus, 0);
     if (canAsk) {
+        // which dog: the same pick as at the campfire and the telegraph («Другое» goes through the dogs at home)
+        g_campIndex %= int(slots.size());
+        const DogRecord& d = c.store.at(slots[g_campIndex]);
         g_message.setTarget(focus);
-        g_message.setText(c.f("prompt.message", {{"price", std::to_string(c.econ.messengerPrice)}}));
+        g_message.setText(c.f("prompt.message_for", {{"name", d.name}, {"price", std::to_string(c.econ.messengerPrice)}}, d.female));
         g_message.show(true);
+        g_messageNext.setTarget(focus);
+        g_messageNext.show(slots.size() > 1);
+        if (g_messageNext.fired()) g_campIndex = (g_campIndex + 1) % int(slots.size());
         if (g_message.fired() && takeCash(c.econ.messengerPrice * 100)) {
             g_messenger = focus;
             ENTITY::SET_ENTITY_AS_MISSION_ENTITY(g_messenger, true, true);
             TASK::CLEAR_PED_TASKS(g_messenger, true, true);
             TASK::TASK_WANDER_STANDARD(g_messenger, 10.0f, 10);  // off with the message, in sight
-            g_slot = slots[0];
+            g_slot = slots[g_campIndex % int(slots.size())];
             g_stage = Stage::Message;
             g_stageAt = t;
             Vector3 camp;
@@ -508,6 +515,7 @@ void tick() {
         }
     } else {
         g_message.show(false);
+        g_messageNext.show(false);
     }
     // (e) a long whistle hold (off by default)
     if (c.ini.getBool("DeliveryWhistleHold", false) && !companion().present() && !slots.empty()) {
@@ -515,7 +523,7 @@ void tick() {
         g_whistleSince = held ? (g_whistleSince ? g_whistleSince : t) : 0;
         if (g_whistleSince && t - g_whistleSince > 2000) {
             g_whistleSince = 0;
-            order(slots[0], "whistle hold");
+            order(slots[g_campIndex % int(slots.size())], "whistle hold");  // the dog last picked
         }
     }
 }
