@@ -13,6 +13,7 @@
 #include "dog/behaviour.h"
 #include "dog/companion.h"
 #include "dog/carry.h"
+#include "dog/home.h"
 #include "dog/hunting.h"
 #include "game/game.h"
 #include "game/prompt.h"
@@ -624,6 +625,19 @@ static void roadAndWater(Ped dog, DogRecord& d) {
         g_lastRoadPos = p;
         deed(d, "road", 1);  // a kilometre together
     }
+    // a night out together: the game clock jumps by hours in a few real seconds (Arthur slept or waited at his own
+    // campfire or tent) away from the gang camp, towns and buildings, with the dog by him
+    static long long lastMin = -1;
+    static int lastAt = 0;
+    long long m = gameMinutes();
+    int t = now();
+    if (lastMin >= 0 && m - lastMin >= 240 && t - lastAt < 20000 && dist(dog, player()) < 40.0f && !home::inCamp() &&
+        !inTown(pos(player())) && !INTERIOR::GET_INTERIOR_FROM_ENTITY(player())) {
+        FD_INFO("hardening: a night out together (%lld game minutes)", m - lastMin);
+        deed(d, "road", int(ctx().tune("hardening.night_units", 5)));
+    }
+    lastMin = m;
+    lastAt = t;
     if (PED::IS_PED_SWIMMING(dog)) {
         if (!g_swimSince) g_swimSince = now();
         if (now() - g_swimSince > 5000) {
