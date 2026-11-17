@@ -10,6 +10,7 @@
 #include "core/log.h"
 #include "core/strutil.h"
 #include "dog/companion.h"
+#include "dog/home.h"
 #include "game/game.h"
 #include "game/prompt.h"
 #include "mod/context.h"
@@ -101,6 +102,15 @@ static int oursAround() {
 
 static Ped g_beggar = 0;
 static bool g_begging = false;
+
+// a fed stray that turns up by the gang camp later (D106 idea 5: it follows Arthur for a while, or waits near camp)
+struct CampVisitor {
+    DogRecord card;
+    long long untilDay = -1;
+    bool spawned = false;
+};
+static CampVisitor g_visitor;
+static int g_nextVisitor = 0;
 
 static void setupStray(Ped p, DogRecord card, const Vector3& at, bool beggar) {
     auto& c = ctx();
@@ -300,6 +310,28 @@ void tick() {
         g_nextSpawn = t + c.tune("strays.spawn_every_ms", 240000);
         if (c.rng.chance(c.tunef("strays.spawn_chance", 0.5))) spawnMutts();
     }
+    // the fed stray waiting near camp: it turns up by the camp's edge the next time Arthur is there
+    if (g_visitor.untilDay >= 0 && t >= g_nextVisitor) {
+        g_nextVisitor = t + 5000;
+        Vector3 camp, at;
+        if (gameDay() > g_visitor.untilDay) {
+            g_visitor = CampVisitor{};
+        } else if (!g_visitor.spawned && home::inCamp() && g_pending.empty() && home::campKnown(camp) &&
+                   hiddenSpotNear(camp, 25, 45, at)) {
+            PendingStray ps;
+            ps.card = g_visitor.card;
+            ps.req.model = ps.card.model.empty() ? "a_c_doghobo_01" : ps.card.model;
+            ps.req.fallback = "a_c_doghobo_01";
+            ps.req.at = at;
+            ps.area = at;
+            ps.beggar = false;
+            g_pending.push_back(ps);
+            g_visitor.spawned = true;
+            FD_INFO("the fed stray waits near camp, %.0f m out", dist(at, camp));
+        }
+    }
+    // a wary street-hardened mutt runs off when Arthur fires near it (D106 idea 4)
+    bool shooting = PED::IS_PED_SHOOTING(player());
     // wary street-hardened mutts keep their distance; feeding them (once a game day) builds trust
     Ped pl = player();
     Entity focus = 0;
@@ -309,6 +341,10 @@ void tick() {
         if (!alive(p) || p == companion().ped()) continue;
         float d = dist(p, pl);
         if (wary(p) && d < 6.0f && !PED::IS_PED_FLEEING(p)) TASK::TASK_SMART_FLEE_PED(p, pl, 12.0f, 4000, 0, 2.0f, 0);
+        if (wary(p) && shooting && d < 40.0f && !PED::IS_PED_FLEEING(p)) {
+            TASK::TASK_SMART_FLEE_PED(p, pl, 80.0f, 15000, 0, 3.0f, 0);
+            FD_INFO("wary stray runs from the shots");
+        }
         if (focus == p && d < 10.0f && !offered) {
             const char* have = foodInSatchel();
             long long day = gameDay();
@@ -323,8 +359,13 @@ void tick() {
                 TASK::TASK_EAT(p, unk, 0);
                 FD_INFO("stray fed: trust %d", k.trust);
                 if (!k.card.isStreetHardened(c.breeds) && c.rng.chance(c.tunef("strays.follow_chance", 0.3))) {
-                    g_follower = p;  // it trots after Arthur for a while (D106 idea 5)
-                    g_followUntil = t + 120000;
+                    if (c.rng.chance(0.5)) {
+                        g_follower = p;  // it trots after Arthur for a while (D106 idea 5)
+                        g_followUntil = t + 120000;
+                    } else {
+                        g_visitor = CampVisitor{k.card, gameDay() + c.tune("strays.camp_visit_days", 3), false};
+                        FD_INFO("stray will wait near camp until day %lld", g_visitor.untilDay);
+                    }
                 }
                 helpText(c.t(wary(p) ? "help.stray_wary" : "help.stray_trusts"));
             }

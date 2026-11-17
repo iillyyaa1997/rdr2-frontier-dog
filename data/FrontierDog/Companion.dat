@@ -69,6 +69,8 @@ strays.spawn_chance=0.5
 strays.pack_chance=0.35
 strays.trust_days=2
 strays.follow_chance=0.3
+# a fed stray that does not follow may turn up by the gang camp instead, within this many game days
+strays.camp_visit_days=3
 # a mutt begging by a butcher's or saloon's door (D106 idea 3): chance per place per game day, how near Arthur must be
 strays.beggar_chance=0.6
 strays.beggar_radius=90

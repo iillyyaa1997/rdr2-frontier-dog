@@ -75,10 +75,11 @@ better, and has a character of its own. Every system below can be switched off i
 
 ## Strays
 - Mutts along roads, packs of two or three near towns, never more than three around.
-- Tame one with food or a pat; a Street-hardened mutt keeps its distance until fed on two or three different days.
+- Tame one with food or a pat; a Street-hardened mutt keeps its distance until fed on two or three different days and
+  runs off when you fire near it.
 - Now and then a lone mutt begs by the door of a butcher or a saloon (all six butchers and nine saloons): when you come
   by with food it trots up and sits begging.
-- A fed stray may tag along; a standard mutt becomes Street-hardened through seven deeds with you — hunting, fights,
+- A fed stray may tag along for a while, or turn up by the gang camp within a few days; a standard mutt becomes Street-hardened through seven deeds with you — hunting, fights,
   guarding, swimming, the road (every kilometre, and every night out in the wild together) and obeying.
 
 ## Items (Lenny's Mod Loader)
