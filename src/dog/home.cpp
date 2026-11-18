@@ -21,7 +21,13 @@ struct HomeDog {
     Ped ped = 0;
     bool spawning = false;  // the model streams in (stepSpawn), never a blocking wait
     SpawnRequest req;
+    Blip blip = 0;          // a paw on the map while Arthur is in camp (18.11: «я не вижу ее в лагере»)
 };
+
+static void clearDog(HomeDog& h) {  // its map paw goes with it
+    if (h.blip && MAP::DOES_BLIP_EXIST(h.blip)) MAP::REMOVE_BLIP(&h.blip);
+    h = HomeDog{};
+}
 
 static bool g_inCamp = false, g_known = false, g_hidden = false;
 static Vector3 g_camp;
@@ -67,7 +73,7 @@ void start() {
 static void despawnAll() {
     for (auto& h : g_dogs) {
         deletePed(h.ped);
-        h = HomeDog{};
+        clearDog(h);
     }
     for (int i = 0; i < 3; ++i) { g_take[i].show(false); g_free[i].show(false); }
 }
@@ -113,7 +119,7 @@ static void setupHomeDog(int idx, Ped p) {
     HomeDog& h = g_dogs[idx];
     h.spawning = false;
     h.ped = p;
-    if (h.slot < 0 || !c.store.used(h.slot)) { deletePed(h.ped); h = HomeDog{}; return; }
+    if (h.slot < 0 || !c.store.used(h.slot)) { deletePed(h.ped); clearDog(h); return; }
     const DogRecord& d = c.store.at(h.slot);
     ENTITY::SET_ENTITY_AS_MISSION_ENTITY(p, true, true);
     ENTITY::SET_ENTITY_INVINCIBLE(p, true);
@@ -151,13 +157,28 @@ static void spawnHomeDogs() {
         Vector3 want = add(g_camp, Vector3(std::cos(a) * 12.0f, std::sin(a) * 12.0f, 0)), at;
         if (!safeCoord(want, at)) at = want;
         HomeDog& h = g_dogs[idx];
-        h = HomeDog{};
+        clearDog(h);
         h.slot = s;
         h.spawning = true;
         h.req.model = d.model.empty() ? "a_c_doghobo_01" : d.model;
         h.req.fallback = "a_c_doghobo_01";
         h.req.at = at;
         ++k;
+    }
+}
+
+static void updateBlips() {
+    for (auto& h : g_dogs) {
+        bool want = g_inCamp && !g_hidden && h.slot >= 0 && exists(h.ped) && ctx().store.used(h.slot);
+        if (h.blip && (!want || !MAP::DOES_BLIP_EXIST(h.blip))) {
+            if (MAP::DOES_BLIP_EXIST(h.blip)) MAP::REMOVE_BLIP(&h.blip);
+            h.blip = 0;
+        }
+        if (want && !h.blip) {
+            h.blip = MAP::BLIP_ADD_FOR_ENTITY(0x19365607, h.ped);  // BLIP_STYLE_COMPANION
+            MAP::SET_BLIP_SPRITE(h.blip, MISC::GET_HASH_KEY("blip_animal"), true);
+            MAP::_SET_BLIP_NAME(h.blip, literal(ctx().store.at(h.slot).name));
+        }
     }
 }
 
@@ -169,7 +190,7 @@ static void stepHomeDogs() {
             setupHomeDog(i, p);
             return;  // at most one ped per frame
         }
-        if (h.req.done) h = HomeDog{};
+        if (h.req.done) clearDog(h);
     }
 }
 
@@ -207,6 +228,7 @@ void tick() {
         g_nextCare = t + 10000;
         homeCare();
     }
+    updateBlips();
     if (!g_inCamp) return;
     stepHomeDogs();
     bool hide = inCutscene();
@@ -219,7 +241,7 @@ void tick() {
         HomeDog& h = g_dogs[i];
         if (h.slot >= 0 && exists(h.ped) && (!ctx().store.used(h.slot) || ctx().store.at(h.slot).where != Where::Home)) {
             deletePed(h.ped);  // called away (stable, courier, test) while Arthur is in camp: no second copy in camp
-            h = HomeDog{};
+            clearDog(h);
         }
         if (h.slot < 0 || !exists(h.ped) || !ctx().store.used(h.slot)) { g_take[i].show(false); g_free[i].show(false); continue; }
         const DogRecord& d = ctx().store.at(h.slot);
@@ -231,7 +253,7 @@ void tick() {
         if (g_take[i].fired()) {
             Ped p = h.ped;
             int s = h.slot;
-            h = HomeDog{};
+            clearDog(h);
             g_take[i].show(false);
             g_free[i].show(false);
             companion().takeFromCamp(s, p);
@@ -244,7 +266,7 @@ void tick() {
             ENTITY::SET_ENTITY_INVINCIBLE(h.ped, false);
             TASK::TASK_WANDER_STANDARD(h.ped, 10.0f, 10);
             ENTITY::SET_ENTITY_AS_NO_LONGER_NEEDED(&h.ped);
-            h = HomeDog{};
+            clearDog(h);
             helpText(ctx().f("help.let_go", {{"name", name}}, fem));
             FD_INFO("home dog %s let go for good", name.c_str());
         }
