@@ -27,6 +27,8 @@ struct Known {
     bool beggar = false;  // waits by a butcher's or a saloon's door
     Vector3 home;         // where a beggar waits
     int bornAt = 0;
+    std::string model;    // the model it was made from (a remembered stray comes back the same)
+    int memId = -1;       // in the remembered list (fed once, 18.11 his pick)
 };
 
 // what Arthur can feed a stray from his satchel
@@ -83,15 +85,144 @@ bool wary(Ped dog) {
     return it->second.card.isStreetHardened(ctx().breeds) && it->second.trust < ctx().tune("strays.trust_days", 2);
 }
 
-void forget(Ped dog) { g_known.erase(dog); }
+static void forgetImpl(Ped dog);
+void forget(Ped dog) { forgetImpl(dog); }
 
 struct PendingStray {
     SpawnRequest req;
     DogRecord card;
     Vector3 area;
     bool beggar = false;
+    int memId = -1;
 };
 static std::vector<PendingStray> g_pending;  // streams in over frames (stepSpawn), never a blocking wait
+
+// ---- remembered strays: a fed stray is kept (look, grade, trust) in Dogs/Strays.dat and met again in the same parts
+// (18.11: «я покормил одну дворняжку, но я не знаю где она теперь» — it was gone once he rode off)
+struct Remembered {
+    int id = 0;
+    DogRecord card;
+    int trust = 0;
+    long long lastFedDay = -1;
+    Vector3 where;
+    std::string model;
+    Ped ped = 0;
+    int goneAt = 0;
+    bool pending = false;
+};
+static std::vector<Remembered> g_mem;
+static bool g_memLoaded = false;
+static int g_memNextId = 1, g_nextMemCheck = 0;
+
+static std::string memPath() { return fs::join(fs::join(ctx().dataDir, "Dogs"), "Strays.dat"); }
+
+static void memLoad() {
+    if (g_memLoaded) return;
+    g_memLoaded = true;
+    KvFile kv;
+    if (!kv.load(memPath())) return;
+    for (const auto& idText : kv.getList("strays")) {
+        int id = std::atoi(idText.c_str());
+        std::string pre = "stray." + idText + ".";
+        KvFile card;
+        for (const auto& key : kv.keysWithPrefix(pre + "card."))
+            card.set(key.substr(pre.size() + 5), kv.get(key));
+        Remembered r;
+        r.id = id;
+        r.card.fromKv(card);
+        r.trust = int(kv.getInt(pre + "trust", 0));
+        r.lastFedDay = kv.getInt(pre + "fed_day", -1);
+        auto w = kv.getFloats(pre + "where");
+        if (w.size() == 3) r.where = Vector3(float(w[0]), float(w[1]), float(w[2]));
+        r.model = kv.get(pre + "model");
+        if (!r.model.empty()) g_mem.push_back(r);
+        g_memNextId = std::max(g_memNextId, id + 1);
+    }
+    FD_INFO("remembered strays: %zu", g_mem.size());
+}
+
+static void memSave() {
+    KvFile kv;
+    std::vector<std::string> ids;
+    for (const auto& r : g_mem) {
+        std::string idText = std::to_string(r.id), pre = "stray." + idText + ".";
+        ids.push_back(idText);
+        KvFile card = r.card.toKv();
+        for (const auto& key : card.keys()) kv.set(pre + "card." + key, card.get(key));
+        kv.setInt(pre + "trust", r.trust);
+        kv.setInt(pre + "fed_day", r.lastFedDay);
+        kv.set(pre + "where", std::to_string(r.where.x) + "," + std::to_string(r.where.y) + "," + std::to_string(r.where.z));
+        kv.set(pre + "model", r.model);
+    }
+    kv.setList("strays", ids);
+    kv.save(memPath());
+}
+
+static void memRemember(Ped p, Known& k) {
+    memLoad();
+    if (k.model.empty()) k.model = k.card.model;  // a dog the game itself made: the model its card was read from
+    if (k.model.empty()) return;
+    Remembered* r = nullptr;
+    for (auto& m : g_mem)
+        if (m.id == k.memId) r = &m;
+    if (!r) {
+        if (g_mem.size() >= 8) {  // the one fed longest ago makes room
+            auto oldest = std::min_element(g_mem.begin(), g_mem.end(),
+                                           [](const Remembered& a, const Remembered& b) { return a.lastFedDay < b.lastFedDay; });
+            g_mem.erase(oldest);
+        }
+        g_mem.push_back(Remembered{});
+        r = &g_mem.back();
+        r->id = g_memNextId++;
+        k.memId = r->id;
+    }
+    r->card = k.card;
+    r->trust = k.trust;
+    r->lastFedDay = k.lastFedDay;
+    r->where = pos(p);
+    r->model = k.model;
+    r->ped = p;
+    memSave();
+    FD_INFO("stray %d remembered at %.0f %.0f, trust %d", r->id, r->where.x, r->where.y, r->trust);
+}
+
+static void forgetImpl(Ped dog) {  // tamed: it is Arthur's dog now, no longer a stray to meet
+    auto it = g_known.find(dog);
+    if (it != g_known.end() && it->second.memId >= 0) {
+        int id = it->second.memId;
+        g_mem.erase(std::remove_if(g_mem.begin(), g_mem.end(), [id](const Remembered& r) { return r.id == id; }), g_mem.end());
+        memSave();
+    }
+    g_known.erase(dog);
+}
+
+// a remembered stray Arthur has left behind comes back when he is in its parts again (50-120 m from where it was fed)
+static void memTick(int t) {
+    if (t < g_nextMemCheck) return;
+    g_nextMemCheck = t + 5000;
+    memLoad();
+    if (g_mem.empty() || !g_pending.empty() || onMission() || INTERIOR::GET_INTERIOR_FROM_ENTITY(player())) return;
+    Vector3 pp = pos(player());
+    for (auto& m : g_mem) {
+        if (m.ped && exists(m.ped) && !ENTITY::IS_ENTITY_DEAD(m.ped)) continue;
+        if (m.pending || t - m.goneAt < 60000) continue;
+        float d = std::hypot(pp.x - m.where.x, pp.y - m.where.y);
+        if (d < 50.0f || d > 120.0f) continue;
+        PendingStray ps;
+        ps.card = m.card;
+        ps.req.model = m.model;
+        ps.req.fallback = "a_c_doghobo_01";
+        ps.req.at = m.where;
+        ps.area = m.where;
+        ps.memId = m.id;
+        m.pending = true;
+        m.ped = 0;
+        g_pending.push_back(ps);
+        FD_INFO("remembered stray %d: Arthur is %.0f m from its place, it comes out", m.id, d);
+        return;  // one at a time
+    }
+}
+
 
 static int oursAround() {
     int n = int(g_pending.size());
@@ -112,12 +243,12 @@ struct CampVisitor {
 static CampVisitor g_visitor;
 static int g_nextVisitor = 0;
 
-static void setupStray(Ped p, DogRecord card, const Vector3& at, bool beggar) {
+static void setupStray(Ped p, DogRecord card, const Vector3& at, bool beggar, bool keepLook = false) {
     auto& c = ctx();
     ENTITY::SET_ENTITY_AS_MISSION_ENTITY(p, true, true);
     int presets = PED::GET_NUM_META_PED_OUTFITS(p);
     if (presets > 0) {
-        card.preset = c.rng.range(0, presets - 1);
+        if (!keepLook || card.preset < 0 || card.preset >= presets) card.preset = c.rng.range(0, presets - 1);
         PED::_EQUIP_META_PED_OUTFIT_PRESET(p, card.preset, false);
     }
     if (card.scale != 100) {
@@ -144,9 +275,25 @@ static void stepStrays() {
         if (Ped p = stepSpawn(it->req)) {
             PendingStray ps = *it;
             g_pending.erase(it);
-            setupStray(p, ps.card, ps.area, ps.beggar);
+            setupStray(p, ps.card, ps.area, ps.beggar, ps.memId >= 0);
+            g_known[p].model = ps.req.onFallback ? ps.req.fallback : ps.req.model;
+            for (auto& m : g_mem)
+                if (m.id == ps.memId) {  // a remembered stray is back: its trust and feeding day too
+                    g_known[p].memId = m.id;
+                    g_known[p].trust = m.trust;
+                    g_known[p].lastFedDay = m.lastFedDay;
+                    m.ped = p;
+                    m.pending = false;
+                    FD_INFO("remembered stray %d is back near %.0f %.0f", m.id, m.where.x, m.where.y);
+                }
             return;  // at most one ped per frame
         }
+        if (it->req.done)
+            for (auto& m : g_mem)
+                if (m.id == it->memId) {
+                    m.pending = false;
+                    m.goneAt = now();
+                }
         it = it->req.done ? g_pending.erase(it) : it + 1;
     }
 }
@@ -350,6 +497,18 @@ void tick() {
             bool gone = !exists(p) || ENTITY::IS_ENTITY_DEAD(p);
             bool distant = exists(p) && dist(p, player()) > 220.0f && !ENTITY::IS_ENTITY_ON_SCREEN(p);
             if (gone || (distant && it->second.ours)) {
+                for (auto& m : g_mem)
+                    if (m.id == it->second.memId) {
+                        m.ped = 0;
+                        m.goneAt = t;
+                        m.pending = false;
+                    }
+                if (it->second.memId >= 0 && exists(p) && ENTITY::IS_ENTITY_DEAD(p)) {  // died: nothing to meet again
+                    int id = it->second.memId;
+                    g_mem.erase(std::remove_if(g_mem.begin(), g_mem.end(), [id](const Remembered& r) { return r.id == id; }), g_mem.end());
+                    memSave();
+                    FD_INFO("remembered stray %d died", id);
+                }
                 if (it->second.ours && exists(p)) {
                     Ped q = p;
                     deletePed(q);
@@ -361,6 +520,7 @@ void tick() {
         }
     }
     stepStrays();
+    memTick(t);
     tickBeggar(t);
     if (t >= g_nextSpawn) {
         g_nextSpawn = t + c.tune("strays.spawn_every_ms", 240000);
@@ -415,6 +575,7 @@ void tick() {
                 int unk = fd::invoke<int>(0x244430C13BA5258EULL, p, 0, 1, 0);
                 TASK::TASK_EAT(p, unk, 0);
                 FD_INFO("stray fed: trust %d", k.trust);
+                memRemember(p, k);
                 if (!k.card.isStreetHardened(c.breeds) && c.rng.chance(c.tunef("strays.follow_chance", 0.3))) {
                     if (c.rng.chance(0.5)) {
                         g_follower = p;  // it trots after Arthur for a while (D106 idea 5)
