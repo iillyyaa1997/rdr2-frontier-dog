@@ -1,5 +1,7 @@
 #include "game/game.h"
 
+#include <cstdint>
+
 #include <cmath>
 #include <ctime>
 
@@ -125,19 +127,15 @@ bool hiddenSpotNear(const Vector3& around, float minDist, float maxDist, Vector3
 
 const char* literal(const std::string& text) { return MISC::VAR_STRING(10, "LITERAL_STRING", text.c_str()); }
 
-// _UI_FEED_POST_HELP_TEXT takes a duration block and a text block (layouts as used by other ScriptHook mods)
-struct FeedDuration {  // as in 0.14 (help texts shown in its windows); a 4-slot layout failed in the native (16.11)
-    alignas(16) int duration;
-};
-struct FeedText {
-    alignas(8) int unk;
-    alignas(8) const char* text;
-};
-
+// _UI_FEED_POST_HELP_TEXT takes a duration block and a text block. The game reads more of each block than the two
+// fields we fill (Trail Guide 18.11: 16-byte blocks made the native throw — «Error executing native 0x049D5C615BD38BAD»
+// in the ScriptHook log, nothing on screen), so both are zeroed 128-byte buffers: duration at 0, the text pointer at 8.
 void helpText(const std::string& text, int ms) {
-    FeedDuration d{ms};
-    FeedText t{0, literal(text)};
-    UIFEED::_UI_FEED_POST_HELP_TEXT((Any*)&d, (Any*)&t, true);
+    alignas(16) uint64_t duration[16] = {};
+    alignas(16) uint64_t data[16] = {};
+    duration[0] = uint64_t(uint32_t(ms));
+    data[1] = reinterpret_cast<uint64_t>(literal(text));
+    UIFEED::_UI_FEED_POST_HELP_TEXT(reinterpret_cast<Any*>(duration), reinterpret_cast<Any*>(data), true);
 }
 
 struct SpeechParams {
