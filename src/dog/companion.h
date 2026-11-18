@@ -22,6 +22,9 @@ public:
     DogRecord* record();
     bool staying() const { return stay_; }
     float whistleRange() const;
+    // Arthur aims at the dog from beyond the game's focus range (~15 m) but within whistle range: the reticle on it, a
+    // clear line of sight (17.11/18.11: the game's own focus ends between 12 and 20 m)
+    bool aimedFromAfar() const;
     void addBond(double points, const std::string& reason, int cooldownMs);
     void save();
 

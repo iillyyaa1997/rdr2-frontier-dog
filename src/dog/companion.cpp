@@ -269,6 +269,31 @@ void Companion::tick() {
     if (dirty_ && now() >= saveAt_) save();
 }
 
+bool Companion::aimedFromAfar() const {
+    if (!ped_) return false;
+    Player id = PLAYER::PLAYER_ID();
+    float dd = dist(ped_, player());
+    if (dd < 8.0f || dd > whistleRange()) return false;
+    static const Hash kAim = MISC::GET_HASH_KEY("INPUT_AIM");
+    if (!PLAYER::IS_PLAYER_FREE_AIMING(id) && !PAD::IS_CONTROL_PRESSED(0, kAim) && !PAD::IS_DISABLED_CONTROL_PRESSED(0, kAim))
+        return false;
+    Entity fa = 0;
+    if (PLAYER::GET_ENTITY_PLAYER_IS_FREE_AIMING_AT(id, &fa) && fa == ped_) return true;
+    // the reticle near the dog: the camera's look direction within ~1.2 m of it at its distance
+    Vector3 cam = CAMERA::GET_GAMEPLAY_CAM_COORD();
+    Vector3 rot = CAMERA::GET_GAMEPLAY_CAM_ROT(2);
+    float pitch = rot.x * 0.0174533f, yaw = rot.z * 0.0174533f;
+    float fx = -std::sin(yaw) * std::cos(pitch), fy = std::cos(yaw) * std::cos(pitch), fz = std::sin(pitch);
+    Vector3 d = pos(ped_);
+    float vx = d.x - cam.x, vy = d.y - cam.y, vz = d.z + 0.4f - cam.z;
+    float len = std::sqrt(vx * vx + vy * vy + vz * vz);
+    if (len < 1.0f) return false;
+    float cosang = (fx * vx + fy * vy + fz * vz) / len;
+    float allowed = std::atan(1.5f / len) + 0.026f;  // ~1.5 m around the dog + 1.5 degrees
+    if (cosang < std::cos(allowed)) return false;
+    return ENTITY::HAS_ENTITY_CLEAR_LOS_TO_ENTITY(player(), ped_, 17);
+}
+
 void Companion::updatePrompts() {
     DogRecord* d = record();
     float dd = dist(ped_, player());
@@ -277,8 +302,22 @@ void Companion::updatePrompts() {
     // "Show info" was there); praise needs it close
     Entity focus = 0;
     PLAYER::GET_PLAYER_INTERACTION_TARGET_ENTITY(PLAYER::PLAYER_ID(), &focus, false, false);
-    bool command = close || (focus == ped_ && dd < whistleRange());
-    stayPrompt_.setText(ctx().t(stay_ ? "prompt.follow" : "prompt.stay", d && d->female));
+    // beyond the game's focus range the commands come from aiming at the dog and show as plain prompts bottom right
+    // (the dog's own prompt group shows only while the game focuses on it: 18.11 his «подсказки на короткой дистанции»)
+    bool afar = focus != ped_ && ctx().feature("FarCommands") && aimedFromAfar();
+    for (auto* p : {&stayPrompt_, &homePrompt_}) {
+        if (afar) p->setGroup(0);
+        else p->setTarget(ped_);
+    }
+    bool command = close || ((focus == ped_ || afar) && dd < whistleRange());
+    std::string stayText = ctx().t(stay_ ? "prompt.follow" : "prompt.stay", d && d->female);
+    std::string homeText = ctx().t("prompt.home", d && d->female);
+    if (afar && d && !d->name.empty()) {  // a plain prompt has no group title: the dog's name goes in front
+        stayText = d->name + ": " + stayText;
+        homeText = d->name + ": " + homeText;
+    }
+    stayPrompt_.setText(stayText);
+    homePrompt_.setText(homeText);
     stayPrompt_.show(command);
     praisePrompt_.show(close && !behaviour::feedOffered() && !care::offersButton1());
     homePrompt_.show(command && !onMission() && !behaviour::trackOffered());

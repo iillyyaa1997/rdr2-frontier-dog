@@ -29,6 +29,7 @@ using namespace game;
 static std::vector<Ped> g_spawned;
 
 static int g_ctlUntil = 0;  // see probeControls
+static int g_aimUntil = 0, g_aimNext = 0;  // see aimlog
 static int g_watchUntil = 0;  // see watchHud
 static int g_spritesUntil = 0;  // see drawSprites
 static std::vector<std::pair<std::string, std::string>> g_sprites;
@@ -342,6 +343,30 @@ static void run(const std::vector<std::string>& a) {
         CAMERA::SET_GAMEPLAY_CAM_RELATIVE_PITCH(-8.0f, 1.0f);
     } else if (cmd == "stop") {
         TASK::CLEAR_PED_TASKS(pl, true, true);
+    } else if (cmd == "dogahead" && comp.present()) {
+        // dogahead <metres>: the companion stands that far in front of Arthur, facing him (focus range tests)
+        Ped d = comp.ped();
+        Vector3 at = add(p, scale(fwd, float(num(1, 10))));
+        float gz;
+        if (MISC::GET_GROUND_Z_FOR_3D_COORD(at.x, at.y, at.z + 5, &gz, false)) at.z = gz;
+        ENTITY::SET_ENTITY_COORDS(d, at.x, at.y, at.z, false, false, false, true);
+        ENTITY::SET_ENTITY_HEADING(d, ENTITY::GET_ENTITY_HEADING(pl) + 180.0f);
+        TASK::TASK_STAND_STILL(d, 30000);
+        FD_INFO("test: dog %.0f m ahead", num(1, 10));
+    } else if (cmd == "aimpitch" && comp.present()) {
+        // aimpitch: the gameplay camera straight at the companion (the reticle on it), relative to Arthur's heading
+        Vector3 cam = CAMERA::GET_GAMEPLAY_CAM_COORD(), d = pos(comp.ped());
+        float dx = d.x - cam.x, dy = d.y - cam.y, dz = d.z + 0.4f - cam.z;
+        float pitch = std::atan2(dz, std::sqrt(dx * dx + dy * dy)) * 57.2958f;
+        float head = std::atan2(-dx, dy) * 57.2958f - ENTITY::GET_ENTITY_HEADING(pl);
+        CAMERA::SET_GAMEPLAY_CAM_RELATIVE_HEADING(head, 1.0f);
+        CAMERA::SET_GAMEPLAY_CAM_RELATIVE_PITCH(pitch, 1.0f);
+        FD_INFO("test: camera at the dog: heading %.1f, pitch %.1f", head, pitch);
+    } else if (cmd == "aimlog") {
+        g_aimUntil = now() + int(num(1, 10) * 1000);
+    } else if (cmd == "lockon") {
+        PLAYER::SET_PLAYER_LOCKON_RANGE_OVERRIDE(PLAYER::PLAYER_ID(), float(num(1, 0)));
+        FD_INFO("test: lockon range override %.0f", num(1, 0));
     } else if (cmd == "dogfront" && comp.present()) {
         // dogfront: the companion stands 2.5 m in front of Arthur, facing him (screenshots of the dog)
         Ped d = comp.ped();
@@ -594,7 +619,27 @@ static void drawSprites() {
     }
 }
 
+static void aimLog() {
+    auto& comp = companion();
+    if (!comp.present()) return;
+    Player id = PLAYER::PLAYER_ID();
+    Entity inter = 0, target = 0, freeAim = 0;
+    PLAYER::GET_PLAYER_INTERACTION_TARGET_ENTITY(id, &inter, false, false);
+    PLAYER::GET_PLAYER_TARGET_ENTITY(id, &target);
+    PLAYER::GET_ENTITY_PLAYER_IS_FREE_AIMING_AT(id, &freeAim);
+    Ped d = comp.ped();
+    static const Hash kAim = MISC::GET_HASH_KEY("INPUT_AIM");
+    FD_INFO("aim: %.1f m, aimbtn %d, afar %d, interaction %d, target %d, free-aim %d, targetting %d, free aiming %d", dist(d, player()),
+            int(PAD::IS_CONTROL_PRESSED(0, kAim) || PAD::IS_DISABLED_CONTROL_PRESSED(0, kAim)), int(comp.aimedFromAfar()),
+            int(inter == d), int(target == d), int(freeAim == d), int(PLAYER::IS_PLAYER_TARGETTING_ENTITY(id, d, false)),
+            int(PLAYER::IS_PLAYER_FREE_AIMING(id)));
+}
+
 void tick() {
+    if (now() < g_aimUntil && now() >= g_aimNext) {
+        g_aimNext = now() + 300;
+        aimLog();
+    }
     if (now() < g_spritesUntil) drawSprites();
     if (now() < g_ctlUntil) probeControls();
     if (now() < g_watchUntil) watchHud();
