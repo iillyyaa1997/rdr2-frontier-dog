@@ -194,7 +194,10 @@ void cardTick() {
         }
     }
     if (!g_page) return;
-    if (g_ped && (focus != g_ped || game::dist(g_ped, game::player()) > 6.0f)) {
+    // the card stays while Arthur keeps aiming at the dog, also from afar (18.11: «если собака даже не далеко отойдет, то
+    // пропадает информация о ней» — it closed beyond 6 m)
+    bool held = focus == g_ped || (g_ped == comp.ped() && comp.aimedFromAfar());
+    if (g_ped && (!held || game::dist(g_ped, game::player()) > comp.whistleRange())) {
         g_page = 0;
         g_ped = 0;
         return;
