@@ -2,6 +2,7 @@
 dog.default_name=Dog
 prompt.show_info=Show info
 prompt.hide_info=Hide info
+prompt.next_page=Traits and skills
 prompt.stay=Stay
 prompt.follow=Follow
 prompt.praise=Praise
@@ -48,6 +49,8 @@ card.locked=opens at bonding level 3
 card.male=male
 card.next1=Traits and skills
 card.next2=Stats
+card.page1=page 1 of 2
+card.page2=page 2 of 2
 card.skills=SKILLS
 card.stats=STATS
 card.sub2=traits and skills

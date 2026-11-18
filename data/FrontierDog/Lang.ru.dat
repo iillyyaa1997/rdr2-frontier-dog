@@ -2,6 +2,7 @@
 dog.default_name=Собака
 prompt.show_info=Показать информацию
 prompt.hide_info=Убрать информацию
+prompt.next_page=Способности и навыки
 prompt.stay=Сидеть
 prompt.follow=За мной
 prompt.praise=Похвалить
@@ -66,6 +67,8 @@ card.locked=откроется на 3-м уровне привязанности
 card.male=самец
 card.next1=Способности и навыки
 card.next2=Характеристики
+card.page1=страница 1 из 2
+card.page2=страница 2 из 2
 card.skills=НАВЫКИ
 card.stats=ХАРАКТЕРИСТИКИ
 card.sub2=способности и навыки

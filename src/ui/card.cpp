@@ -44,10 +44,11 @@ static void stars(float x, float y, int on, int total) {
         sprite("generic_textures", i < on ? "star" : "star_outline", x + i * 0.0145f, y, 0.0105f, 0.0187f, 233, 228, 216, 255);
 }
 
+// the page counter; the Show-info prompt (bottom right, with the button of the player's device) names the next step:
+// one button cycles card -> page 2 -> closed (18.11 his pick: the D-pad arrows fought the game's shoulder swap while
+// aiming, and letting go of the aim closes the card)
 static void pagerHint(float x, float y, const std::string& label) {
-    sprite("generic_textures", "selection_arrow_left", x, y + 0.004f, 0.008f, 0.016f, 233, 228, 216, 255);
-    sprite("generic_textures", "selection_arrow_right", x + 0.012f, y + 0.004f, 0.008f, 0.016f, 233, 228, 216, 255);
-    text(label, x + 0.026f, y, 0.32f, 190, 182, 165, 255);
+    text(label, x, y, 0.32f, 190, 182, 165, 255);
 }
 
 static void draw() {
@@ -102,7 +103,7 @@ static void draw() {
                                             : c.f("card.bond_progress", {{"level", std::to_string(d.bondLevel)}, {"pct", std::to_string(std::max(0, pct))}});
         text(bond, ix + 0.050f, cy, label, 190, 182, 165, 255);
         cy += row + 0.012f;
-        pagerHint(ix, cy, c.t("card.next1"));
+        pagerHint(ix, cy, c.t("card.page1"));
         return;
     }
     header(c.t("card.traits"), ix, cy, iw);
@@ -136,7 +137,7 @@ static void draw() {
         cy += 0.028f;
     }
     cy += 0.008f;
-    pagerHint(ix, cy, c.t("card.next2"));
+    pagerHint(ix, cy, c.t("card.page2"));
 }
 
 // The card a focused dog of ours gets: the companion, a stray (known before taming, D102), a dog for sale, a dog at home.
@@ -174,18 +175,18 @@ void cardTick() {
     // the game's own "Show info" (its control measured 16.11: Q / R1) shows the model's species card - "Siberian Husky"
     // on the Shiba - so for our dogs that control is taken over and opens our card instead (again: closes it)
     static const Hash kShow = MISC::GET_HASH_KEY(ctx().ini.get("InfoControl", "INPUT_INTERACT_LOCKON_TARGET_INFO").c_str());
-    static const Hash kLeft = MISC::GET_HASH_KEY("INPUT_FRONTEND_LEFT");
-    static const Hash kRight = MISC::GET_HASH_KEY("INPUT_FRONTEND_RIGHT");
     DogRecord rec;
     bool ours = cardFor(focus, rec);
     if (ours) g_info.setTarget(focus);
-    g_info.setText(ctx().t(g_page && g_ped == focus ? "prompt.hide_info" : "prompt.show_info"));
+    const char* next = !(g_page && g_ped == focus) ? "prompt.show_info" : (g_page == 1 ? "prompt.next_page" : "prompt.hide_info");
+    g_info.setText(ctx().t(next));
     g_info.show(ours);
     if (ours) {
         PAD::DISABLE_CONTROL_ACTION(0, kShow, false);
         static const Hash kPrompt = MISC::GET_HASH_KEY(ctx().ini.get("InfoPromptControl", "INPUT_INTERACT_LOCKON_STUDY_BINOCULARS").c_str());
         if (PAD::IS_DISABLED_CONTROL_JUST_PRESSED(0, kShow) || PAD::IS_CONTROL_JUST_PRESSED(0, kPrompt)) {
-            if (g_page && g_ped == focus) cardHide();
+            if (g_page == 1 && g_ped == focus) g_page = 2;
+            else if (g_page && g_ped == focus) cardHide();
             else {
                 g_page = 0;
                 cardShow(rec, focus);
@@ -200,7 +201,6 @@ void cardTick() {
     }
     if (g_ped == comp.ped())
         if (DogRecord* d = comp.record()) g_dog = *d;  // live values
-    if (PAD::IS_CONTROL_JUST_PRESSED(0, kLeft) || PAD::IS_CONTROL_JUST_PRESSED(0, kRight)) g_page = g_page == 1 ? 2 : 1;
     draw();
 }
 
