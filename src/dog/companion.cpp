@@ -241,6 +241,11 @@ void Companion::callFromHome(int slot) {
 // ---------------------------------------------------------------- per frame
 
 void Companion::tick() {
+    if (blipFxUntil_ && now() >= blipFxUntil_) {
+        if (MAP::DOES_BLIP_EXIST(blip_) && blipFx_) MAP::BLIP_REMOVE_MODIFIER(blip_, blipFx_);
+        blipFx_ = 0;
+        blipFxUntil_ = 0;
+    }
     updateStrays();
     updateAway();
     if (slot_ < 0) return;
@@ -368,11 +373,22 @@ void Companion::praise() {
     addBond(ctx().tunef("bond.praise", 3), "praise", ctx().tune("bond.praise_cooldown_ms", 120000));
 }
 
+// the paw answers a whistle the way the horse's blip does (19.11 his wish): the game's own horse modifiers, a pulse when
+// the dog hears it, a flash when it is out of range; taken off after 3 s so the next whistle plays it again
+void Companion::blipWhistle(bool inRange) {
+    if (!MAP::DOES_BLIP_EXIST(blip_)) return;
+    if (blipFx_) MAP::BLIP_REMOVE_MODIFIER(blip_, blipFx_);
+    blipFx_ = MISC::GET_HASH_KEY(inRange ? "BLIP_MODIFIER_PLAYER_HORSE_IN_RANGE_WHISTLE" : "BLIP_MODIFIER_PLAYER_HORSE_OUT_OF_RANGE_WHISTLE");
+    MAP::BLIP_ADD_MODIFIER(blip_, blipFx_);
+    blipFxUntil_ = now() + 3000;
+}
+
 void Companion::whistle() {
     DogRecord* d = record();
     if (!d) return;
     float range = whistleRange();
     float dd = dist(ped_, player());
+    blipWhistle(dd <= range);
     if (dd > range) {
         if (!onMission() && arriveOutOfView()) FD_INFO("whistle from beyond the range: the dog comes like the horse does");
         else helpText(ctx().f("help.out_of_range", {{"name", d->name}}, d->female));

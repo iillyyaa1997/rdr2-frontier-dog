@@ -59,6 +59,9 @@ private:
 
     Ped ped_ = 0;
     Blip blip_ = 0;
+    Hash blipFx_ = 0;       // the horse's whistle pulse/flash on the paw while it plays
+    int blipFxUntil_ = 0;
+    void blipWhistle(bool inRange);
     int slot_ = -1;
     bool stay_ = false;
     int pendingFollowAt_ = 0;
