@@ -8,7 +8,7 @@ void tick();
 void onEvent(Hash type, int index);
 bool busy();
 void giveUp();  // the dog lets go (whistle by an Obedient dog, being sent home)
-// bring a given carcass/body/pelt (Huntress catch, «Притащить тело», «Отнести к лошади»); false if it cannot
+// bring a given carcass/body/pelt (Huntress catch, «Притащить тело», «Шкуру на лошадь»); false if it cannot
 bool bring(Ped carcass, bool keepQuality, bool body, bool pelt, bool toHorse);
 // the game's own stow of a carcass onto a horse (test hook 'stow'); the 3 s check is logged by the carry task
 bool stowOnHorse(Ped carcass, Ped horse, int slot, int flags, bool deadConfig);

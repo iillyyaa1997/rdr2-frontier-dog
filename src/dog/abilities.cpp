@@ -533,7 +533,7 @@ static void bodiesAndPelts(Ped dog, DogRecord& d) {
     g_body.setTarget(can ? target : 0);
     g_body.show(can);
     if (can && g_body.fired()) hunting::bring(target, true, true, false, false);
-    // Arthur carries a pelt next to the dog: «Отнести к лошади»
+    // Arthur carries a pelt next to the dog: «Шкуру на лошадь»
     Entity carried = PED::_GET_FIRST_ENTITY_PED_IS_CARRYING(player());
     Ped horse = PLAYER::_GET_SADDLE_HORSE_FOR_PLAYER(PLAYER::PLAYER_ID());
     bool pelt = carried && !ENTITY::IS_ENTITY_A_PED(carried) && alive(horse) && dist(dog, player()) < 4.0f && dist(horse, player()) < 80.0f &&
