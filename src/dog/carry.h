@@ -67,6 +67,7 @@ private:
     Ped stowCarcass_ = 0, stowHorse_ = 0;
     int stowCheckAt_ = 0;
     bool stowPelt_ = false;  // the last stow was a pelt into the horse's pelt stack
+    int stowCount_ = 0;      // pelts on the horse before it
     void stowPeltOnHorse(Entity pelt, Ped horse);
     void checkStow();
     int stowSlot_ = -1;

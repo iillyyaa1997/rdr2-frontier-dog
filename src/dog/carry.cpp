@@ -401,10 +401,39 @@ void CarryTask::stowOnHorse() {
                        ctx().ini.getBool("CarryStowDeadConfig", true));
 }
 
+static int peltsOnHorse(Ped horse) {
+    int n = 0;
+    for (int i = 0; i < 8; ++i)
+        if (PED::_GET_PELT_FROM_HORSE(horse, i)) ++n;
+    return n;
+}
+
+// _SET_PELT_FOR_HORSE takes the game's own pelt id (what _GET_PELT_FROM_HORSE returns - the game's MP stable script
+// copies those between horses), not a pelt object: given the object it did nothing and the pelt stayed by the horse
+// (his play, 18.11). The pelt goes in by its inventory item instead (_SET_PELT_FOR_HORSE_BY_INVENTORY_ITEM, what RedM
+// stables do), the item the game itself computes for the carcass it came from, the look from the pelt's albedo; the
+// object is removed only once the horse's stack has grown.
 void CarryTask::stowPeltOnHorse(Entity pelt, Ped horse) {
     if (!exists(pelt) || !alive(horse)) return;
-    PED::_SET_PELT_FOR_HORSE(horse, pelt);
-    FD_INFO("carry: the pelt into the horse's pelt stack");
+    Hash albedo = 0;
+    ENTITY::_GET_ENTITY_ALBEDO(pelt, &albedo);
+    Ped carcass = ENTITY::_GET_CARCASS_FROM_PELT(pelt);
+    Hash item = 0;
+    int ret = -1;
+    alignas(8) uint64_t items[32] = {};
+    if (carcass && exists(carcass)) {
+        items[0] = 8;
+        ret = PED::_COMPUTE_SATCHEL_ITEM_FOR_PED_CARCASS(reinterpret_cast<Any*>(items), carcass,
+                                                        PED::_GET_PED_DAMAGE_CLEANLINESS(carcass), PED::_GET_PED_QUALITY(carcass));
+        for (int i = 0; i < 12 && !item; ++i)
+            if (items[i] > 0xFFFF && items[i] <= 0xFFFFFFFFull) item = Hash(items[i]);
+        if (!item && uint32_t(ret) > 0xFFFF) item = Hash(ret);
+    }
+    stowCount_ = peltsOnHorse(horse);
+    FD_INFO("carry: pelt %d (model 0x%08X, albedo 0x%08X), carcass %d -> item 0x%08X (ret %d: %llX %llX %llX %llX), %d pelts on the horse",
+            pelt, ENTITY::GET_ENTITY_MODEL(pelt), albedo, carcass, item, ret, (unsigned long long)items[0],
+            (unsigned long long)items[1], (unsigned long long)items[2], (unsigned long long)items[3], stowCount_);
+    if (item) PED::_SET_PELT_FOR_HORSE_BY_INVENTORY_ITEM(horse, item, albedo, 0, false);
     stowCarcass_ = pelt;
     stowHorse_ = horse;
     stowSlot_ = -1;
@@ -423,8 +452,15 @@ void CarryTask::checkStow() {
             ++count;
             if (id == stowCarcass_) at = i;
         }
-        FD_INFO("carry: pelt check - in the horse's stack at %d (%d pelts), pelt exists %d, attached %d", at, count,
-                int(exists(stowCarcass_)), exists(stowCarcass_) ? int(ENTITY::IS_ENTITY_ATTACHED_TO_ENTITY(stowCarcass_, stowHorse_)) : 0);
+        FD_INFO("carry: pelt check - %d pelts on the horse (were %d), stack ids at %d", count, stowCount_, at);
+        if (count > stowCount_ && exists(stowCarcass_)) {  // the horse has it: the object on the ground goes
+            Entity e = stowCarcass_;
+            ENTITY::SET_ENTITY_AS_MISSION_ENTITY(e, true, true);
+            ENTITY::DELETE_ENTITY(&e);
+            FD_INFO("carry: the pelt is on the horse");
+        } else {
+            FD_INFO("carry: the horse did not take the pelt, it stays by the horse");
+        }
         return;
     }
     if (!exists(stowCarcass_) || !exists(stowHorse_)) {

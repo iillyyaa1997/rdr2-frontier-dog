@@ -3,6 +3,7 @@
 #include "mod/testhooks.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <string>
 #include <vector>
 
@@ -343,6 +344,81 @@ static void run(const std::vector<std::string>& a) {
         CAMERA::SET_GAMEPLAY_CAM_RELATIVE_PITCH(-8.0f, 1.0f);
     } else if (cmd == "stop") {
         TASK::CLEAR_PED_TASKS(pl, true, true);
+    } else if (cmd == "peltinfo" || cmd == "peltstow") {
+        // pelts on the horse (18.11: the dog left the pelt by the horse - _SET_PELT_FOR_HORSE takes the game's pelt id,
+        // not the pelt object). peltinfo: what the game says about the nearest pelt and the horse's stack;
+        // peltstow <way>: 1 = by inventory item from the carcass + albedo, then the object goes; 2 = the same, p4 true;
+        // 3 = _SET_PELT_FOR_HORSE with the albedo hash; 4 = TASK_CARRIABLE <slot a[2]> with the pelt's own config
+        Ped horse = PLAYER::_GET_SADDLE_HORSE_FOR_PLAYER(PLAYER::PLAYER_ID());
+        Entity pelt = PED::_GET_FIRST_ENTITY_PED_IS_CARRYING(pl);
+        if (!pelt || !ENTITY::_GET_IS_CARRIABLE_PELT(pelt)) {
+            pelt = 0;
+            static int objs[1024];
+            int n = worldGetAllObjects(objs, 1024);
+            float best = 15.0f;
+            for (int i = 0; i < n; ++i)
+                if (ENTITY::_GET_IS_CARRIABLE_PELT(objs[i]) && game::dist(objs[i], pl) < best) {
+                    best = game::dist(objs[i], pl);
+                    pelt = objs[i];
+                }
+        }
+        auto num2 = [](unsigned long long v, bool hex) {
+            char b[24];
+            std::snprintf(b, sizeof b, hex ? "%llX " : "%lld ", v);
+            return std::string(b);
+        };
+        auto stack = [&](const char* when) {
+            std::string ids;
+            for (int i = 0; i < 8; ++i) ids += num2((unsigned long long)(long long)PED::_GET_PELT_FROM_HORSE(horse, i), false);
+            alignas(8) uint64_t skins[40] = {};
+            skins[0] = 16;
+            int ns = PED::_GET_CARRIED_PELT_SKINS(horse, reinterpret_cast<Any*>(skins));
+            std::string dump;
+            for (int i = 0; i < 12; ++i) dump += num2(skins[i], true);
+            FD_INFO("test: %s horse %d stack ids [%s] skins %d [%s]", when, horse, ids.c_str(), ns, dump.c_str());
+        };
+        stack("before");
+        if (!pelt) {
+            FD_INFO("test: no pelt within 15 m and none carried");
+        } else {
+            Hash albedo = 0;
+            ENTITY::_GET_ENTITY_ALBEDO(pelt, &albedo);
+            Ped carcass = ENTITY::_GET_CARCASS_FROM_PELT(pelt);
+            int clean = carcass ? PED::_GET_PED_DAMAGE_CLEANLINESS(carcass) : -1, q = carcass ? PED::_GET_PED_QUALITY(carcass) : -1;
+            alignas(8) uint64_t items[32] = {};
+            items[0] = 8;
+            int ni = carcass ? PED::_COMPUTE_SATCHEL_ITEM_FOR_PED_CARCASS(reinterpret_cast<Any*>(items), carcass, clean, q) : -1;
+            std::string dump;
+            for (int i = 0; i < 12; ++i) dump += num2(items[i], true);
+            FD_INFO("test: pelt %d model 0x%08X albedo 0x%08X config 0x%08X carriable 0x%08X | carcass %d model 0x%08X clean %d quality %d"
+                    " | satchel item -> %d (0x%08X) [%s]",
+                    pelt, ENTITY::GET_ENTITY_MODEL(pelt), albedo, ENTITY::_GET_ENTITY_CARRY_CONFIG(pelt),
+                    ENTITY::_GET_CARRIABLE_FROM_ENTITY(pelt), carcass, carcass ? ENTITY::GET_ENTITY_MODEL(carcass) : 0, clean, q,
+                    ni, uint32_t(ni), dump.c_str());
+            if (cmd == "peltstow" && alive(horse)) {
+                int way = int(num(1, 1));
+                Hash item = 0;  // the first thing in the array that looks like a hash, else the return value
+                for (int i = 0; i < 12 && !item; ++i)
+                    if (items[i] > 0xFFFF && items[i] <= 0xFFFFFFFFull) item = Hash(items[i]);
+                if (!item && ni > 0xFFFF) item = Hash(ni);
+                if (way == 1 || way == 2) {
+                    PED::_SET_PELT_FOR_HORSE_BY_INVENTORY_ITEM(horse, item, albedo, 0, way == 2);
+                    Entity e = pelt;
+                    ENTITY::SET_ENTITY_AS_MISSION_ENTITY(e, true, true);
+                    ENTITY::DELETE_ENTITY(&e);
+                } else if (way == 3) {
+                    PED::_SET_PELT_FOR_HORSE(horse, int(albedo));
+                } else if (way == 4) {
+                    Hash cfg = ENTITY::_GET_ENTITY_CARRY_CONFIG(pelt);
+                    TASK::_REQUEST_CARRIABLE_CONFIG(cfg);
+                    for (int i = 0; i < 50 && !TASK::_HAS_REQUESTED_CARRIABLE_CONFIG_LOADED(cfg); ++i) scriptWait(20);
+                    TASK::TASK_CARRIABLE(pelt, cfg, horse, int(num(2, 1)), int(num(3, 0)));
+                }
+                FD_INFO("test: peltstow way %d, item 0x%08X", way, item);
+                scriptWait(1500);
+                stack("after");
+            }
+        }
     } else if (cmd == "dogahead" && comp.present()) {
         // dogahead <metres>: the companion stands that far in front of Arthur, facing him (focus range tests)
         Ped d = comp.ped();
