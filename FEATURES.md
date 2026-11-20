@@ -100,6 +100,10 @@ better, and has a character of its own. Every system below can be switched off i
 - Killing men or animals that attacked you first costs no honor (a separate .asi, optional); the honor flash for such a
   kill is hidden (experimental).
 
+## Published
+- Nexus, mod 11716, 0.1.0 beta (20.11): page with the feature list in English and Russian, 5 screenshots, archive
+  FrontierDog.asi + FrontierDog.ini + FrontierDog folder (no LML items, no core icon).
+
 ## Also
 - English and Russian, picked from the game's language; other languages via text files.
 - Script events (`FRONTIER_DOG_*`) for other mods.
@@ -109,7 +113,8 @@ better, and has a character of its own. Every system below can be switched off i
   colours picked from an in-game survey; the stable hand sells them.
 - Real Shiba coats (red, sesame, black and tan) as own textures — own texture dictionaries work in game now.
 - A wet coat after swimming (how the game draws it, to be researched).
-- Publishing on Nexus: README in English and Russian, the page text, a Vortex-ready archive.
+- On Nexus with the shop items and the paw core icon: the items need a catalog built on the player's own PC (ours is
+  a copy of red_dead_offline's), the icon an LML folder checked in game. README in English and Russian.
 
 ## Not possible yet
 - Other collar shapes and bandanas: the game draws only one collar as a part of its own (the bloodhound's studded
