@@ -443,39 +443,22 @@ static void handover() {
     g_stageAt = now();
 }
 
-// The prompt group of the scenario point Arthur sits at (the fire of a camp he set up, a seat by a campfire in the
-// wild); the game's own prompts there (sleep, fast travel at his camp) are in it. 0 = none.
-static int g_sitPoint = -2, g_sitGroup = 0;
-static int sittingGroup() {
-    int point = TASK::_GET_SCENARIO_POINT_PED_IS_USING(player(), true);
-    if (point != g_sitPoint) {
-        g_sitPoint = point;
-        g_sitGroup = point > 0 && TASK::DOES_SCENARIO_POINT_EXIST(point) ? HUD::_UI_PROMPT_GET_GROUP_ID_FOR_SCENARIO_POINT(point, 0) : 0;
-        FD_INFO("sitting at scenario point %d (type %08X), its prompt group %d", point,
-                point > 0 ? unsigned(TASK::_GET_SCENARIO_POINT_TYPE(point)) : 0u, g_sitGroup);
-    }
-    return g_sitGroup;
-}
+// Arthur sitting at the fire of a camp he set up: the game shows its camp prompts (sleep, craft, leave) in the prompt
+// group 0x6898122F. The order joins that group, as the Contracts mod's prompt does (its .asi puts prompts there; checked
+// in game 22.11). As a free prompt it took the whole camp panel away (reported on Nexus 22.11, seen in game too).
+// The camp fire seat is scenario type 0x3CD3DC55 (two camps, 22.11); other seats get no order prompt.
+constexpr int kCampPromptGroup = 0x6898122F;
+constexpr unsigned kCampFireSeat = 0x3CD3DC55u;
+static bool g_atCampFire = false;
 
 #ifdef FD_TEST
-// 'campgroup <0|1|2> [tab]': the order while sitting as a free prompt (0, before 22.11), in the scenario's group (1),
-// or not at all (2); 'scen' logs what Arthur sits at
-static int g_testSitMode = 1, g_testSitTab = 0;
-void testCampGroup(int mode, int tab) {
-    g_testSitMode = mode;
-    g_testSitTab = tab;
-    FD_INFO("test: sitting order prompt mode %d tab %d", mode, tab);
-}
+// 'scen': what Arthur sits at
 void testScenario() {
     Ped pl = player();
-    int p1 = TASK::_GET_SCENARIO_POINT_PED_IS_USING(pl, true), p0 = TASK::_GET_SCENARIO_POINT_PED_IS_USING(pl, false);
-    int g0 = p1 > 0 ? HUD::_UI_PROMPT_GET_GROUP_ID_FOR_SCENARIO_POINT(p1, 0) : 0;
-    int g1 = p1 > 0 ? HUD::_UI_PROMPT_GET_GROUP_ID_FOR_SCENARIO_POINT(p1, 1) : 0;
-    FD_INFO("test: scenario any=%d point(true)=%d point(false)=%d type=%08X pedType=%08X group(0)=%d group(1)=%d page=%d "
-            "interior=%d campHome=%d",
-            int(PED::IS_PED_USING_ANY_SCENARIO(pl)), p1, p0, p1 > 0 ? unsigned(TASK::_GET_SCENARIO_POINT_TYPE(p1)) : 0u,
-            unsigned(TASK::_GET_SCENARIO_POINT_TYPE_PED_IS_USING(pl)), g0, g1,
-            g0 ? HUD::_UI_PROMPT_GET_GROUP_ACTIVE_PAGE(Hash(g0)) : -1, int(INTERIOR::GET_INTERIOR_FROM_ENTITY(pl)),
+    int point = TASK::_GET_SCENARIO_POINT_PED_IS_USING(pl, true);
+    FD_INFO("test: scenario any=%d point=%d type=%08X pedType=%08X interior=%d campHome=%d",
+            int(PED::IS_PED_USING_ANY_SCENARIO(pl)), point, point > 0 ? unsigned(TASK::_GET_SCENARIO_POINT_TYPE(point)) : 0u,
+            unsigned(TASK::_GET_SCENARIO_POINT_TYPE_PED_IS_USING(pl)), int(INTERIOR::GET_INTERIOR_FROM_ENTITY(pl)),
             int(home::inCamp()));
 }
 #endif
@@ -506,19 +489,14 @@ void tick() {
     auto slots = homeSlots();
     // (a) Arthur's own campfire in the wild
     bool sitting = PED::IS_PED_ON_FOOT(player()) && PED::IS_PED_USING_ANY_SCENARIO(player()) &&
-                   !INTERIOR::GET_INTERIOR_FROM_ENTITY(player()) && !home::inCamp() && !inTown(pos(player()));
+                   unsigned(TASK::_GET_SCENARIO_POINT_TYPE_PED_IS_USING(player())) == kCampFireSeat;
+    if (sitting != g_atCampFire) {
+        g_atCampFire = sitting;
+        if (sitting) FD_INFO("Arthur sits at his camp fire: the order joins the camp prompts");
+    }
     bool telegraph = PED::IS_PED_ON_FOOT(player()) && atTelegraph();  // (b) a telegram from the post office
-    // sitting: the order goes in with the game's prompts of that seat. As a free prompt it took the game's camp
-    // prompts away (sleep, fast travel) at a camp Arthur set up himself (reported on Nexus 22.11).
-    int group = sitting ? sittingGroup() : 0, tab = 0;
-#ifdef FD_TEST
-    if (sitting && g_testSitMode == 0) group = 0;
-    if (sitting && g_testSitMode == 2) sitting = false;
-    tab = g_testSitTab;
-#endif
-    if (!sitting) g_sitPoint = -2;
-    g_campOrder.setGroup(group, tab);
-    g_campNext.setGroup(group, tab);
+    g_campOrder.setGroup(sitting ? kCampPromptGroup : 0);
+    g_campNext.setGroup(sitting ? kCampPromptGroup : 0);
     if ((sitting || telegraph) && !slots.empty()) {
         g_campIndex %= int(slots.size());
         const DogRecord& d = c.store.at(slots[g_campIndex]);

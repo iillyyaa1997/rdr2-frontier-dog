@@ -229,12 +229,17 @@ static void run(const std::vector<std::string>& a) {
         FD_INFO("test: damage %d to the dog, health %d -> %d (max %d)", int(num(1, 50)), hp0, ENTITY::GET_ENTITY_HEALTH(dog),
                 ENTITY::GET_ENTITY_MAX_HEALTH(dog, false));
     } else if (cmd == "hp" && comp.present()) {
-        FD_INFO("test: dog health %d / %d, invincible ini %d", ENTITY::GET_ENTITY_HEALTH(comp.ped()),
-                ENTITY::GET_ENTITY_MAX_HEALTH(comp.ped(), false), int(c.ini.getBool("Invincible", false)));
+        FD_INFO("test: dog health %d / %d, invincible ini %d, can be damaged %d", ENTITY::GET_ENTITY_HEALTH(comp.ped()),
+                ENTITY::GET_ENTITY_MAX_HEALTH(comp.ped(), false), int(c.ini.getBool("Invincible", false)),
+                int(ENTITY::_GET_ENTITY_CAN_BE_DAMAGED(comp.ped())));
+    } else if (cmd == "inv" && a.size() >= 2 && comp.present()) {  // 'inv <0|1>' SET_ENTITY_INVINCIBLE on the dog
+        ENTITY::SET_ENTITY_INVINCIBLE(comp.ped(), num(1, 1) != 0);
+        FD_INFO("test: dog invincible %d", int(num(1, 1)));
+    } else if (cmd == "candmg" && a.size() >= 2 && comp.present()) {  // 'candmg <0|1>' SET_ENTITY_CAN_BE_DAMAGED
+        ENTITY::SET_ENTITY_CAN_BE_DAMAGED(comp.ped(), num(1, 1) != 0);
+        FD_INFO("test: dog can be damaged %d", int(num(1, 1)));
     } else if (cmd == "scen") {
         delivery::testScenario();
-    } else if (cmd == "campgroup" && a.size() >= 2) {
-        delivery::testCampGroup(int(num(1, 1)), int(num(2, 0)));
     } else if (cmd == "prompts") {
         testListPrompts();
     } else if (cmd == "press" && a.size() >= 2) {

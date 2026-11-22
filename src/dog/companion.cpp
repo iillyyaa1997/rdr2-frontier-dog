@@ -99,6 +99,13 @@ void Companion::spawn(bool outOfView, const Vector3* fixed) {
 }
 
 static bool invincible() { return ctx().ini.getBool("Invincible", false); }
+// Invincible=1 (asked for on Nexus 22.11). SET_ENTITY_INVINCIBLE alone let APPLY_DAMAGE_TO_PED through (window 22.11:
+// 300 -> 150 -> 0, the dog died), so the entity is also made undamageable and its health topped up every frame.
+static void protect(Ped dog) {
+    if (!invincible()) return;
+    ENTITY::SET_ENTITY_INVINCIBLE(dog, true);
+    ENTITY::SET_ENTITY_CAN_BE_DAMAGED(dog, false);
+}
 
 void Companion::setup(Ped dog) {
     DogRecord* d = record();
@@ -130,8 +137,7 @@ void Companion::setup(Ped dog) {
     }
     // collision proof as the companion always was; explosion + headshot proof only if the player wants it (old D81)
     ENTITY::SET_ENTITY_PROOFS(dog, ctx().ini.getBool("ProtectFromInstantDeath", false) ? (8 | 4 | 128) : 8, false);
-    // Invincible=1 (asked for on Nexus 22.11): nothing hurts it, so it never goes down wounded either
-    if (invincible()) ENTITY::SET_ENTITY_INVINCIBLE(dog, true);
+    protect(dog);  // Invincible=1: nothing hurts it, so it never goes down wounded either
 
     if (MAP::DOES_BLIP_EXIST(blip_)) MAP::REMOVE_BLIP(&blip_);
     blip_ = MAP::BLIP_ADD_FOR_ENTITY(0x19365607, dog);  // BLIP_STYLE_COMPANION
@@ -511,6 +517,14 @@ void Companion::updateHealth() {
     DogRecord* d = record();
     if (!d) return;
     int maxHp = std::max(1, ENTITY::GET_ENTITY_MAX_HEALTH(ped_, false));
+    if (invincible() && alive(ped_) && ENTITY::GET_ENTITY_HEALTH(ped_) < maxHp) {
+        static int loggedAt = 0;  // damage that got through is worth knowing about, once a second at most
+        if (now() - loggedAt > 1000) {
+            loggedAt = now();
+            FD_INFO("invincible dog took damage anyway: health %d of %d, topped up", ENTITY::GET_ENTITY_HEALTH(ped_), maxHp);
+        }
+        ENTITY::SET_ENTITY_HEALTH(ped_, maxHp, 0);
+    }
     double frac = double(ENTITY::GET_ENTITY_HEALTH(ped_)) / maxHp;
     if (std::fabs(frac - d->healthFrac) > 0.02) {
         d->healthFrac = frac;
@@ -558,7 +572,10 @@ void Companion::startWounded() {
 
 void Companion::endWounded(bool revived) {
     DogRecord* d = record();
-    if (exists(ped_)) ENTITY::SET_ENTITY_INVINCIBLE(ped_, invincible());
+    if (exists(ped_)) {
+        ENTITY::SET_ENTITY_INVINCIBLE(ped_, false);
+        protect(ped_);
+    }
     woundedGraceUntil_ = now() + 8000;  // the writhe flag lingers a few seconds after a revive
     if (d) {
         d->woundedUntil = 0;

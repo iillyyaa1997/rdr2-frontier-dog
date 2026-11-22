@@ -36,8 +36,9 @@ better, and has a character of its own. Every system below can be switched off i
 - Not saved in time, it is nursed back in camp for a day and returns one grade lower instead of dying; an Ailing dog
   that falls dies for good. Explosions and headshots kill outright, as with horses (optional protection in the ini).
 - Whoever was fighting a downed dog turns on Arthur instead of finishing it.
-- 🟡 `Invincible=1` in the ini: nothing hurts the dog, so it never goes down (asked for on Nexus 22.11; built, not yet
-  checked in game).
+- `Invincible=1` in the ini: nothing hurts the dog, so it never goes down (asked for on Nexus 22.11; bullets checked in
+  game). Damage dealt straight from another mod's script is topped up at once, but one such hit bigger than the
+  dog's health still kills it.
 
 ## Hunting
 - Fetches what Arthur shoots: small game in its jaws, medium game dragged, large game hauled backwards on its own
@@ -83,9 +84,8 @@ better, and has a character of its own. Every system below can be switched off i
 ## Delivery from camp
 - Send for a dog at your own campfire in the wild, by telegram at any post office, or through a passer-by ($2) — each
   time you pick which dog.
-- 🟡 At a campfire the order joins the game's own prompts of that seat instead of a free prompt, which took the game's
-  camp prompts (sleep, fast travel) away at a camp Arthur set up (reported on Nexus 22.11; built, not yet checked in
-  game).
+- At your own camp fire the order sits in the game's camp panel next to Sleep, Craft and Leave (a separate prompt took
+  the camp panel away, reported on Nexus 22.11; checked in game).
 - A courier really rides out of camp: his blip moves along the roads at a horse's pace, near you he becomes a rider with
   your dog running beside his horse, hands it over and rides off. $5–15 by distance; the trip survives a reload.
 
