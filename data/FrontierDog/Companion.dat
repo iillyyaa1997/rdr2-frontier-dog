@@ -2,6 +2,9 @@
 [Bonding]
 # whistle range and max health by bonding level 1, 2, 3 (old D7, D78); health doubled in 0.1.2: one shot put the dog down
 whistle.range=220,280,350
+# while Arthur rides and the dog is farther than follow.boost_from_m behind, it runs this much faster (0.1.2)
+follow.mounted_rate=1.3
+follow.boost_from_m=8
 health.max=800,960,1120
 bond.points.2=100
 bond.points.3=400

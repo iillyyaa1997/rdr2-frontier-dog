@@ -4,6 +4,8 @@
 - Twice the health: 800 / 960 / 1120 by bond level (was 400 / 480 / 560). In play one shot was enough to put the dog
   down wounded (his logs: 3 of 3 times it went down, none killed outright). Headshots and explosions still kill unless
   ProtectFromInstantDeath=1.
+- The dog keeps up with your horse better: while you ride and it is behind, it runs 1.3 times faster
+  (follow.mounted_rate in Companion.dat).
 
 ## 0.1.1 (22.11.2026)
 - At a camp Arthur set up, "Send for a dog" now sits in the game's camp panel next to Sleep, Craft and Leave. Before,

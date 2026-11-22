@@ -455,6 +455,10 @@ void Companion::updateFollow() {
     float range = whistleRange();
     bool busy = PED::IS_PED_IN_COMBAT(ped_, 0) || TASK::IS_PED_IN_WRITHE(ped_) || behaviour::busy();
     bool inside = INTERIOR::GET_INTERIOR_FROM_ENTITY(pl) && !ctx().ini.getBool("AllowEnteringInteriors", false);
+    // a dog at a full run is slower than a galloping horse and fell far behind (his play 22.11): while Arthur rides
+    // and it is behind, it runs faster. The override lasts one frame, so it is set every frame it applies.
+    if (!stay_ && !busy && PED::IS_PED_ON_MOUNT(pl) && dd > float(ctx().tunef("follow.boost_from_m", 8)))
+        PED::SET_PED_MOVE_RATE_OVERRIDE(ped_, float(ctx().tunef("follow.mounted_rate", 1.3)));
     if (stay_ || busy || inside) {
         stuckSince_ = 0;
         return;
