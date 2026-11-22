@@ -455,15 +455,37 @@ void Companion::updateFollow() {
     float range = whistleRange();
     bool busy = PED::IS_PED_IN_COMBAT(ped_, 0) || TASK::IS_PED_IN_WRITHE(ped_) || behaviour::busy();
     bool inside = INTERIOR::GET_INTERIOR_FROM_ENTITY(pl) && !ctx().ini.getBool("AllowEnteringInteriors", false);
-    // a dog at a full run is slower than a galloping horse and fell far behind (his play 22.11): while Arthur rides
-    // and it is behind, it runs faster. The override lasts one frame, so it is set every frame it applies.
-    if (!stay_ && !busy && PED::IS_PED_ON_MOUNT(pl) && dd > float(ctx().tunef("follow.boost_from_m", 8)))
-        PED::SET_PED_MOVE_RATE_OVERRIDE(ped_, float(ctx().tunef("follow.mounted_rate", 1.3)));
+    // While Arthur rides and the dog is more than follow.boost_from_m behind, it sprints after him at once and runs
+    // faster than a dog can: following as a group member alone is a trot, it fell behind even a trotting horse (22.11:
+    // 3.8 m/s behind 4.2 m/s, 9 -> 24 m in 40 s) and ran only from kFollowGap (25 m) on. The rate override lasts one
+    // frame, so it is set every frame it applies; the sprint task is given again only once it has ended (it ends at 4 m,
+    // then the dog keeps to Arthur's side as a group member).
+    bool mountedBehind = !stay_ && !busy && !inside && PED::IS_PED_ON_MOUNT(pl) && dd > float(ctx().tunef("follow.boost_from_m", 8));
+    if (mountedBehind) {
+        PED::SET_PED_MOVE_RATE_OVERRIDE(ped_, float(ctx().tunef("follow.mounted_rate", 1.5)));
+        if (t >= nextSprint_) {
+            nextSprint_ = t + 1500;
+            static const Hash kFollowTask = MISC::GET_HASH_KEY("SCRIPT_TASK_FOLLOW_TO_OFFSET_OF_ENTITY");
+            int st = TASK::GET_SCRIPT_TASK_STATUS(ped_, kFollowTask, true);
+            if (st != 0 && st != 1) {  // 0 = about to start, 1 = running
+                TASK::TASK_FOLLOW_TO_OFFSET_OF_ENTITY(ped_, pl, 0, 0, 0, 3.0f, 100000, 4.0f, false, false, false, false, false, false);
+                if (!sprinting_) FD_INFO("dog %.0f m behind the horse: sprints after Arthur (task status was %d)", dd, st);
+                sprinting_ = true;
+            }
+        }
+    } else if (sprinting_ && dd <= float(ctx().tunef("follow.boost_from_m", 8))) {
+        sprinting_ = false;
+        FD_DEBUG("dog caught up with the horse (%.0f m)", dd);
+    }
     if (stay_ || busy || inside) {
         stuckSince_ = 0;
         return;
     }
-    if (((jumpPending_ && dd > 25.0f) || dd > range * 2) && !onMission() && t - lastArrival_ > 15000) {
+    // riding away from a dog that is stuck or cannot keep up (22.11: it stood at a rock 60-73 m back at the gallop): it
+    // comes after Arthur out of his view, like after a fast travel
+    bool mountedLost = PED::IS_PED_ON_MOUNT(pl) && dd > float(ctx().tunef("follow.mounted_arrive_m", 60)) &&
+                       lastFollowDist_ > 0 && dd > lastFollowDist_ - 2.0f;
+    if (((jumpPending_ && dd > 25.0f) || dd > range * 2 || mountedLost) && !onMission() && t - lastArrival_ > 15000) {
         if (arriveOutOfView()) { jumpPending_ = false; return; }
     }
     if (dd <= kFollowGap) {

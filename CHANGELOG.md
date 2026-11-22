@@ -4,8 +4,10 @@
 - Twice the health: 800 / 960 / 1120 by bond level (was 400 / 480 / 560). In play one shot was enough to put the dog
   down wounded (his logs: 3 of 3 times it went down, none killed outright). Headshots and explosions still kill unless
   ProtectFromInstantDeath=1.
-- The dog keeps up with your horse better: while you ride and it is behind, it runs 1.3 times faster
-  (follow.mounted_rate in Companion.dat).
+- The dog keeps up with your horse: while you ride and it is more than 8 m behind, it sprints after you at once (it
+  used to trot and run only from 25 m) and 1.5 times faster; stuck or left more than 60 m behind, it comes after you
+  out of view (follow.* in Companion.dat). Test rides 22.11 at the gallop: 2-15 m behind most of the way, up to ~50 m
+  after a snag on a climb (was 80-120 m).
 - Big pelts no longer fall off the horse: an old fix-up took every pelt that was not in the pelt stack off the
   horse, and the game always lays big pelts that way.
 - "Send word to camp" is offered to passers-by outdoors only: at a bartender it took a place in his menu (and seemed

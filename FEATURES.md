@@ -6,6 +6,8 @@ better, and has a character of its own. Every system below can be switched off i
 ## The dog at your side
 - Joins you after the game loads and arrives out of view, like your horse; comes back on its own when left behind, after
   fast travel, trains or cutscenes.
+- Keeps up with your horse: sprints after you from 8 m behind, 1.5× faster; comes after you out of view when stuck
+  60 m back (0.1.2; gallop test 22.11: mostly 2–15 m behind, up to ~50 m after a snag on a climb).
 - Whistle to call it; its hearing range grows with your bond.
 - Focus the dog for its prompts: Stay, Follow, Praise, Send home, «Leave it» (stops everything it does on its own) —
   Stay / Follow and Send home from any distance it can hear your whistle.

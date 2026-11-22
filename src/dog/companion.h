@@ -74,6 +74,8 @@ private:
     int stuckSince_ = 0;
     int lastArrival_ = 0;
     int nextFollowCheck_ = 0;
+    int nextSprint_ = 0;    // while Arthur rides: the next look at whether the dog runs after him
+    bool sprinting_ = false;
     float lastFollowDist_ = 0;
     std::map<std::string, int> cooldownUntil_;
 
