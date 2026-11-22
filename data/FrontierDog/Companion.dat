@@ -1,8 +1,8 @@
 # Frontier Dog: the companion's ranges, health and bonding (shipped data; an update replaces it)
 [Bonding]
-# whistle range and max health by bonding level 1, 2, 3 (old D7, D78)
+# whistle range and max health by bonding level 1, 2, 3 (old D7, D78); health doubled in 0.1.2: one shot put the dog down
 whistle.range=220,280,350
-health.max=400,480,560
+health.max=800,960,1120
 bond.points.2=100
 bond.points.3=400
 bond.feed=8

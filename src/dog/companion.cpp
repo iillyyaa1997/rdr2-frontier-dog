@@ -129,7 +129,7 @@ void Companion::setup(Ped dog) {
     PED::_SET_PED_SCENT(dog, 0);
     if (d) {
         auto hp = ctx().tuning.getFloats("health.max");
-        int maxHp = d->bondLevel - 1 < int(hp.size()) ? int(hp[d->bondLevel - 1]) : 400;
+        int maxHp = d->bondLevel - 1 < int(hp.size()) ? int(hp[d->bondLevel - 1]) : 800;
         if (d->grade == Grade::Ailing) maxHp = int(maxHp * (1.0 - ctx().tunef("ailing.health_cut", 0.25)));
         ENTITY::SET_ENTITY_MAX_HEALTH(dog, maxHp);
         ENTITY::SET_ENTITY_HEALTH(dog, std::max(1, int(maxHp * std::clamp(d->healthFrac, 0.2, 1.0))), 0);

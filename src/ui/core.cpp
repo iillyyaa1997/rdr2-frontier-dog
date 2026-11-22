@@ -87,7 +87,7 @@ void coreTick() {
     float health = std::clamp(float(ENTITY::GET_ENTITY_HEALTH(dog)) / maxHp, 0.0f, 1.0f);
     float coreFill = float(std::clamp(1.0 - d->hunger / 100.0, 0.0, 1.0));
     // D148, like Arthur's cores: the grey track is the most health the dog can have (it grows with bond: health.max
-    // 400/480/560, less when Ailing), the white meter what it has, both on one scale; the game's tracks are 10 arcs
+    // 800/960/1120, less when Ailing), the white meter what it has, both on one scale; the game's tracks are 10 arcs
     // (rpg_meter_track_0..9, one per attribute level) and its meter is absolute ((N+1) % of the circle)
     static const float kTrackEnd[10] = {.117f, .222f, .317f, .406f, .5f, .6f, .689f, .778f, .889f, 1.0f};  // measured 16.11
     float topHp = 1;

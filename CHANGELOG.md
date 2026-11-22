@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2 (22.11.2026)
+- Twice the health: 800 / 960 / 1120 by bond level (was 400 / 480 / 560). In play one shot was enough to put the dog
+  down wounded (his logs: 3 of 3 times it went down, none killed outright). Headshots and explosions still kill unless
+  ProtectFromInstantDeath=1.
+
 ## 0.1.1 (22.11.2026)
 - At a camp Arthur set up, "Send for a dog" now sits in the game's camp panel next to Sleep, Craft and Leave. Before,
   it showed as a separate prompt that took the whole camp panel away, so you could not sleep or fast travel there
