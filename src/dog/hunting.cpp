@@ -194,7 +194,7 @@ bool bring(Ped carcass, bool keepQuality, bool body, bool pelt, bool toHorse) {
 
 // A pelt the old build laid on the horse as a carcass (TASK_CARRIABLE with the pelt's own carry config, in a horse slot,
 // not in the horse's pelt stack - his save of 17.11) is taken off and put into the pelt stack the game's way.
-static void fixStuckPelts() {
+[[maybe_unused]] static void fixStuckPelts() {
     static int next = 0;
     static std::vector<Entity> done;
     int t = now();
@@ -221,7 +221,8 @@ static void fixStuckPelts() {
 void tick() {
     auto& comp = companion();
     scanKills();
-    fixStuckPelts();
+    // fixStuckPelts() is off since 0.1.2: it took every pelt that is not in the pelt stack off the horse, and big
+    // pelts always lie on the horse that way, so they fell off (his play 22.11). The 17.11 save it was for is fixed.
     if (!comp.present()) {
         if (g_carry.active()) g_carry.release();
         return;

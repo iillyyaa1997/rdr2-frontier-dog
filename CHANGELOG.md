@@ -6,6 +6,8 @@
   ProtectFromInstantDeath=1.
 - The dog keeps up with your horse better: while you ride and it is behind, it runs 1.3 times faster
   (follow.mounted_rate in Companion.dat).
+- Big pelts no longer fall off the horse: an old fix-up took every pelt that was not in the pelt stack off the
+  horse, and the game always lays big pelts that way.
 - "Send word to camp" is offered to passers-by outdoors only: at a bartender it took a place in his menu (and seemed
   to hide the canteen refill of RDR2 Care Overhaul).
 
