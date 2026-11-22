@@ -512,7 +512,9 @@ void tick() {
     // (d) a passer-by takes the message to camp for $2
     Entity focus = 0;
     PLAYER::GET_PLAYER_INTERACTION_TARGET_ENTITY(PLAYER::PLAYER_ID(), &focus, false, false);
+    // passers-by outdoors only: indoors it sat in the bartender's menu and hid Care Overhaul's canteen refill (22.11)
     bool canAsk = focus && alive(focus) && PED::IS_PED_HUMAN(focus) && !slots.empty() && dist(focus, player()) < 4.0f &&
+                  !INTERIOR::GET_INTERIOR_FROM_ENTITY(player()) &&
                   PED::GET_PED_RELATIONSHIP_GROUP_HASH(focus) != MISC::GET_HASH_KEY("REL_COP") &&
                   PED::GET_PED_RELATIONSHIP_GROUP_HASH(focus) != MISC::GET_HASH_KEY("REL_GANG_DUTCHS") &&
                   !PED::IS_PED_IN_COMBAT(focus, 0);
