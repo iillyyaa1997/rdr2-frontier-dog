@@ -238,6 +238,17 @@ static void run(const std::vector<std::string>& a) {
     } else if (cmd == "candmg" && a.size() >= 2 && comp.present()) {  // 'candmg <0|1>' SET_ENTITY_CAN_BE_DAMAGED
         ENTITY::SET_ENTITY_CAN_BE_DAMAGED(comp.ped(), num(1, 1) != 0);
         FD_INFO("test: dog can be damaged %d", int(num(1, 1)));
+    } else if (cmd == "objective" && a.size() >= 2) {
+        // 'objective <text>': the mid-screen objective line from a plain C string, as Rustling sets it (Telegraph 1.0.2
+        // translates _UILOG_SET_CACHED_OBJECTIVE); logs what the game keeps
+        static std::string text;
+        text = a[1];
+        for (size_t i = 2; i < a.size(); ++i) text += " " + a[i];
+        UILOG::_UILOG_CLEAR_HAS_DISPLAYED_CACHED_OBJECTIVE();
+        UILOG::_UILOG_SET_CACHED_OBJECTIVE(text.c_str());
+        UILOG::_UILOG_PRINT_CACHED_OBJECTIVE();
+        const char* kept = UILOG::_UILOG_GET_CACHED_OBJECTIVE();
+        FD_INFO("test: objective set '%s', the game keeps '%s'", text.c_str(), kept ? kept : "(null)");
     } else if (cmd == "scen") {
         delivery::testScenario();
     } else if (cmd == "prompts") {
