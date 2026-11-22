@@ -216,6 +216,25 @@ static void run(const std::vector<std::string>& a) {
             ENTITY::SET_ENTITY_COORDS(horse, h.x, h.y, h.z, false, false, false, true);
         }
         FD_INFO("test: horse %d %s", horse, alive(horse) ? "moved beside Arthur" : "not found");
+    } else if (cmd == "dmg" && comp.present()) {  // real damage (SET_ENTITY_HEALTH ignores Invincible): 'dmg <hp> [shot]'
+        Ped dog = comp.ped();
+        int hp0 = ENTITY::GET_ENTITY_HEALTH(dog);
+        if (a.size() > 2 && a[2] == "shot") {
+            Vector3 d = pos(dog);
+            MISC::SHOOT_SINGLE_BULLET_BETWEEN_COORDS(d.x + 1.5f, d.y, d.z + 1.2f, d.x, d.y, d.z + 0.3f, int(num(1, 50)), true,
+                                                     MISC::GET_HASH_KEY("WEAPON_REVOLVER_CATTLEMAN"), 0, true, false, -1.0f, true);
+        } else {
+            PED::APPLY_DAMAGE_TO_PED(dog, int(num(1, 50)), false, 0, 0);
+        }
+        FD_INFO("test: damage %d to the dog, health %d -> %d (max %d)", int(num(1, 50)), hp0, ENTITY::GET_ENTITY_HEALTH(dog),
+                ENTITY::GET_ENTITY_MAX_HEALTH(dog, false));
+    } else if (cmd == "hp" && comp.present()) {
+        FD_INFO("test: dog health %d / %d, invincible ini %d", ENTITY::GET_ENTITY_HEALTH(comp.ped()),
+                ENTITY::GET_ENTITY_MAX_HEALTH(comp.ped(), false), int(c.ini.getBool("Invincible", false)));
+    } else if (cmd == "scen") {
+        delivery::testScenario();
+    } else if (cmd == "campgroup" && a.size() >= 2) {
+        delivery::testCampGroup(int(num(1, 1)), int(num(2, 0)));
     } else if (cmd == "prompts") {
         testListPrompts();
     } else if (cmd == "press" && a.size() >= 2) {

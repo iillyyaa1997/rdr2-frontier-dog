@@ -20,7 +20,7 @@ public:
 
     void setText(const std::string& text);
     void setTarget(Entity target);   // 0 = free prompt (bottom right, no group)
-    void setGroup(int group);
+    void setGroup(int group, int tab = 0);  // 0 = free prompt; tab = the page of a group with pages
     void show(bool visible, bool enabled = true);  // wanted this frame; applyFrame decides what the game gets
     void setRank(int rank) { rank_ = rank; }      // lower = more important when a group is full
     bool fired();                    // completed press/hold this frame (once)
@@ -40,7 +40,7 @@ private:
     bool latched_ = false;  // fired; the key must be let go before it can fire again
     std::string text_;
     Entity target_ = 0;
-    int group_ = 0;
+    int group_ = 0, tab_ = 0;
     bool visible_ = false, enabled_ = false;  // what the game has
     bool want_ = false, wantEnabled_ = false;  // what the module asked for this frame
     int rank_ = 50, order_ = 0;

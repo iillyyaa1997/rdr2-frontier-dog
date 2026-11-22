@@ -98,6 +98,8 @@ void Companion::spawn(bool outOfView, const Vector3* fixed) {
             model.c_str(), d->preset, d->scale);
 }
 
+static bool invincible() { return ctx().ini.getBool("Invincible", false); }
+
 void Companion::setup(Ped dog) {
     DogRecord* d = record();
     ped_ = dog;
@@ -128,6 +130,8 @@ void Companion::setup(Ped dog) {
     }
     // collision proof as the companion always was; explosion + headshot proof only if the player wants it (old D81)
     ENTITY::SET_ENTITY_PROOFS(dog, ctx().ini.getBool("ProtectFromInstantDeath", false) ? (8 | 4 | 128) : 8, false);
+    // Invincible=1 (asked for on Nexus 22.11): nothing hurts it, so it never goes down wounded either
+    if (invincible()) ENTITY::SET_ENTITY_INVINCIBLE(dog, true);
 
     if (MAP::DOES_BLIP_EXIST(blip_)) MAP::REMOVE_BLIP(&blip_);
     blip_ = MAP::BLIP_ADD_FOR_ENTITY(0x19365607, dog);  // BLIP_STYLE_COMPANION
@@ -554,7 +558,7 @@ void Companion::startWounded() {
 
 void Companion::endWounded(bool revived) {
     DogRecord* d = record();
-    if (exists(ped_)) ENTITY::SET_ENTITY_INVINCIBLE(ped_, false);
+    if (exists(ped_)) ENTITY::SET_ENTITY_INVINCIBLE(ped_, invincible());
     woundedGraceUntil_ = now() + 8000;  // the writhe flag lingers a few seconds after a revive
     if (d) {
         d->woundedUntil = 0;

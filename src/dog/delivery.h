@@ -10,4 +10,8 @@ void start();
 void tick();
 bool active();
 bool order(int slot, const char* how);  // true if a rider is on the way
+#ifdef FD_TEST
+void testCampGroup(int mode, int tab);
+void testScenario();
+#endif
 }

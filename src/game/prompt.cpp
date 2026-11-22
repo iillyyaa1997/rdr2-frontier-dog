@@ -60,7 +60,7 @@ void UiPrompt::create(const std::string& control, const std::string& text, int h
     HUD::_UI_PROMPT_SET_ENABLED(handle_, false);
     visible_ = enabled_ = want_ = wantEnabled_ = false;
     target_ = 0;
-    group_ = 0;
+    group_ = tab_ = 0;
 }
 
 void UiPrompt::destroy() {
@@ -81,10 +81,11 @@ void UiPrompt::setTarget(Entity target) {
     setGroup(group);
 }
 
-void UiPrompt::setGroup(int group) {
-    if (!handle_ || group == group_) return;
+void UiPrompt::setGroup(int group, int tab) {
+    if (!handle_ || (group == group_ && tab == tab_)) return;
     group_ = group;
-    HUD::_UI_PROMPT_SET_GROUP(handle_, group, 0);
+    tab_ = tab;
+    HUD::_UI_PROMPT_SET_GROUP(handle_, group, tab);
 }
 
 void UiPrompt::show(bool visible, bool enabled) {
