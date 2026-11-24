@@ -107,6 +107,21 @@ static void protect(Ped dog) {
     ENTITY::SET_ENTITY_CAN_BE_DAMAGED(dog, false);
 }
 
+// A wounded dog waiting for a reviver is untouchable the same way (24.11: Мики went down in a shoot-out with lawmen and
+// was dead 38 s later with SET_ENTITY_INVINCIBLE alone - the hole found on 22.11 above), its health kept at the floor.
+static void guardWounded(Ped dog) {
+    ENTITY::SET_ENTITY_INVINCIBLE(dog, true);
+    ENTITY::SET_ENTITY_CAN_BE_DAMAGED(dog, false);
+    int floorHp = std::max(1, int(ENTITY::GET_ENTITY_MAX_HEALTH(dog, false) * ctx().tunef("wounded.health_floor_pct", 10) / 100.0));
+    if (ENTITY::GET_ENTITY_HEALTH(dog) < floorHp) ENTITY::SET_ENTITY_HEALTH(dog, floorHp, 0);
+}
+
+static void unguardWounded(Ped dog) {
+    ENTITY::SET_ENTITY_INVINCIBLE(dog, false);
+    ENTITY::SET_ENTITY_CAN_BE_DAMAGED(dog, true);
+    protect(dog);
+}
+
 void Companion::setup(Ped dog) {
     DogRecord* d = record();
     ped_ = dog;
@@ -573,12 +588,9 @@ void Companion::startWounded() {
     d->woundedX = at.x; d->woundedY = at.y; d->woundedZ = at.z;
     save();
     ENTITY::SET_ENTITY_AS_MISSION_ENTITY(ped_, true, true);
-    ENTITY::SET_ENTITY_INVINCIBLE(ped_, true);
     // window 16.11: a dog wounded in a fight was dead one second later (the attacker finished it or a death already in
     // progress): keep a health floor and turn its attackers on Arthur
-    int maxHp = ENTITY::GET_ENTITY_MAX_HEALTH(ped_, false);
-    int floorHp = std::max(1, int(maxHp * ctx().tunef("wounded.health_floor_pct", 10) / 100.0));
-    if (ENTITY::GET_ENTITY_HEALTH(ped_) < floorHp) ENTITY::SET_ENTITY_HEALTH(ped_, floorHp, 0);
+    guardWounded(ped_);
     int peds[256];
     int n = worldGetAllPeds(peds, 256);
     for (int i = 0; i < n; ++i) {  // whoever fights the dog turns on Arthur instead of finishing it
@@ -598,10 +610,7 @@ void Companion::startWounded() {
 
 void Companion::endWounded(bool revived) {
     DogRecord* d = record();
-    if (exists(ped_)) {
-        ENTITY::SET_ENTITY_INVINCIBLE(ped_, false);
-        protect(ped_);
-    }
+    if (exists(ped_)) unguardWounded(ped_);
     woundedGraceUntil_ = now() + 8000;  // the writhe flag lingers a few seconds after a revive
     if (d) {
         d->woundedUntil = 0;
@@ -627,6 +636,7 @@ bool Companion::updateWounded() {
         return false;
     }
     if (living) {
+        guardWounded(ped_);  // every frame: a lawman's next bullet must not finish it
         // the revive prompt: a Dog Reviver (if the item exists) or the game's Horse Reviver
         const char* item = itemCount("CONSUMABLE_DOG_REVIVER") > 0 ? "CONSUMABLE_DOG_REVIVER"
                          : (itemCount("CONSUMABLE_HORSE_REVIVER") > 0 ? "CONSUMABLE_HORSE_REVIVER" : nullptr);
@@ -652,7 +662,6 @@ bool Companion::updateWounded() {
         return true;
     }
     if (living) {
-        ENTITY::SET_ENTITY_INVINCIBLE(ped_, true);
         if (TASK::IS_PED_IN_WRITHE(ped_)) PED::SET_PAUSE_PED_WRITHE_BLEEDOUT(ped_, true);
         return true;  // a wounded dog gets no follow orders or prompts of the healthy dog
     }
@@ -671,7 +680,7 @@ bool Companion::updateWounded() {
             coat::dress(dog, *d);
             setup(dog);
             ENTITY::SET_ENTITY_AS_MISSION_ENTITY(dog, true, true);
-            ENTITY::SET_ENTITY_INVINCIBLE(dog, true);
+            guardWounded(dog);
             TASK::TASK_ANIMAL_WRITHE(dog, 0, 0);
             if (MAP::DOES_BLIP_EXIST(woundedBlip_)) MAP::REMOVE_BLIP(&woundedBlip_);
             woundedBlip_ = 0;
@@ -719,6 +728,12 @@ void Companion::died() {
     std::string name = d->name;
     bool female = d->female;
     Grade before = d->grade;
+    if (exists(ped_)) {  // what killed it (24.11 Мики: no clue in the log)
+        Entity by = PED::GET_PED_SOURCE_OF_DEATH(ped_);
+        FD_INFO("dog death: cause 0x%08X, by %d (model 0x%08X), wounded %d, damageable %d", PED::GET_PED_CAUSE_OF_DEATH(ped_), by,
+                by && ENTITY::DOES_ENTITY_EXIST(by) ? ENTITY::GET_ENTITY_MODEL(by) : 0, int(d->woundedUntil > 0),
+                int(ENTITY::_GET_ENTITY_CAN_BE_DAMAGED(ped_)));
+    }
     d->woundedUntil = 0;
     if (MAP::DOES_BLIP_EXIST(woundedBlip_)) MAP::REMOVE_BLIP(&woundedBlip_);
     woundedBlip_ = 0;
