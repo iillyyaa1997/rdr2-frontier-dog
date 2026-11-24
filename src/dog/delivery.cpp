@@ -38,33 +38,36 @@ static bool strangerPopulation(Entity ped) {
     return false;
 }
 
-// Our passer-by buttons never cover another prompt: for a newly focused person they wait message.settle_ms hidden while
-// the game puts up its own prompts, then come only if no prompt shows on our buttons (UI_PROMPT_IS_CONTROL_ACTION_ACTIVE).
-// The answer holds for that person until the focus moves on.
-static bool buttonsFree(Entity focus, int t, bool withNext) {
-    static Entity s_for = 0;
-    static int s_since = 0;
-    static int s_state = 0;  // 0 deciding, 1 free, -1 busy
-    if (focus != s_for) { s_for = focus; s_since = t; s_state = 0; }
-    if (s_state != 0) return s_state > 0;
-    if (t - s_since < 100) return false;  // our own prompts of the last person are still up for a frame or two
-    bool busy = HUD::UI_PROMPT_IS_CONTROL_ACTION_ACTIVE(MISC::GET_HASH_KEY("INPUT_INTERACT_OPTION1")) ||
-                (withNext && HUD::UI_PROMPT_IS_CONTROL_ACTION_ACTIVE(MISC::GET_HASH_KEY("INPUT_CONTEXT_X")));
-    if (busy) {
-        s_state = -1;
-        FD_INFO("passer-by %d: the game already shows a prompt on our buttons - no message prompt", focus);
-        return false;
+// Our buttons on a person never cover another prompt: for a newly focused person they wait message.settle_ms hidden
+// while the game puts up its own prompts, then come only if no prompt shows on our buttons
+// (UI_PROMPT_IS_CONTROL_ACTION_ACTIVE). The answer holds for that person until the focus moves on.
+struct FreeCheck {
+    Entity forPed = 0;
+    int since = 0, state = 0;  // 0 deciding, 1 free, -1 busy
+    bool check(Entity focus, int t, bool withNext, const char* who) {
+        if (focus != forPed) { forPed = focus; since = t; state = 0; }
+        if (state != 0) return state > 0;
+        if (t - since < 100) return false;  // our own prompts of the last person are still up for a frame or two
+        bool busy = HUD::UI_PROMPT_IS_CONTROL_ACTION_ACTIVE(MISC::GET_HASH_KEY("INPUT_INTERACT_OPTION1")) ||
+                    (withNext && HUD::UI_PROMPT_IS_CONTROL_ACTION_ACTIVE(MISC::GET_HASH_KEY("INPUT_CONTEXT_X")));
+        if (busy) {
+            state = -1;
+            FD_INFO("%s %d: the game already shows a prompt on our buttons - none of ours", who, focus);
+            return false;
+        }
+        if (t - since < ctx().tune("message.settle_ms", 400)) return false;
+        state = 1;
+        return true;
     }
-    if (t - s_since < ctx().tune("message.settle_ms", 400)) return false;
-    s_state = 1;
-    return true;
-}
+};
+static FreeCheck g_passerFree, g_clerkFree;
 static int g_campIndex = 0, g_whistleSince = 0;
 static std::vector<Vector3> g_telegraphs;
 static Vector3 g_virt, g_wp;  // the courier while out of range (on the map) and his next road point
 static bool g_hasWp = false;
 static Blip g_blip = 0;
 static int g_fee = 0, g_lastStep = 0, g_lastSave = 0, g_holdSince = 0, g_messageWaitMs = 15000;
+static int g_nodeWaitSince = 0, g_roadHops = 0, g_crossHops = 0, g_hopsLogAt = 0;  // the journey along the roads (24.11)
 
 static std::string stateFile() { return fs::join(fs::join(ctx().dataDir, "Dogs"), "courier.dat"); }
 static float flat(const Vector3& a, const Vector3& b) { return std::hypot(a.x - b.x, a.y - b.y); }
@@ -75,10 +78,10 @@ static void clearJourney();
 bool active() { return g_stage != Stage::Idle; }
 
 void start() {
-    g_campNext.create("INPUT_CONTEXT_X", ctx().t("stable.next"));
+    g_campNext.create("INPUT_CONTEXT_X", ctx().t("prompt.next_dog"));
     g_campOrder.create("INPUT_INTERACT_OPTION1", "", 1200);
     g_message.create("INPUT_INTERACT_OPTION1", ctx().t("prompt.message"), 1000, 2);
-    g_messageNext.create("INPUT_CONTEXT_X", ctx().t("stable.next"), 0, 2);
+    g_messageNext.create("INPUT_CONTEXT_X", ctx().t("prompt.next_dog"), 0, 2);
     KvFile tel;
     g_telegraphs.clear();  // again after a save load (the script restarts, the list stays)
     if (tel.load(fs::join(ctx().dataDir, "Telegraph.dat")))
@@ -266,26 +269,39 @@ static bool spawnPartyAt(const Vector3& from) {
 // ---- the journey on the map
 
 // the next point: the road node nearest to a probe ahead towards Arthur, if it brings the courier closer; else straight
-static void nextWaypoint(const Vector3& target) {
+// 24.11 («почему курьер бежит по прямой, а не по дороге?»): far from Arthur the game keeps no road nodes loaded, the
+// lookup failed and every hop went across country. Now the nodes around the courier are requested and the hop waits
+// for them (courier.node_wait_ms) before it gives up and cuts across; returns false while still waiting.
+static bool nextWaypoint(const Vector3& target) {
     float l = flat(g_virt, target);
     float step = float(ctx().tunef("courier.step_m", 60));
-    g_hasWp = true;
     if (l <= step) {
         g_wp = Vector3(target.x, target.y, g_virt.z);
-        return;
+        g_hasWp = true;
+        return true;
     }
     Vector3 probe(g_virt.x + (target.x - g_virt.x) / l * step, g_virt.y + (target.y - g_virt.y) / l * step, g_virt.z);
-    PATH::REQUEST_PATH_NODES_IN_AREA_THIS_FRAME(std::min(g_virt.x, probe.x) - 200, std::min(g_virt.y, probe.y) - 200,
-                                                std::max(g_virt.x, probe.x) + 200, std::max(g_virt.y, probe.y) + 200);
+    float x1 = std::min(g_virt.x, probe.x) - 200, y1 = std::min(g_virt.y, probe.y) - 200;
+    float x2 = std::max(g_virt.x, probe.x) + 200, y2 = std::max(g_virt.y, probe.y) + 200;
+    PATH::REQUEST_PATH_NODES_IN_AREA_THIS_FRAME(x1, y1, x2, y2);
+    if (!PATH::ARE_NODES_LOADED_FOR_AREA(x1, y1, x2, y2)) {
+        if (!g_nodeWaitSince) g_nodeWaitSince = now();
+        if (now() - g_nodeWaitSince < ctx().tune("courier.node_wait_ms", 4000)) return false;  // not yet: wait on the road
+    }
+    g_nodeWaitSince = 0;
+    g_hasWp = true;
     Vector3 node;
     if (PATH::GET_CLOSEST_VEHICLE_NODE(probe.x, probe.y, probe.z, &node, 0, 3.0f, 0.0f)) {
         float hop = flat(g_virt, node);
         if (flat(node, target) < l - 5.0f && hop > 5.0f && hop < step * 2.0f) {
             g_wp = node;
-            return;
+            ++g_roadHops;
+            return true;
         }
     }
-    g_wp = probe;  // no road that way (or its nodes are not loaded): across country
+    g_wp = probe;  // no road that way: across country
+    ++g_crossHops;
+    return true;
 }
 
 static void journey() {
@@ -303,7 +319,7 @@ static void journey() {
     if (away > liveRange()) {
         float budget = speed() * std::min(dt, 5.0f);  // a long pause (menus) does not jump the courier ahead
         for (int guard = 0; budget > 0.01f && guard < 8; ++guard) {
-            if (!g_hasWp || flat(g_virt, g_wp) < 1.0f) nextWaypoint(target);
+            if ((!g_hasWp || flat(g_virt, g_wp) < 1.0f) && !nextWaypoint(target)) break;  // road nodes still loading
             float d = flat(g_virt, g_wp);
             if (d < 0.01f) { g_hasWp = false; continue; }
             float k = std::min(1.0f, budget / d);
@@ -312,6 +328,10 @@ static void journey() {
             if (k >= 1.0f) g_hasWp = false;
         }
         courierBlip(0, g_virt);
+        if (t - g_hopsLogAt > 60000) {
+            g_hopsLogAt = t;
+            FD_INFO("delivery: courier %.0f m from Arthur, hops on roads %d, across country %d", flat(g_virt, target), g_roadHops, g_crossHops);
+        }
         if (t - g_lastSave > 10000) {
             g_lastSave = t;
             saveJourney();
@@ -412,9 +432,14 @@ static void riding() {
     }
     bool waiting = d < 12.0f;  // at Arthur: waits for the dog
     float pace = waiting ? 0.0f : (lag > 25.0f ? 1.0f : (lag > 12.0f ? 1.5f : (d > 60 ? 2.0f : 1.5f)));
+    if (!g_blip || !MAP::DOES_BLIP_EXIST(g_blip)) courierBlip(g_horse, pos(g_horse));  // the marker all the way (24.11)
     if (t - g_orderedAt > 3000) {
         g_orderedAt = t;
+        // along the road while far (24.11: «go to Arthur» rode straight across); the last stretch straight to him
+        bool road = d > float(ctx().tunef("courier.road_until_m", 40)) && ctx().tune("courier.follow_road", 1) != 0;
+        Vector3 pp = pos(player());
         if (waiting) TASK::TASK_STAND_STILL(g_rider, 3500);
+        else if (road) TASK::TASK_MOVE_FOLLOW_ROAD_USING_NAVMESH(g_rider, pace, pp.x, pp.y, pp.z, 0);
         else TASK::TASK_GO_TO_ENTITY(g_rider, player(), -1, 7.0f, pace, 0, 0);
         if (lag > 12.0f) TASK::TASK_FOLLOW_TO_OFFSET_OF_ENTITY(g_dog, g_horse, 1.5f, -1.0f, 0, 3.0f, -1, 2.0f, true, false, false, false, false, false);
     }
@@ -506,9 +531,13 @@ void tick() {
                 cleanup();
             return;
         case Stage::Message:
+            // the messenger on the way to camp has the courier's marker too while the game keeps him (24.11)
+            if (exists(g_messenger) && (!g_blip || !MAP::DOES_BLIP_EXIST(g_blip))) courierBlip(g_messenger, pos(g_messenger));
+            if (!exists(g_messenger) && g_blip) removeBlip();
             if (t - g_stageAt > g_messageWaitMs) {  // he rides to camp with the message first
                 if (exists(g_messenger)) ENTITY::SET_ENTITY_AS_NO_LONGER_NEEDED(&g_messenger);
                 g_messenger = 0;
+                removeBlip();  // the courier's own marker starts at the camp
                 g_stage = Stage::Idle;
                 order(g_slot, "passer-by");
             }
@@ -524,31 +553,58 @@ void tick() {
         g_atCampFire = sitting;
         if (sitting) FD_INFO("Arthur sits at his camp fire: the order joins the camp prompts");
     }
-    bool telegraph = PED::IS_PED_ON_FOOT(player()) && atTelegraph();  // (b) a telegram from the post office
-    g_campOrder.setGroup(sitting ? kCampPromptGroup : 0);
-    g_campNext.setGroup(sitting ? kCampPromptGroup : 0);
-    if ((sitting || telegraph) && !slots.empty()) {
+    Entity focus = 0;
+    PLAYER::GET_PLAYER_INTERACTION_TARGET_ENTITY(PLAYER::PLAYER_ID(), &focus, false, false);
+    // (b) a telegram: only through the clerk at a post office (24.11 his ask: not «in the air» 12 m around it) - the man
+    // Arthur focuses there, standing (behind the counter), and only if our buttons are free on him
+    Ped clerk = 0;
+    if (!sitting && PED::IS_PED_ON_FOOT(player()) && focus && alive(focus) && PED::IS_PED_HUMAN(focus) && atTelegraph() &&
+        dist(focus, player()) < 4.0f && ENTITY::GET_ENTITY_SPEED(focus) < 0.5f && !PED::IS_PED_IN_COMBAT(focus, 0))
+        clerk = focus;
+#ifdef FD_TEST
+    static Entity s_clerkSeen = 0;
+    if (atTelegraph() && focus != s_clerkSeen) {
+        s_clerkSeen = focus;
+        if (focus && PED::IS_PED_HUMAN(focus))
+            FD_INFO("post office focus: ped %d model 0x%08X population %d scenario %d speed %.1f interior %d, %.1f m -> clerk %d", focus,
+                    ENTITY::GET_ENTITY_MODEL(focus), ENTITY::GET_ENTITY_POPULATION_TYPE(focus), int(PED::IS_PED_USING_ANY_SCENARIO(focus)),
+                    ENTITY::GET_ENTITY_SPEED(focus), int(INTERIOR::GET_INTERIOR_FROM_ENTITY(focus)), dist(focus, player()), int(clerk != 0));
+    }
+#endif
+    if (clerk && !g_clerkFree.check(clerk, t, slots.size() > 1, "post office clerk")) clerk = 0;
+    if (sitting) {
+        g_campOrder.setGroup(kCampPromptGroup);
+        g_campNext.setGroup(kCampPromptGroup);
+    } else if (clerk) {
+        g_campOrder.setTarget(clerk);
+        g_campNext.setTarget(clerk);
+    } else {
+        g_campOrder.setGroup(0);
+        g_campNext.setGroup(0);
+    }
+    if ((sitting || clerk) && !slots.empty()) {
         g_campIndex %= int(slots.size());
         const DogRecord& d = c.store.at(slots[g_campIndex]);
-        g_campOrder.setText(c.f(sitting ? "prompt.send_for" : "prompt.telegram", {{"name", d.name}}, d.female));
+        Vector3 camp;
+        int fee = deliveryFee(home::campKnown(camp) ? flat(camp, pos(player())) : 3000.0f, c.econ);  // what order() will take
+        g_campOrder.setText(c.f(sitting ? "prompt.send_for" : "prompt.telegram", {{"name", d.name}, {"fee", std::to_string(fee)}}, d.female));
         g_campNext.show(slots.size() > 1);
         g_campOrder.show(true);
         if (g_campNext.fired()) g_campIndex = (g_campIndex + 1) % int(slots.size());
-        if (g_campOrder.fired()) order(slots[g_campIndex], sitting ? "campfire" : "telegram");
+        if (g_campOrder.fired()) order(slots[g_campIndex], sitting ? "campfire" : "telegram at the clerk");
     } else {
         g_campNext.show(false);
         g_campOrder.show(false);
     }
-    // (d) a passer-by takes the message to camp for $2
-    Entity focus = 0;
-    PLAYER::GET_PLAYER_INTERACTION_TARGET_ENTITY(PLAYER::PLAYER_ID(), &focus, false, false);
+    // (d) a passer-by takes the message to camp for $2 - Arthur on foot (24.11: from the saddle a lone «Другое» showed)
     // passers-by outdoors only: indoors it sat in the bartender's menu and hid Care Overhaul's canteen refill (22.11).
     // His rule (24.11, after the sawmill foreman's «Принять» was taken by our «Другое»): only a «Незнакомец» - a random
     // passer-by the game made by itself (population type in message.population_types), never anyone a script made or
     // with a role or a blip - and our buttons never take another prompt's place: when the person is focused they stay
     // hidden for a moment, and if the game (or another mod) already shows a prompt on one of our buttons, they do not
     // come at all for this person.
-    bool canAsk = focus && alive(focus) && PED::IS_PED_HUMAN(focus) && !slots.empty() && dist(focus, player()) < 4.0f &&
+    bool canAsk = focus && focus != clerk && PED::IS_PED_ON_FOOT(player()) && alive(focus) && PED::IS_PED_HUMAN(focus) &&
+                  !slots.empty() && dist(focus, player()) < 4.0f &&
                   !INTERIOR::GET_INTERIOR_FROM_ENTITY(player()) && !ENTITY::IS_ENTITY_A_MISSION_ENTITY(focus) &&
                   !MAP::GET_BLIP_FROM_ENTITY(focus) && strangerPopulation(focus) &&
                   PED::GET_PED_RELATIONSHIP_GROUP_HASH(focus) != MISC::GET_HASH_KEY("REL_COP") &&
@@ -565,7 +621,7 @@ void tick() {
                     int(canAsk));
     }
 #endif
-    canAsk = canAsk && buttonsFree(focus, t, slots.size() > 1);
+    canAsk = canAsk && g_passerFree.check(focus, t, slots.size() > 1, "passer-by");
     if (canAsk) {
         // which dog: the same pick as at the campfire and the telegraph («Другое» goes through the dogs at home)
         g_campIndex %= int(slots.size());

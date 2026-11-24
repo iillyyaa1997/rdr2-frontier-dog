@@ -19,6 +19,11 @@ bond.pat=4
 bond.pat_cooldown_ms=120000
 bond.praise=3
 bond.praise_cooldown_ms=120000
+# Praise (24.11): Arthur's words - the first of these lines (+ _MALE/_FEMALE by the dog) the game plays; a praise within
+# praise.deed_window_ms after a deed (fetch, herbs, a fight) adds bond.praise_deed
+praise.speech=HORSE_PRAISE,PRAISE_HORSE,HORSE_GOOD,HORSE_CALM,HORSE_REASSURE,HORSE_PAT
+praise.deed_window_ms=30000
+bond.praise_deed=2
 bond.fetch=2
 bond.fetch_cooldown_ms=20000
 bond.together=1
@@ -111,6 +116,11 @@ courier.speed_mps=9
 courier.live_range=140
 courier.step_m=60
 courier.road_factor=1.25
+# the journey on the map waits this long for the road nodes before a hop cuts across country (24.11)
+courier.node_wait_ms=4000
+# the real rider follows the road while farther than this from Arthur (1 = on), then rides straight to him
+courier.follow_road=1
+courier.road_until_m=40
 # a night out in the wild together (clock jumps 4+ game hours outside camp/towns): road-deed units (a km = 1, step 10)
 hardening.night_units=5
 # AutoAttack: whoever fights Arthur within this range; a dog below this Courage (and not Fearless) only barks

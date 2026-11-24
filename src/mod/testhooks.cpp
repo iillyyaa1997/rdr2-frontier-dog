@@ -303,6 +303,13 @@ static void run(const std::vector<std::string>& a) {
         PLAYER::SET_PLAYER_WANTED_LEVEL(PLAYER::PLAYER_ID(), int(num(1, 1)), false);
     } else if (cmd == "woundexpire" && comp.record()) {
         comp.record()->woundedUntil = unixNow();  // not saved in time, now
+    } else if (cmd == "praise" && comp.present()) {
+        comp.praise();
+    } else if (cmd == "say" && a.size() >= 2) {
+        // say <speech line>: does the game have this line for Arthur (praise.speech candidates)
+        bool ok = speech(pl, a[1].c_str());
+        scriptWait(300);
+        FD_INFO("test: say %s -> %d, speaking %d", a[1].c_str(), int(ok), int(AUDIO::IS_ANY_SPEECH_PLAYING(pl)));
     } else if (cmd == "dismount") {
         TASK::TASK_DISMOUNT_ANIMAL(pl, 0, 0, 0, 0, 0);
     } else if (cmd == "revive" && comp.present()) {

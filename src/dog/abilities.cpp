@@ -168,6 +168,7 @@ static void herbs(Ped dog, DogRecord& d) {
     TASK::TASK_FOLLOW_NAV_MESH_TO_COORD(dog, spot.x, spot.y, spot.z, 2.0f, 30000, 1.0f, 0, 0.0f);
     FD_INFO("herbs: %.0f m (%s), %s 0x%08X", dist(spot, pos(player())), asked ? "asked" : "herbalist",
             g_herbFoundModel ? "plant" : "map spot", g_herbFoundModel);
+    companion().noteDeed("herbs");
 }
 
 static float noseFactor(const DogRecord& d) {

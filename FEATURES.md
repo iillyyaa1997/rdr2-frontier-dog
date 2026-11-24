@@ -11,6 +11,9 @@ better, and has a character of its own. Every system below can be switched off i
 - Whistle to call it; its hearing range grows with your bond.
 - Focus the dog for its prompts: Stay, Follow, Praise, Send home, «Leave it» (stops everything it does on its own) —
   Stay / Follow and Send home from any distance it can hear your whistle.
+- Praise is words, from afar and from the saddle (Arthur says it, the dog answers with a happy bark); up close on foot
+  the game's own Pet does the patting — never both buttons in one place (0.1.3). A praise within 30 s of a deed (a
+  fetch, herbs found, a fight) is worth more.
 - Waits outside buildings; on story missions it stays out of the way and hides during cutscenes.
 - A paw blip on the radar and the map, and the dog's own core next to Arthur's and the horse's, drawn like them: a worn
   paw that drains from the top as the dog gets hungry (red when starving, blinking red when wounded), its ring the
@@ -95,12 +98,15 @@ better, and has a character of its own. Every system below can be switched off i
   30 % without) and brings a dog from home ($5, 15 seconds).
 
 ## Delivery from camp
-- Send for a dog at your own campfire in the wild, by telegram at any post office, or through a passer-by ($2) — each
-  time you pick which dog.
+- Send for a dog at your own campfire in the wild, by telegram through the clerk at any post office, or through a
+  passer-by ($2, on foot, only a random «Stranger», never covering the game's own prompts) — each time you pick which
+  dog («Another dog»), and the prompt shows the price (0.1.3).
 - At your own camp fire the order sits in the game's camp panel next to Sleep, Craft and Leave (a separate prompt took
   the camp panel away, reported on Nexus 22.11; checked in game).
-- A courier really rides out of camp: his blip moves along the roads at a horse's pace, near you he becomes a rider with
-  your dog running beside his horse, hands it over and rides off. $5–15 by distance; the trip survives a reload.
+- A courier really rides out of camp: his blip moves along the roads at a horse's pace (0.1.3: it waits for the road
+  network to load instead of cutting across country), near you he becomes a rider with your dog running beside his
+  horse who keeps to the road until the last 40 m, hands it over and rides off. His marker stays on the map and the
+  minimap the whole way, also on the passer-by carrying the message. $5–15 by distance; the trip survives a reload.
 
 ## Strays
 - Mutts along roads, packs of two or three near towns, never more than three around.

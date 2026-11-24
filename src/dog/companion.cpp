@@ -362,7 +362,14 @@ void Companion::updatePrompts() {
     stayPrompt_.setText(stayText);
     homePrompt_.setText(homeText);
     stayPrompt_.show(command);
-    praisePrompt_.show(close && !behaviour::feedOffered() && !care::offersButton1());
+    // Praise in words from afar and from the saddle; up close on foot the game's own Pet takes over (24.11 his rule: no
+    // two buttons for the same thing in one place - «похвалить издалека, погладить вблизи»)
+    if (afar) praisePrompt_.setGroup(0);
+    else praisePrompt_.setTarget(ped_);
+    std::string praiseText = ctx().t("prompt.praise", d && d->female);
+    if (afar && d && !d->name.empty()) praiseText = d->name + ": " + praiseText;
+    praisePrompt_.setText(praiseText);
+    praisePrompt_.show(!close && (focus == ped_ || afar) && dd < whistleRange());
     homePrompt_.show(command && !onMission() && !behaviour::trackOffered());
     if (stayPrompt_.fired()) {
         if (d) addDeed(*d, ctx().breeds, "command", 1, ctx().rng);
@@ -406,9 +413,41 @@ void Companion::stay() {
     FD_INFO("command: stay");
 }
 
+// Praise (24.11): it used to play the game's own patting, so it was the game's Pet twice over (+7 at once, Nexus 23.11
+// «no difference between petting and praise»). Now Arthur says it - the first of praise.speech the game has for him
+// (each line tried once, the one that plays is kept) - and the dog answers with a happy bark, turned to him. Worth more
+// right after a deed.
+void Companion::noteDeed(const char* what) {
+    lastDeedAt_ = now();
+    FD_DEBUG("deed: %s", what);
+}
+
 void Companion::praise() {
-    TASK::TASK_ANIMAL_INTERACTION(player(), ped_, MISC::GET_HASH_KEY("Interaction_Dog_Patting"), 0, true);
+    if (!present()) return;
+    static int s_line = -1;  // the speech line that worked
+    auto lines = ctx().tuning.getList("praise.speech");
+    const char* sex = PED::IS_PED_MALE(ped_) ? "_MALE" : "_FEMALE";
+    bool said = false;
+    if (s_line >= 0 && s_line < int(lines.size())) said = speech(player(), (lines[s_line] + sex).c_str());
+    for (int i = 0; !said && i < int(lines.size()); ++i) {
+        if (speech(player(), (lines[i] + sex).c_str())) {
+            s_line = i;
+            said = true;
+            FD_INFO("praise: Arthur says %s%s", lines[i].c_str(), sex);
+        }
+    }
+    if (!said && s_line < 0) {
+        s_line = int(lines.size());  // none of them: quiet from now on, no retries every time
+        FD_INFO("praise: none of the %d speech lines played - a quiet praise", int(lines.size()));
+    }
+    AUDIO::PLAY_ANIMAL_VOCALIZATION(ped_, "BARK_HAPPY", true);
+    if (!stay_ && !PED::IS_PED_ON_MOUNT(player())) TASK::TASK_TURN_PED_TO_FACE_ENTITY(ped_, player(), 1500, 0, 0, 0);
     addBond(ctx().tunef("bond.praise", 3), "praise", ctx().tune("bond.praise_cooldown_ms", 120000));
+    if (now() - lastDeedAt_ < ctx().tune("praise.deed_window_ms", 30000)) {
+        addBond(ctx().tunef("bond.praise_deed", 2), "praise_deed", 0);
+        lastDeedAt_ = -1000000;
+        FD_INFO("praise right after a deed");
+    }
 }
 
 // the paw answers a whistle the way the horse's blip does (19.11 his wish): the game's own horse modifiers, a pulse when

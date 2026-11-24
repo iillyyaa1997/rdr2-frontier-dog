@@ -90,7 +90,10 @@ static void updateAttack(Ped dog, DogRecord& d) {
         g_attack.show(false);
     }
     if (g_attackTarget && (!alive(g_attackTarget) || now() > g_attackUntil)) {
-        if (!alive(g_attackTarget)) for (const auto& st : addDeed(d, ctx().breeds, "fight", 1, ctx().rng)) FD_INFO("hardening: %s", st.c_str());
+        if (!alive(g_attackTarget)) {
+            for (const auto& st : addDeed(d, ctx().breeds, "fight", 1, ctx().rng)) FD_INFO("hardening: %s", st.c_str());
+            companion().noteDeed("fight");
+        }
         g_attackTarget = 0;
         g_attackUntil = 0;
         if (!companion().staying()) companion().follow();

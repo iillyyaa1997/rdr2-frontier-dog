@@ -115,6 +115,7 @@ static void onKill(Ped carcass) {
     }
     if (!startCarry(comp.ped(), *d, carcass)) mark(carcass);
     comp.addBond(ctx().tunef("bond.fetch", 2), "fetch", ctx().tune("bond.fetch_cooldown_ms", 20000));
+    comp.noteDeed("fetch");
 }
 
 // dead animals Arthur killed near him, once a second: arrows, knives and scripted kills give no bullet-impact event

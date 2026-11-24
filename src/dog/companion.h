@@ -26,6 +26,8 @@ public:
     // clear line of sight (17.11/18.11: the game's own focus ends between 12 and 20 m)
     bool aimedFromAfar() const;
     void addBond(double points, const std::string& reason, int cooldownMs);
+    void noteDeed(const char* what);    // it just did something worth praise (fetched, found herbs, fought): a praise soon after gives more
+    void praise();                      // Arthur praises it in words (from afar or the saddle; patting is the game's own Pet)
     void save();
 
     void sendHome(bool runOff);         // the dog goes home to camp (ped removed out of view)
@@ -49,7 +51,6 @@ private:
     void updateBond();
     void updateHealth();
     void updateStrays();
-    void praise();
     void died();
     bool updateWounded();   // true while the wounded state owns the dog this frame
     void startWounded();
@@ -78,6 +79,7 @@ private:
     bool sprinting_ = false;
     float lastFollowDist_ = 0;
     std::map<std::string, int> cooldownUntil_;
+    int lastDeedAt_ = -1000000;
 
     game::UiPrompt stayPrompt_, praisePrompt_, homePrompt_, tamePrompt_, revivePrompt_;
     Blip woundedBlip_ = 0;

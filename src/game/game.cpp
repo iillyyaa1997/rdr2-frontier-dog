@@ -148,9 +148,9 @@ struct SpeechParams {
     alignas(8) int v4;
 };
 
-void speech(Ped ped, const char* line) {
+bool speech(Ped ped, const char* line) {
     SpeechParams p{line, nullptr, 1, 1744022339, ped, 1, 1};
-    AUDIO::PLAY_PED_AMBIENT_SPEECH_NATIVE(ped, (Any*)&p);
+    return AUDIO::PLAY_PED_AMBIENT_SPEECH_NATIVE(ped, (Any*)&p) != 0;
 }
 
 bool onMission() { return MISC::GET_MISSION_FLAG() != 0; }
