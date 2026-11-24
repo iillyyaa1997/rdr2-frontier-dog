@@ -22,7 +22,7 @@ using namespace game;
 
 static game::UiPrompt g_attack, g_track, g_feed, g_leave;
 static Ped g_attackTarget = 0, g_trackTarget = 0, g_trackable = 0;
-static int g_attackUntil = 0, g_trackUntil = 0, g_warnUntil = 0, g_nextScan = 0;
+static int g_attackUntil = 0, g_trackUntil = 0, g_warnUntil = 0, g_nextScan = 0, g_attackRetaskAt = 0;
 static bool g_leaveMeAlone = false, g_feedOffered = false, g_trackOffered = false;
 static unsigned g_leaveZone = 0;
 static bool g_waitingOutside = false, g_hiddenForCutscene = false;
@@ -62,34 +62,63 @@ bool trackOffered() { return g_trackOffered; }
 
 bool busy() { return now() < g_attackUntil || now() < g_trackUntil || now() < g_warnUntil || hunting::busy() || abilities::busy(); }
 
-static bool attackable(Ped t, Ped dog) {
-    if (!alive(t) || t == dog || t == player() || stables::isTrader(t)) return false;
-    if (PED::GET_PED_RELATIONSHIP_GROUP_HASH(t) == MISC::GET_HASH_KEY("REL_GANG_DUTCHS")) return false;
-    if (!PED::IS_PED_ON_FOOT(t) || PED::_IS_THIS_MODEL_A_HORSE(ENTITY::GET_ENTITY_MODEL(t))) return false;
-    if (ctx().breeds.byAnimalType(ENTITY::_GET_PED_ANIMAL_TYPE(t))) return false;  // not at other dogs
-    if (ctx().ini.getBool("AttackAnimalsOnly", false) && !ENTITY::GET_IS_ANIMAL(t)) return false;
-    return dist(t, dog) <= float(ctx().tune("attack.range", 60));
+// why "Sic 'em" is not offered on someone Arthur aims at (nullptr: it is); logged once per target (Nexus 24.11 RsLeon:
+// «works for a while only» - his log will say which)
+static const char* notAttackable(Ped t, Ped dog) {
+    if (!alive(t)) return "not alive";
+    if (t == dog || t == player()) return "the dog or Arthur";
+    if (stables::isTrader(t)) return "the dog trader";
+    if (PED::GET_PED_RELATIONSHIP_GROUP_HASH(t) == MISC::GET_HASH_KEY("REL_GANG_DUTCHS")) return "the gang";
+    if (PED::_IS_THIS_MODEL_A_HORSE(ENTITY::GET_ENTITY_MODEL(t))) return "a horse";
+    if (!PED::IS_PED_ON_FOOT(t)) return "on a horse or in a wagon";
+    if (ctx().breeds.byAnimalType(ENTITY::_GET_PED_ANIMAL_TYPE(t))) return "another dog";
+    if (ctx().ini.getBool("AttackAnimalsOnly", false) && !ENTITY::GET_IS_ANIMAL(t)) return "a man (AttackAnimalsOnly)";
+    if (dist(t, dog) > float(ctx().tune("attack.range", 60))) return "too far from the dog";
+    return nullptr;
 }
+static bool attackable(Ped t, Ped dog) { return notAttackable(t, dog) == nullptr; }
 
 static void updateAttack(Ped dog, DogRecord& d) {
     Entity target = 0;
-    bool aiming = PLAYER::GET_PLAYER_TARGET_ENTITY(PLAYER::PLAYER_ID(), &target) && attackable(target, dog);
+    bool locked = PLAYER::GET_PLAYER_TARGET_ENTITY(PLAYER::PLAYER_ID(), &target) && target && ENTITY::IS_ENTITY_A_PED(target);
+    bool aiming = locked && attackable(target, dog);
     bool inside = INTERIOR::GET_INTERIOR_FROM_ENTITY(player()) && !ctx().ini.getBool("AllowEnteringInteriors", false);
+    static Entity s_whyFor = 0;
+    if (locked && target != s_whyFor && target != g_attackTarget) {
+        s_whyFor = target;
+        const char* why = notAttackable(target, dog);
+        if (!why && inside) why = "Arthur is indoors (AllowEnteringInteriors=0)";
+        if (!why && !ctx().feature("AttackPrompt")) why = "AttackPrompt=0";
+        if (why) FD_INFO("attack: no Sic 'em on ped %d (model 0x%08X): %s", target, ENTITY::GET_ENTITY_MODEL(target), why);
+    }
     if (aiming && !inside && ctx().feature("AttackPrompt")) {
         g_attack.setText(ctx().f("prompt.attack", {{"name", d.name}}, d.female));
         g_attack.setTarget(target);
         g_attack.show(true);
         if (g_attack.fired()) {
             g_attackTarget = target;
-            g_attackUntil = now() + 20000;  // busy while the target lives (old 0.11.2: no stuck-check recall mid-chase)
+            // busy while the target lives and is in reach (old 0.11.2: no stuck-check recall mid-chase); 25.11: it was
+            // a flat 20 s, after which the dog was called back from a target still alive («works for a while only»)
+            g_attackUntil = now() + ctx().tune("attack.max_ms", 60000);
+            g_attackRetaskAt = now() + 3000;
             TASK::TASK_COMBAT_PED(dog, target, 0, 16);
             speech(player(), PED::IS_PED_MALE(dog) ? "HORSE_RUN_AWAY_MALE" : "HORSE_RUN_AWAY_FEMALE");
-            FD_INFO("command: attack");
+            FD_INFO("command: attack ped %d (model 0x%08X) %.0f m from the dog", target, ENTITY::GET_ENTITY_MODEL(target), dist(target, dog));
         }
     } else {
         g_attack.show(false);
     }
-    if (g_attackTarget && (!alive(g_attackTarget) || now() > g_attackUntil)) {
+    // the dog's own AI may drop the fight (fear, a lost target): sent again every 3 s while the target is alive
+    if (g_attackTarget && alive(g_attackTarget) && now() >= g_attackRetaskAt) {
+        g_attackRetaskAt = now() + 3000;
+        if (!PED::IS_PED_IN_COMBAT(dog, g_attackTarget)) {
+            TASK::TASK_COMBAT_PED(dog, g_attackTarget, 0, 16);
+            FD_INFO("attack: the dog had stopped fighting ped %d - sent again", g_attackTarget);
+        }
+    }
+    bool farOff = g_attackTarget && alive(g_attackTarget) && dist(g_attackTarget, player()) > float(ctx().tune("attack.leash_m", 80));
+    if (g_attackTarget && (!alive(g_attackTarget) || now() > g_attackUntil || farOff)) {
+        FD_INFO("attack: over - %s", !alive(g_attackTarget) ? "the target is down" : (farOff ? "the target ran too far from Arthur" : "time up"));
         if (!alive(g_attackTarget)) {
             for (const auto& st : addDeed(d, ctx().breeds, "fight", 1, ctx().rng)) FD_INFO("hardening: %s", st.c_str());
             companion().noteDeed("fight");
@@ -141,7 +170,8 @@ static void updateDefend(Ped dog, DogRecord& d) {
         return;
     }
     g_attackTarget = best;
-    g_attackUntil = now() + 20000;
+    g_attackUntil = now() + ctx().tune("attack.max_ms", 60000);
+    g_attackRetaskAt = now() + 3000;
     TASK::TASK_COMBAT_PED(dog, best, 0, 16);
     FD_INFO("defend: goes for the %s fighting Arthur, %.0f m from him", PED::IS_PED_HUMAN(best) ? "man" : "animal", bd);
 }
@@ -288,7 +318,8 @@ void onScriptEvent(int index) {
         }
     } else if (id == str::joaat("FRONTIER_DOG_ATTACK") && companion().present() && alive(target)) {
         g_attackTarget = target;
-        g_attackUntil = now() + 20000;
+        g_attackUntil = now() + ctx().tune("attack.max_ms", 60000);
+        g_attackRetaskAt = now() + 3000;
         TASK::TASK_COMBAT_PED(companion().ped(), target, 0, 16);
     }
 }

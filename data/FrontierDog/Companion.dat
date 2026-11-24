@@ -41,6 +41,10 @@ wounded.health_pct=12
 trait.hardy.wait=1.5
 [Behaviour]
 attack.range=60
+# Sic 'em / defending: the dog keeps at it while the target lives, up to attack.max_ms, and is called back when the
+# target gets farther than attack.leash_m from Arthur (25.11: a flat 20 s called it off a live target)
+attack.max_ms=60000
+attack.leash_m=80
 predator.warn_range=40
 hunger.feed_from=20
 hunger.meal=60
