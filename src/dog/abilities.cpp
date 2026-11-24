@@ -83,9 +83,12 @@ static float noseFactor(const DogRecord& d);
 static bool recently(Ped p, int ms);
 
 // «Найди травы» on command and the Herbalist trait (D131: spots from the open RDOMap data, single-player match unverified)
+static Hash g_herbFoundModel = 0;  // the plant the dog went to (0: a map spot), for the log
+
 static bool nearestHerb(const Vector3& from, float range, Vector3& out) {
     float best = range;
     bool found = false;
+    g_herbFoundModel = 0;
     // first the plants that really grow around (objects of the herb models; the map spots are sparse - 17.11 his asks
     // found nothing within 80 m where the game had herbs)
     if (!g_herbModels.empty()) {
@@ -100,9 +103,13 @@ static bool nearestHerb(const Vector3& from, float range, Vector3& out) {
             best = d;
             out = p;
             found = true;
+            g_herbFoundModel = m;
         }
         if (found) return true;
     }
+    // the online map's spots: off by default since 24.11 - in single player a spot is often just a bush («собака находит
+    // не правильные травы, а только просто кустик»); herbs.map_spots=1 in Companion.dat brings them back
+    if (!ctx().tune("herbs.map_spots", 0)) return false;
     for (const auto& h : g_herbs) {
         float dx = h.x - from.x, dy = h.y - from.y, d = std::sqrt(dx * dx + dy * dy);
         if (d >= best) continue;
@@ -132,7 +139,7 @@ static void herbs(Ped dog, DogRecord& d) {
         }
         return;
     }
-    if (g_herbs.empty()) return;
+    if (g_herbs.empty() && g_herbModels.empty()) return;
     // asked: the dog searches far (the herb spots are sparse - within 30 m there was mostly nothing, and a completed hold
     // looked like nothing happened, his play 17.11); its nose and the Herbalist trait stretch it
     float range = float(ctx().tunef("herbs.ask_range", 80)) * noseFactor(d) * (ctx().hasTrait(d, "herbalist") ? 1.6f : 1.0f);
@@ -159,7 +166,8 @@ static void herbs(Ped dog, DogRecord& d) {
     g_herbUntil = t + 30000;
     TASK::CLEAR_PED_TASKS(dog, true, true);
     TASK::TASK_FOLLOW_NAV_MESH_TO_COORD(dog, spot.x, spot.y, spot.z, 2.0f, 30000, 1.0f, 0, 0.0f);
-    FD_INFO("herbs: %.0f m (%s)", dist(spot, pos(player())), asked ? "asked" : "herbalist");
+    FD_INFO("herbs: %.0f m (%s), %s 0x%08X", dist(spot, pos(player())), asked ? "asked" : "herbalist",
+            g_herbFoundModel ? "plant" : "map spot", g_herbFoundModel);
 }
 
 static float noseFactor(const DogRecord& d) {

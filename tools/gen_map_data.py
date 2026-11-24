@@ -22,7 +22,7 @@ for p in json.load(open(plants)):
 out.insert(3, "herbs=" + ",".join(kinds))
 # the plant models were found in game (17.11), not in RDOMap: kept from the file this one replaces
 try:
-    keep = [l.rstrip("\n") for l in open("data/FrontierDog/Herbs.dat") if l.startswith("plant_models=") or l.startswith("# the herb plants") or l.startswith("# of each kind")]
+    keep = [l.rstrip("\n") for l in open("data/FrontierDog/Herbs.dat") if l.startswith("plant_models=") or l.startswith("# the herb plants") or l.startswith("# of each kind") or l.startswith("# the other")]
 except OSError:
     keep = []
 out[3:3] = keep
