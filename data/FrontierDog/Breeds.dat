@@ -136,6 +136,7 @@ shiba.habit.zoomies_min=20
 shiba.habit.sulk_after_groom=20
 shiba.habit.camp_sleep_curled=1
 shiba.habit.quiet_alert=1
+shiba.habit.defend_min_courage=2
 
 [Huntress]
 # small and medium wild game a huntress goes after on her own (three-star only, D50)

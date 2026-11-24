@@ -55,7 +55,7 @@ better, and has a character of its own. Every system below can be switched off i
 ## Guarding
 - «Get him!» while aiming at a man or an animal; warns about predators once each; senses ambushes.
 - Stands up for you on its own (0.1.2): goes for the nearest man or animal fighting you within 30 m; never lawmen,
-  never the gang; a timid dog (Courage 1-2, not Fearless) only barks at them. Not on missions, in camp, when told to
+  never the gang; a timid dog (Courage 1-2, not Fearless) only barks at them, the Shiba goes in from Courage 2. Not on missions, in camp, when told to
   stay or «Leave it». AutoAttack=0 in the ini turns it off.
 - Guards your horse (Guard 1–3), Grip knocks fleeing men down, Fearless stands up to bears, growls at lawmen while
   you are wanted, Horse herder stops a bolting horse.

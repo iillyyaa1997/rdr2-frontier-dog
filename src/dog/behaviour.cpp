@@ -99,7 +99,7 @@ static void updateAttack(Ped dog, DogRecord& d) {
 
 // Stands up for Arthur on its own (24.11, his pick «1»: «хочется чтобы она могла сама нападать»): goes for the nearest
 // man or animal in a fight with Arthur within 30 m. Never lawmen (no bounty for a bite) or the gang; a timid dog
-// (Courage 1-2, not Fearless) only barks at them. Not on missions, in camp, under «Leave it», told to stay, while
+// (Courage 1-2, not Fearless; a breed's habit.defend_min_courage overrides the bar - the Shiba goes in at 2) only barks at them. Not on missions, in camp, under «Leave it», told to stay, while
 // busy with game or indoors. AutoAttack=0 in the ini turns it off.
 static int g_nextDefend = 0, g_barkAt = 0;
 
@@ -124,7 +124,11 @@ static void updateDefend(Ped dog, DogRecord& d) {
         if (dp <= range && dp < bd) { bd = dp; best = p; }
     }
     if (!best) return;
-    if (d.stats[Courage] < c.tune("defend.min_courage", 3) && !c.hasTrait(d, "fearless")) {
+    // a breed may go in braver than the rest: the Shiba from Courage 2 (24.11 «Сиба должна нападать даже при 2»)
+    const BreedDef* breed = c.breeds.find(d.breed);
+    long long minCourage = breed ? breed->habits.getInt("defend_min_courage", 0) : 0;
+    if (minCourage <= 0) minCourage = c.tune("defend.min_courage", 3);
+    if (d.stats[Courage] < minCourage && !c.hasTrait(d, "fearless")) {
         if (now() >= g_barkAt) {  // too timid to go in: it barks at them from Arthur's side
             g_barkAt = now() + 8000;
             g_warnUntil = now() + 4000;
