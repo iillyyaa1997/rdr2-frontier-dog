@@ -301,3 +301,4 @@ talk.done.bring={name} will be right here, mister.
 talk.done.bought=He's yours, mister. I've made out the papers.
 talk.done.bought.f=She's yours, mister. I've made out the papers.
 help.horse_pelts_full=The horse already carries three pelts — no room for more, the pelt lies beside it
+help.horse_pelts_full_carry=No room on the horse: it already carries three pelts

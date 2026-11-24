@@ -405,7 +405,7 @@ void CarryTask::stowOnHorse() {
 // _GET_PELT_FROM_HORSE(horse, 0..2) only
 static constexpr int kPeltPlaces = 3;
 
-static int peltsOnHorse(Ped horse) {
+int peltsOnHorse(Ped horse) {
     int n = 0;
     for (int i = 0; i < kPeltPlaces; ++i)
         if (PED::_GET_PELT_FROM_HORSE(horse, i)) ++n;

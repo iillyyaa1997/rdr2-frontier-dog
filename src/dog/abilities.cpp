@@ -541,12 +541,22 @@ static void bodiesAndPelts(Ped dog, DogRecord& d) {
     g_body.setTarget(can ? target : 0);
     g_body.show(can);
     if (can && g_body.fired()) hunting::bring(target, true, true, false, false);
-    // Arthur carries a pelt next to the dog: «Шкуру на лошадь»
+    // Arthur carries a pelt: «Шкуру на лошадь» in his own prompt list, no aiming at the dog (24.11 his ask: «как только
+    // я беру шкуру, не нужно наводиться на собаку»; the prompt on the dog is gone - one button, the same name). The dog
+    // may be up to pelt.give_range m away; not when the horse is far or its three pelt places are taken
     Entity carried = PED::_GET_FIRST_ENTITY_PED_IS_CARRYING(player());
     Ped horse = PLAYER::_GET_SADDLE_HORSE_FOR_PLAYER(PLAYER::PLAYER_ID());
-    bool pelt = carried && !ENTITY::IS_ENTITY_A_PED(carried) && alive(horse) && dist(dog, player()) < 4.0f && dist(horse, player()) < 80.0f &&
-                !hunting::busy();
-    g_pelt.setTarget(dog);
+    bool carriesPelt = carried && !ENTITY::IS_ENTITY_A_PED(carried) && ENTITY::_GET_IS_CARRIABLE_PELT(carried);
+    float giveRange = float(ctx().tune("pelt.give_range", 30));
+    bool room = alive(horse) && peltsOnHorse(horse) < 3;
+    static Entity s_fullNoted = 0;
+    if (carriesPelt && alive(horse) && !room && s_fullNoted != carried) {
+        s_fullNoted = carried;
+        helpText(ctx().t("help.horse_pelts_full_carry"), 5000);
+    }
+    bool pelt = carriesPelt && room && dist(dog, player()) < giveRange && dist(horse, player()) < 80.0f && !hunting::busy() &&
+                !companion().staying();
+    g_pelt.setTarget(0);
     g_pelt.show(pelt);
     if (pelt && g_pelt.fired()) {
         Vector3 f = ENTITY::GET_ENTITY_FORWARD_VECTOR(player());

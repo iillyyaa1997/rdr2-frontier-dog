@@ -6,6 +6,9 @@
 
 namespace fd {
 
+// pelts in the horse's pelt stack (the game's 3 places)
+int peltsOnHorse(Ped horse);
+
 enum class CarrySize { Small, Medium, Large };
 
 struct CarryJob {

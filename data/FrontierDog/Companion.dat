@@ -95,6 +95,8 @@ stables.trader_out=2
 stables.trader_aside=0
 stables.trader_reach=3
 # «Найди травы»: how far the dog searches when asked (× its nose, × 1.6 with the Herbalist trait)
+# «Шкуру на лошадь» while Arthur carries a pelt: the dog may be this far (m)
+pelt.give_range=30
 herbs.ask_range=80
 # 1 = when no herb plant grows within range, also lead to the online map's herb spots (in single player often just a bush)
 herbs.map_spots=0

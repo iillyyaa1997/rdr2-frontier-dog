@@ -14,6 +14,9 @@
 - The dog stands up for you on its own (asked for on Nexus): it goes for the nearest man or animal fighting you within
   30 m, never lawmen, and a timid dog (Courage 1-2) only barks at them — the Shiba goes in from Courage 2 (`habit.defend_min_courage` in Breeds.dat). `AutoAttack=0` in the ini turns it off.
 - Collars are gone: the only collar the game draws sat too big on some coats (asked about on Nexus).
+- «Pelt onto the horse» comes up as soon as Arthur carries a pelt, among his own prompts — no aiming at the dog, which
+  may be up to 30 m away (`pelt.give_range`); the old prompt on the dog is gone, one button. With three pelts already on
+  the horse a note says there is no room instead.
 - A pelt the dog puts on the horse is a real one now (his play 24.11: drawn on the horse, but the horse had none): it
   goes into the horse's pelt stack as the pelt's own item, the way the game records a stowed pelt and the trapper and
   the butcher count them; the stack holds three, a fourth stays beside the horse with a note instead of replacing one.
