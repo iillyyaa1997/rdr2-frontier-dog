@@ -92,6 +92,9 @@ void coreTick() {
     static const float kTrackEnd[10] = {.117f, .222f, .317f, .406f, .5f, .6f, .689f, .778f, .889f, 1.0f};  // measured 16.11
     float topHp = 1;
     for (double v : c.tuning.getFloats("health.max")) topHp = std::max(topHp, float(v));
+    float topStrength = 1;  // the strongest dog's health is the full track (health.strength, 24.11)
+    for (double v : c.tuning.getFloats("health.strength")) topStrength = std::max(topStrength, float(v));
+    topHp *= topStrength;
     int track = std::clamp(int(std::lround(std::min(1.0f, maxHp / topHp) * 10)) - 1, 0, 9);
     int meter = std::clamp(int(std::lround(health * kTrackEnd[track] * 100)) - 1, 0, 99);
     // the ring box keeps the ring at the size checked in game 16.11 (it was drawn 1.05 x the core box); the disc and

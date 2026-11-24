@@ -96,6 +96,10 @@ std::vector<std::string> rollTraits(int points, const BreedDef& own, const Breed
 // old D18: ~10 and ~25 uses; ailing dogs stop at 3 like every dog, their stat cap is handled elsewhere).
 bool addSkillUse(DogRecord& d, const std::string& skill, int usesL2, int usesL3);
 
+// Max health (24.11, his pick): by bonding level (health.max) times by the dog's own Strength 1..5 (health.strength:
+// a Shiba with Strength 2 has less than a Husky with 5), a quarter less when Ailing (D111)
+int maxHealth(const DogRecord& d, const std::vector<double>& byBond, const std::vector<double>& byStrength, double ailingCut);
+
 const char* gradeKey(Grade g, bool mutt);  // Lang key: grade.pedigree / grade.hardened / grade.ordinary / grade.ailing
 
 }  // namespace fd

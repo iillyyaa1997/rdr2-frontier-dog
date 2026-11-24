@@ -99,6 +99,11 @@ void Companion::spawn(bool outOfView, const Vector3* fixed) {
 }
 
 static bool invincible() { return ctx().ini.getBool("Invincible", false); }
+
+static int dogMaxHealth(const DogRecord& d) {
+    return maxHealth(d, ctx().tuning.getFloats("health.max"), ctx().tuning.getFloats("health.strength"),
+                     ctx().tunef("ailing.health_cut", 0.25));
+}
 // Invincible=1 (asked for on Nexus 22.11). SET_ENTITY_INVINCIBLE alone let APPLY_DAMAGE_TO_PED through (window 22.11:
 // 300 -> 150 -> 0, the dog died), so the entity is also made undamageable and its health topped up every frame.
 static void protect(Ped dog) {
@@ -143,9 +148,7 @@ void Companion::setup(Ped dog) {
     FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(dog, 165, 5.0f);
     PED::_SET_PED_SCENT(dog, 0);
     if (d) {
-        auto hp = ctx().tuning.getFloats("health.max");
-        int maxHp = d->bondLevel - 1 < int(hp.size()) ? int(hp[d->bondLevel - 1]) : 800;
-        if (d->grade == Grade::Ailing) maxHp = int(maxHp * (1.0 - ctx().tunef("ailing.health_cut", 0.25)));
+        int maxHp = dogMaxHealth(*d);
         ENTITY::SET_ENTITY_MAX_HEALTH(dog, maxHp);
         ENTITY::SET_ENTITY_HEALTH(dog, std::max(1, int(maxHp * std::clamp(d->healthFrac, 0.2, 1.0))), 0);
         if (d->scale > 0 && d->scale != 100) PED::_SET_PED_SCALE(dog, d->scale / 100.0f);
@@ -539,8 +542,7 @@ void Companion::addBond(double points, const std::string& reason, int cooldownMs
     if (lvl > d->bondLevel) {
         d->bondLevel = lvl;
         FD_INFO("bonding level %d for %s", lvl, d->name.c_str());
-        auto hp = ctx().tuning.getFloats("health.max");
-        if (lvl - 1 < int(hp.size()) && alive(ped_)) ENTITY::SET_ENTITY_MAX_HEALTH(ped_, int(hp[lvl - 1]));
+        if (alive(ped_)) ENTITY::SET_ENTITY_MAX_HEALTH(ped_, dogMaxHealth(*d));
         helpText(ctx().f("help.bond_level", {{"name", d->name}, {"level", std::to_string(lvl)}}, d->female));
         save();
     }

@@ -191,3 +191,22 @@ TEST(prices_and_stock) {
     CHECK_EQ(a[0].dog.uid, b[0].dog.uid);
     for (auto& s : a) { CHECK(s.dog.papers); CHECK(s.dog.grade != fd::Grade::Ailing); }
 }
+
+TEST(max_health_by_bond_strength_and_grade) {
+    const auto& t = table();
+    fd::Rng rng(5);
+    fd::RollChances c;
+    std::vector<double> bond = {800, 960, 1120}, str = {0.7, 0.85, 1, 1.15, 1.3};
+    auto shiba = fd::makeDog(*t.find("shiba"), t, fd::Grade::Pedigree, rng, c, {});
+    auto husky = fd::makeDog(*t.find("husky"), t, fd::Grade::Pedigree, rng, c, {});
+    CHECK_EQ(shiba.stats[fd::Strength], 2);
+    CHECK_EQ(husky.stats[fd::Strength], 5);
+    shiba.bondLevel = husky.bondLevel = 2;
+    CHECK_EQ(fd::maxHealth(shiba, bond, str, 0.25), 816);
+    CHECK_EQ(fd::maxHealth(husky, bond, str, 0.25), 1248);
+    husky.bondLevel = 3;
+    CHECK_EQ(fd::maxHealth(husky, bond, str, 0.25), 1456);
+    shiba.grade = fd::Grade::Ailing;
+    CHECK_EQ(fd::maxHealth(shiba, bond, str, 0.25), 612);
+    CHECK_EQ(fd::maxHealth(husky, bond, {}, 0.25), 1120);  // no strength row: by bond only, as before
+}

@@ -446,4 +446,12 @@ const char* gradeKey(Grade g, bool mutt) {
     }
 }
 
+int maxHealth(const DogRecord& d, const std::vector<double>& byBond, const std::vector<double>& byStrength, double ailingCut) {
+    double hp = d.bondLevel >= 1 && d.bondLevel - 1 < int(byBond.size()) ? byBond[d.bondLevel - 1] : 800.0;
+    int s = d.stats[Strength];
+    if (s >= 1 && s <= int(byStrength.size())) hp *= byStrength[s - 1];
+    if (d.grade == Grade::Ailing) hp *= 1.0 - ailingCut;
+    return std::max(1, int(hp + 0.5));
+}
+
 }  // namespace fd

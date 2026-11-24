@@ -33,7 +33,8 @@ better, and has a character of its own. Every system below can be switched off i
   meets it.
 
 ## Life and death
-- Health 800 / 960 / 1120 by bond (doubled in 0.1.2: one shot used to put it down).
+- Health 800 / 960 / 1120 by bond (doubled in 0.1.2: one shot used to put it down), times the dog's own Strength:
+  ×0.7 / 0.85 / 1 / 1.15 / 1.3 for Strength 1-5 (a Shiba 816 at bond 2, a Husky 1248); a quarter less when Ailing.
 - A badly hurt dog goes down and waits 5, 15 or 30 minutes (by bond) for a Dog Reviver or a Horse Reviver; revived dogs
   limp until treated with horse medicine or a tonic.
 - Not saved in time, it is nursed back in camp for a day and returns one grade lower instead of dying; an Ailing dog

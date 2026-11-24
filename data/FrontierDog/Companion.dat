@@ -9,6 +9,8 @@ follow.boost_from_m=8
 # while Arthur rides: a dog farther than this that is not closing in comes after him out of his view
 follow.mounted_arrive_m=60
 health.max=800,960,1120
+# times this by the dog's own Strength 1..5 (24.11: a Shiba should not take as much as a Husky)
+health.strength=0.7,0.85,1,1.15,1.3
 bond.points.2=100
 bond.points.3=400
 bond.feed=8

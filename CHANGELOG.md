@@ -35,6 +35,9 @@
 - Twice the health: 800 / 960 / 1120 by bond level (was 400 / 480 / 560). In play one shot was enough to put the dog
   down wounded (his logs: 3 of 3 times it went down, none killed outright). Headshots and explosions still kill unless
   ProtectFromInstantDeath=1.
+- Health also follows the dog's own Strength: ×0.7 / 0.85 / 1 / 1.15 / 1.3 for Strength 1-5 (`health.strength` in
+  Companion.dat), so at bond 2 a Shiba has 816 and a Husky 1248; an Ailing dog has a quarter less, now also after a
+  bond level-up (it used to get the full amount back then).
 - The dog keeps up with your horse: while you ride and it is more than 8 m behind, it sprints after you at once (it
   used to trot and run only from 25 m) and 1.5 times faster; stuck or left more than 60 m behind, it comes after you
   out of view (follow.* in Companion.dat). Test rides 22.11 at the gallop: 2-15 m behind most of the way, up to ~50 m
