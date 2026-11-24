@@ -566,6 +566,13 @@ static void bodiesAndPelts(Ped dog, DogRecord& d) {
     }
     bool pelt = carriesPelt && room && dist(dog, player()) < giveRange && dist(horse, player()) < 80.0f && !hunting::busy() &&
                 !companion().staying();
+    // never over the game's own prompt (25.11 his play: right by the horse ours took the place of the game's stow, and he
+    // could not put the pelt on himself): gone near the horse, and it does not come while another prompt holds its
+    // button (checked while ours is hidden - shown, it would count itself)
+    if (pelt && dist(horse, player()) < float(ctx().tunef("pelt.hide_near_horse_m", 6))) pelt = false;
+    static bool s_shown = false;
+    if (pelt && !s_shown && HUD::UI_PROMPT_IS_CONTROL_ACTION_ACTIVE(MISC::GET_HASH_KEY("INPUT_CONTEXT_Y"))) pelt = false;
+    s_shown = pelt;
     g_pelt.setTarget(0);
     g_pelt.show(pelt);
     if (pelt && g_pelt.fired()) {

@@ -8,6 +8,8 @@
   game shows nothing on our buttons there; the campfire and telegram prompts show the price ($5–15 by distance).
 - «Other» on the delivery prompts is «Another dog»; the passer-by message is offered only on foot (from the saddle a
   lone «Other» showed).
+- «Pelt onto the horse» no longer covers the game's own stow: it is gone within 6 m of the horse, and it does not come
+  while another prompt holds its button (25.11: by the horse Arthur could not put the pelt on himself).
 - "Sic 'em" and defending last while the target is alive and within 80 m of you (up to a minute; it was a flat 20 s,
   then the dog was called back from a live target - Nexus 24.11), and a dog that drops the fight is sent again. The log
   says why "Sic 'em" is not offered on someone you aim at (a rider, a horse, another dog, the gang, indoors, too far).
