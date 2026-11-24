@@ -103,6 +103,10 @@ herbs.ask_range=80
 # 1 = when no herb plant grows within range, also lead to the online map's herb spots (in single player often just a bush)
 herbs.map_spots=0
 ; the courier (D144): leaves camp and rides on the map at this pace, real rider within live range
+# a passer-by takes a message to camp only if the game itself made him as a random stranger (population types; 24.11)
+# and only after message.settle_ms with none of our buttons taken by another prompt
+message.population_types=4,5
+message.settle_ms=400
 courier.speed_mps=9
 courier.live_range=140
 courier.step_m=60

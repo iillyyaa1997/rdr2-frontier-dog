@@ -21,10 +21,12 @@
   trapper and the butcher sell out of the horse's inventory, which the dog never filled — the pelt now goes into the
   inventory as well as into the horse's pelt stack (the pelt's own item, as the game records one Arthur stows), and
   pelts an older version left on the horse only as a picture are added to its inventory when the game loads; the stack holds three, a fourth stays beside the horse with a note instead of replacing one.
-- The «send a message to camp» prompt is offered only to the game's ambient passers-by (his play 24.11: at a sawmill
-  the foreman asking for help with wolves showed our «Other» where the game's «Accept» should be, and the job could
-  not be taken): no longer on people a script made — strangers with jobs, bounties, other mods' NPCs, anyone with a
-  map marker.
+- The «send a message to camp» prompt is offered only to a «Stranger» — a random passer-by the game made by itself (his
+  play 24.11: at a sawmill the foreman asking for help with wolves showed our «Other» where the game's «Accept» should
+  be, and the job could not be taken). Never on people a script made or with a role or a map marker (job givers,
+  bounties, other mods' NPCs), and our buttons never take another prompt's place: when the game or another mod already
+  shows a prompt on one of them for that person, ours do not come at all (`message.population_types`,
+  `message.settle_ms` in Companion.dat).
 - A wounded dog waiting for a reviver can no longer be finished off (his play 24.11: down in a shoot-out with lawmen,
   dead 38 s later instead of waiting its 15 minutes): while down it is undamageable (bullets no longer hurt it) and
   its health sits on a big buffer topped up every frame, so damage applied by other scripts (bleeding, damage mods) can

@@ -29,6 +29,36 @@ static int g_slot = -1, g_stageAt = 0, g_orderedAt = 0, g_progressAt = 0;
 static float g_lastDist = 0;
 static Ped g_rider = 0, g_horse = 0, g_dog = 0, g_messenger = 0;
 static game::UiPrompt g_campNext, g_campOrder, g_message, g_messageNext;  // g_messageNext: which dog the passer-by asks for
+
+// a «Незнакомец»: a random passer-by the game made by itself (not a script's, not a permanent role)
+static bool strangerPopulation(Entity ped) {
+    int type = ENTITY::GET_ENTITY_POPULATION_TYPE(ped);
+    for (double v : ctx().tuning.getFloats("message.population_types"))
+        if (int(v) == type) return true;
+    return false;
+}
+
+// Our passer-by buttons never cover another prompt: for a newly focused person they wait message.settle_ms hidden while
+// the game puts up its own prompts, then come only if no prompt shows on our buttons (UI_PROMPT_IS_CONTROL_ACTION_ACTIVE).
+// The answer holds for that person until the focus moves on.
+static bool buttonsFree(Entity focus, int t, bool withNext) {
+    static Entity s_for = 0;
+    static int s_since = 0;
+    static int s_state = 0;  // 0 deciding, 1 free, -1 busy
+    if (focus != s_for) { s_for = focus; s_since = t; s_state = 0; }
+    if (s_state != 0) return s_state > 0;
+    if (t - s_since < 100) return false;  // our own prompts of the last person are still up for a frame or two
+    bool busy = HUD::UI_PROMPT_IS_CONTROL_ACTION_ACTIVE(MISC::GET_HASH_KEY("INPUT_INTERACT_OPTION1")) ||
+                (withNext && HUD::UI_PROMPT_IS_CONTROL_ACTION_ACTIVE(MISC::GET_HASH_KEY("INPUT_CONTEXT_X")));
+    if (busy) {
+        s_state = -1;
+        FD_INFO("passer-by %d: the game already shows a prompt on our buttons - no message prompt", focus);
+        return false;
+    }
+    if (t - s_since < ctx().tune("message.settle_ms", 400)) return false;
+    s_state = 1;
+    return true;
+}
 static int g_campIndex = 0, g_whistleSince = 0;
 static std::vector<Vector3> g_telegraphs;
 static Vector3 g_virt, g_wp;  // the courier while out of range (on the map) and his next road point
@@ -513,15 +543,29 @@ void tick() {
     Entity focus = 0;
     PLAYER::GET_PLAYER_INTERACTION_TARGET_ENTITY(PLAYER::PLAYER_ID(), &focus, false, false);
     // passers-by outdoors only: indoors it sat in the bartender's menu and hid Care Overhaul's canteen refill (22.11).
-    // Only the game's ambient people: a man a script made (a stranger with a job, the sawmill foreman asking about the
-    // wolves on 24.11, a bounty, another mod's NPC) is a mission entity or carries a blip, and our «Другое» took the place
-    // of the game's «Принять» there
+    // His rule (24.11, after the sawmill foreman's «Принять» was taken by our «Другое»): only a «Незнакомец» - a random
+    // passer-by the game made by itself (population type in message.population_types), never anyone a script made or
+    // with a role or a blip - and our buttons never take another prompt's place: when the person is focused they stay
+    // hidden for a moment, and if the game (or another mod) already shows a prompt on one of our buttons, they do not
+    // come at all for this person.
     bool canAsk = focus && alive(focus) && PED::IS_PED_HUMAN(focus) && !slots.empty() && dist(focus, player()) < 4.0f &&
                   !INTERIOR::GET_INTERIOR_FROM_ENTITY(player()) && !ENTITY::IS_ENTITY_A_MISSION_ENTITY(focus) &&
-                  !MAP::GET_BLIP_FROM_ENTITY(focus) &&
+                  !MAP::GET_BLIP_FROM_ENTITY(focus) && strangerPopulation(focus) &&
                   PED::GET_PED_RELATIONSHIP_GROUP_HASH(focus) != MISC::GET_HASH_KEY("REL_COP") &&
                   PED::GET_PED_RELATIONSHIP_GROUP_HASH(focus) != MISC::GET_HASH_KEY("REL_GANG_DUTCHS") &&
                   !PED::IS_PED_IN_COMBAT(focus, 0);
+#ifdef FD_TEST
+    static Entity s_seen = 0;
+    if (focus != s_seen) {
+        s_seen = focus;
+        if (focus && PED::IS_PED_HUMAN(focus))
+            FD_INFO("passer-by focus: ped %d model 0x%08X population %d mission %d blip %d, %.1f m -> can ask %d", focus,
+                    ENTITY::GET_ENTITY_MODEL(focus), ENTITY::GET_ENTITY_POPULATION_TYPE(focus),
+                    int(ENTITY::IS_ENTITY_A_MISSION_ENTITY(focus)), int(MAP::GET_BLIP_FROM_ENTITY(focus) != 0), dist(focus, player()),
+                    int(canAsk));
+    }
+#endif
+    canAsk = canAsk && buttonsFree(focus, t, slots.size() > 1);
     if (canAsk) {
         // which dog: the same pick as at the campfire and the telegraph («Другое» goes through the dogs at home)
         g_campIndex %= int(slots.size());
