@@ -11,7 +11,10 @@
   (reported on Nexus): a yard spot under a roof now moves out into the open, as one inside a building already did.
 - The inspect card no longer runs off its frame when a dog has many traits (reported on Nexus): page 2 measures
   itself, long descriptions wrap, and when traits and skills do not fit the skills go to a page 3.
-- `Collar=0` in FrontierDog.ini: your dogs go without a collar (asked for on Nexus: it is big on some coats).
+- Collars are gone: the only collar the game draws sat too big on some coats (asked about on Nexus).
+- Brush shows much sooner: once the coat is a little dirty (about 10 minutes outdoors) instead of after 40 minutes,
+  and a dirty dog's Brush is no longer pushed out of a full prompt list. A quick brush gives a little bond, a dirty
+  coat the full 5.
 - `DogPricePercent=100` in FrontierDog.ini: the price of the dogs for sale in percent, for economy mods (asked for on
   Nexus); what the trader pays for your dog follows it.
 - Twice the health: 800 / 960 / 1120 by bond level (was 400 / 480 / 560). In play one shot was enough to put the dog

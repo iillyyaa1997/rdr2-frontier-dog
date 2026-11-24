@@ -97,8 +97,11 @@ void tick() {
         g_limpAssert = t + 5000;
     }
 
-    // brush
-    bool dirty = d->dirt >= c.tunef("care.brush_from", 40);
+    // brush: offered as soon as the coat is a little dirty (24.11: he never found it - it waited for dirt 40, 40 real
+    // minutes outdoors without a swim, and then came last in a full prompt group); a dirty dog's brush outranks Praise
+    bool dirty = d->dirt >= c.tunef("care.brush_from", 10);
+    bool veryDirty = d->dirt >= c.tunef("care.brush_bond_from", 40);
+    g_brush.setRank(veryDirty ? 25 : 55);
     g_brush.setTarget(dog);
     g_brush.show(close && dirty && !g_brushDoneAt && !hunting::busy());
     if (g_brush.fired()) {
@@ -107,9 +110,12 @@ void tick() {
     }
     if (g_brushDoneAt && t >= g_brushDoneAt) {
         g_brushDoneAt = 0;
+        bool wasDirty = d->dirt >= c.tunef("care.brush_bond_from", 40);
         d->dirt = 0;
         cleanLook(dog);
-        comp.addBond(c.tunef("bond.brush", 5), "brush", c.tune("bond.brush_cooldown_ms", 300000));
+        // the full bond for a dirty coat, a little for a quick brush (no farming: the cooldown is shared)
+        comp.addBond(c.tunef(wasDirty ? "bond.brush" : "bond.brush_light", wasDirty ? 5 : 1), "brush",
+                     c.tune("bond.brush_cooldown_ms", 300000));
         const BreedDef* b = c.breeds.find(d->breed);
         int sulk = b ? int(b->habits.getInt("sulk_after_groom", 0)) : 0;
         if (sulk > 0) {  // the Shiba sits with her back to Arthur for a while (old D56)

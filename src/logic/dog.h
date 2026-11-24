@@ -23,7 +23,6 @@ struct DogRecord {
     bool female = false;
     std::string model;      // model name
     int preset = -1;
-    std::string collar;     // Collars.dat id, empty: none (17.11)
     int scale = 100;
     Grade grade = Grade::Ordinary;
     bool papers = false;    // bought in a shop or papers bought at a stable (D118)

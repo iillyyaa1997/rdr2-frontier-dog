@@ -22,8 +22,6 @@ vet.pedigree_price=150
 vet.pedigree_days=7
 [Stable]
 rename.price=2
-# another collar from the stable hand (Collars.dat)
-collar.price=8
 swap.price=5
 swap.bring_seconds=15
 # training to level 2 / level 3, then × by trainability 1..5 (old D61)

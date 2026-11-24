@@ -8,7 +8,7 @@
 
 #include "core/log.h"
 #include "core/strutil.h"
-#include "dog/collars.h"
+#include "dog/coat.h"
 #include "dog/companion.h"
 #include "game/game.h"
 #include "game/keys.h"
@@ -319,7 +319,7 @@ static void yardLife(const Stable& st) {
 struct MenuItem {
     std::string text;
     int price = 0;  // dollars
-    int kind = 0;   // 1 train, 2 cure, 3 pedigree, 4 papers, 5 rename, 6 sell, 7 bring, 8 collar, 10 buy
+    int kind = 0;   // 1 train, 2 cure, 3 pedigree, 4 papers, 5 rename, 6 sell, 7 bring, 10 buy
     std::string arg;
     int slot = -1;
 };
@@ -346,10 +346,6 @@ static std::vector<MenuItem> menu(DogRecord* d) {
         if (b && !b->mutt && d->grade == Grade::Ordinary) out.push_back({c.t("stable.pedigree"), c.econ.pedigreePrice, 3});
         if (!d->papers) out.push_back({c.t("stable.papers"), papersPrice(*d, c.econ), 4});
         out.push_back({c.t("stable.rename"), c.econ.renamePrice, 5});
-        std::string worn = collars::worn(*d);  // a dog of Arthur's is never without one: changed, not taken off
-        for (const auto& id : collars::ids())
-            if (id != worn)
-                out.push_back({c.f("stable.collar", {{"collar", c.t("collar." + id)}}), c.econ.collarPrice, 8, id});
         out.push_back({c.f("stable.sell", {{"name", d->name}}, d->female), -sellPrice(*d, c.breeds, c.econ), 6});
     }
     for (int i = 0; i < DogStore::kSlots; ++i) {
@@ -416,14 +412,6 @@ static void doItem(const MenuItem& m, const Stable& st) {
             comp.releaseForSale();
             return;
         }
-        case 8:
-            if (!d) return;
-            d->collar = m.arg;
-            comp.save();
-            if (Ped p = comp.ped()) collars::dress(p, *d);
-            helpText(c.f("help.collar_on", {{"name", d->name}}, d->female));
-            FD_INFO("stable: %s collar %s", d->name.c_str(), m.arg.c_str());
-            return;
         case 7:
             g_bringSlot = m.slot;
             g_bringAt = now() + c.econ.swapBringSeconds * 1000;
@@ -457,13 +445,13 @@ static void updateKeyboard() {
 // paper of the game's own map), the trader's line and the answers on the right; up/down + accept or the number keys,
 // back/«Бывай» closes. The deeds are the old menu's (doItem). TraderTalk=0 in the ini keeps the old prompt list. ----
 
-enum class Screen { Root, Train, Sale, Collar, Sell, Bring };
+enum class Screen { Root, Train, Sale, Sell, Bring };
 static Screen g_screen = Screen::Root;
 static int g_sel = 0, g_saleIdx = 0, g_talkSince = 0;
 static std::string g_line;
 static std::string g_testKey;                     // FD_TEST: a key pressed by the test hook
 
-// kinds 1..10 = the old menu's deeds (doItem); the talk's own: 20 training list, 21 dogs for sale, 22 collars,
+// kinds 1..10 = the old menu's deeds (doItem); the talk's own: 20 training list, 21 dogs for sale,
 // 23 his price for the dog, 24 dogs at home, 26 the next dog for sale, 27 back, 28 goodbye
 struct TalkOpt {
     std::string text;
@@ -519,7 +507,6 @@ static std::vector<TalkOpt> talkOptions(DogRecord* d) {
                     int p = papersPrice(*d, c.econ);
                     o.push_back({priced(c.t("talk.opt.papers", fem), p), 4, p});
                 }
-                if (collars::ids().size() > 1) o.push_back({priced(c.t("talk.opt.collar"), c.econ.collarPrice), 22});
                 o.push_back({priced(c.t("talk.opt.rename"), c.econ.renamePrice), 5, c.econ.renamePrice});
                 o.push_back({c.t("talk.opt.sell", fem), 23});
             }
@@ -546,13 +533,6 @@ static std::vector<TalkOpt> talkOptions(DogRecord* d) {
             if (slots.size() > 1) o.push_back({c.t("talk.opt.next_dog"), 26});
             break;
         }
-        case Screen::Collar:
-            if (d) {
-                std::string worn = collars::worn(*d);
-                for (const auto& id : collars::ids())
-                    if (id != worn) o.push_back({priced(c.t("collar." + id), c.econ.collarPrice), 8, c.econ.collarPrice, id});
-            }
-            break;
         case Screen::Sell:
             if (d) {
                 int price = sellPrice(*d, c.breeds, c.econ);
@@ -600,7 +580,6 @@ static std::string screenLine(DogRecord* d) {
                                              {"price", std::to_string(g_sale[g_saleIdx].stock.price)}}, s.female);
             }
             return c.t("talk.hello.nodog");
-        case Screen::Collar: return c.t("talk.say.collar", fem);
         case Screen::Sell:
             if (!d) return "";
             return c.f(d->papers ? "talk.say.sell" : "talk.say.sell_nopapers",
@@ -641,7 +620,6 @@ static void talkAnswer(const TalkOpt& o, const Stable& st) {
     switch (o.kind) {
         case 20: goScreen(Screen::Train, d); return;
         case 21: goScreen(Screen::Sale, d); return;
-        case 22: goScreen(Screen::Collar, d); return;
         case 23: goScreen(Screen::Sell, d); return;
         case 24: goScreen(Screen::Bring, d); return;
         case 26: {
@@ -681,7 +659,6 @@ static void talkAnswer(const TalkOpt& o, const Stable& st) {
         case 4: g_line = c.t("talk.done.papers", fem); break;
         case 6: g_line = c.f("talk.done.sold", {{"name", name}}, fem); break;
         case 7: g_line = c.f("talk.done.bring", {{"name", o.slot >= 0 && c.store.used(o.slot) ? c.store.at(o.slot).name : ""}}); break;
-        case 8: g_line = c.t("talk.done.collar", fem); break;
         case 10: g_line = c.t("talk.done.bought", now && now->female); break;
         default: g_line = screenLine(now);
     }

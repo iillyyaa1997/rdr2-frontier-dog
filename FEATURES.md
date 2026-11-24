@@ -60,7 +60,8 @@ better, and has a character of its own. Every system below can be switched off i
 
 ## Care
 - Hunger and feeding from your satchel (meat, Dog Food, Dog Treat), its own dirt that shows on the coat, brushing,
-  resting by the campfire.
+  resting by the campfire. Brush (focus the dog, on foot, within 3 m) shows once the coat is a little dirty (about 10
+  minutes outdoors; a swim washes it); a dirty coat (40) gives the full bond and puts Brush ahead of Praise.
 - The Shiba's habits: sulks after a brush, watches you eat, shy of strangers, zoomies, sleeps curled up in camp, quiet
   alerts, wary of water until bond 3, won't carry one-star game.
 
@@ -69,9 +70,8 @@ better, and has a character of its own. Every system below can be switched off i
 - Take one along for free or let one go for good; at home dogs are fed and rested and their bond grows slowly.
 
 ## Collars
-- Every dog of yours wears a collar - the studded leather one by default (the bloodhound's, the only collar the game
-  draws as a part of its own; it fits any dog). Strays and dogs for sale go without until they are yours; a bought or
-  tamed dog puts it on at once. Collar=0 in the ini: no collar on your dogs.
+- None (0.1.2, his call 24.11: «так себе»). The one collar the game draws as a part of its own (the bloodhound's
+  studded leather one) sat too big on some coats; the collar menu, Collars.dat and the Collar= option are gone.
 
 ## Stables
 - Dogs for sale in the yard of all eight stables, by the door: three of the region's breeds, standard or pedigree,
@@ -87,7 +87,7 @@ better, and has a character of its own. Every system below can be switched off i
 - The dog trader («Другое» leafs through his list, each item fires once per press) sells the dogs you see
   («Купить: Стандартная Дворняга — $15»; the game's own Pet prompt takes the key on a dog for sale, so buying is in this
   list), trains skills, cures an Ailing dog ($40, one day), makes a breed dog Pedigree ($150, seven days), issues
-  papers, makes a new name collar (rename), changes the collar for another one ($8), buys your dog (60 % with papers,
+  papers, makes a new name tag (rename), buys your dog (60 % with papers,
   30 % without) and brings a dog from home ($5, 15 seconds).
 
 ## Delivery from camp
@@ -123,15 +123,13 @@ better, and has a character of its own. Every system below can be switched off i
 - Script events (`FRONTIER_DOG_*`) for other mods.
 
 ## Planned
-- Collars in several colours: the studded collar recoloured with the game's own palettes (metaped_tint_*), the
-  colours picked from an in-game survey; the stable hand sells them.
 - Real Shiba coats (red, sesame, black and tan) as own textures — own texture dictionaries work in game now.
 - A wet coat after swimming (how the game draws it, to be researched).
 - On Nexus with the shop items and the paw core icon: the items need a catalog built on the player's own PC (ours is
   a copy of red_dead_offline's), the icon an LML folder checked in game. README in English and Russian.
 
 ## Not possible yet
-- Other collar shapes and bandanas: the game draws only one collar as a part of its own (the bloodhound's studded
-  leather one, now in the mod); the foxhound's collar is painted into its coat, and no bandana was found on any of the
+- Collars and bandanas worth having: the game draws only one collar as a part of its own (the bloodhound's studded
+  leather one, dropped 24.11); the foxhound's collar is painted into its coat, and no bandana was found on any of the
   14 dog models (57 coats looked at, 17.11).
 - The game's own dirt level reads 0 on dogs, so the mod keeps its own dirt counter (that one works).

@@ -10,7 +10,7 @@
 #include "core/fs.h"
 #include "core/log.h"
 #include "core/strutil.h"
-#include "dog/collars.h"
+#include "dog/coat.h"
 #include "dog/stables.h"
 #include "dog/companion.h"
 #include "dog/delivery.h"
@@ -365,21 +365,6 @@ static void run(const std::vector<std::string>& a) {
             if (best) PED::_SET_PELT_FOR_HORSE(horse, best);
         }
         for (int i = 0; i < 8; ++i) FD_INFO("test: horse pelt %d = %d", i, PED::_GET_PELT_FROM_HORSE(horse, i));
-    } else if (cmd == "collartint" && a.size() >= 5 && comp.present()) {
-        // collartint <palette name|0> <tint0> <tint1> <tint2>: the studded collar recoloured on the companion (survey of
-        // collar colours; palettes are metaped_tint_*)
-        Hash pal = a[1] == "0" ? 0 : MISC::GET_HASH_KEY(a[1].c_str());
-        PED::_SET_META_PED_TAG(comp.ped(), 0x401AFD6D, 0x2878FA0B, 0xDC62DC1C, 0xB0582D1F, pal, int(num(2, 0)),
-                               int(num(3, 0)), int(num(4, 0)));
-        PED::_UPDATE_PED_VARIATION(comp.ped(), false, true, true, true, false);
-        FD_INFO("test: collar palette %s (0x%08X) tints %d %d %d", a[1].c_str(), pal, int(num(2, 0)), int(num(3, 0)), int(num(4, 0)));
-    } else if (cmd == "collar" && a.size() >= 2 && comp.record()) {
-        // collar <id>: what the stable hand does, free (Collars.dat ids); 'off' = back to the default one
-        if (a[1] != "off" && !collars::known(a[1])) { FD_INFO("test: no collar %s", a[1].c_str()); return; }
-        comp.record()->collar = a[1] == "off" ? "" : a[1];
-        comp.save();
-        collars::dress(comp.ped(), *comp.record());
-        FD_INFO("test: collar %s", a[1].c_str());
     } else if ((cmd == "walkto" || cmd == "walkstraight") && a.size() >= 3) {
         // walkto <x> <y> [speed 1 walk .. 3 sprint] [z]: Arthur walks there on the navmesh like a player would (a stable
         // hand's menu reached on foot, not by a teleport into the building); walkstraight ignores the navmesh

@@ -59,8 +59,11 @@ skill.uses.3=25
 [Care]
 hunger.hours=48
 care.limp_minutes=30
-care.brush_from=40
+# Brush is offered from this dirt (a real minute outdoors = +1, a swim washes it), the full bond from brush_bond_from
+care.brush_from=10
+care.brush_bond_from=40
 bond.brush=5
+bond.brush_light=1
 bond.brush_cooldown_ms=300000
 bond.heal=4
 [Home]

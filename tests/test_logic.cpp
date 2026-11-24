@@ -150,7 +150,7 @@ TEST(record_roundtrip_keeps_unknown_keys) {
     fd::Rng rng(1);
     fd::RollChances c;
     auto d = fd::makeDog(*t.find("shiba"), t, fd::Grade::Pedigree, rng, c, {});
-    d.name = "Мики"; d.female = true; d.bondPoints = 12.5; d.deeds["hunt"] = 3; d.woundedX = 1.5f; d.collar = "studded";
+    d.name = "Мики"; d.female = true; d.bondPoints = 12.5; d.deeds["hunt"] = 3; d.woundedX = 1.5f;
     fd::KvFile kv = d.toKv();
     kv.set("from_a_newer_version", "x");
     fd::DogRecord r; r.fromKv(kv);
@@ -159,7 +159,6 @@ TEST(record_roundtrip_keeps_unknown_keys) {
     CHECK_EQ(r.stats[fd::Courage], 5);
     CHECK_EQ(r.traits.size(), d.traits.size());
     CHECK_EQ(r.deeds["hunt"], 3);
-    CHECK_EQ(r.collar, std::string("studded"));
     CHECK_EQ(r.toKv().get("from_a_newer_version"), std::string("x"));
     CHECK_EQ(r.toKv().getInt("schema"), 1LL);
 }
