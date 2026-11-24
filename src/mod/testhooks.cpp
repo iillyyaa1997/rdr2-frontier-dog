@@ -125,6 +125,33 @@ static void run(const std::vector<std::string>& a) {
         // foe [model] [metres]: a hostile man who attacks Arthur (guard, grip, honor shield)
         Ped s = spawnPed(a.size() > 1 ? a[1] : "a_m_m_huntertravelers_cool_01", add(p, scale(fwd, float(num(2, 15)))), 0);
         if (s) { g_spawned.push_back(s); TASK::TASK_COMBAT_PED(s, pl, 0, 16); }
+    } else if (cmd == "hogtied") {
+        // hogtied [hate|town|crim] [metres]: a man lying hogtied in front of Arthur who never fought him (Honor Shield
+        // 1.4.0: robbing a hogtied O'Driscoll cost -5 on 24.11). hate = a group that hates the player, crim = REL_CRIMINALS
+        std::string kind = a.size() > 1 ? a[1] : "hate";
+        Ped s = spawnPed("a_m_m_huntertravelers_cool_01", add(p, scale(fwd, float(num(2, 3)))), 0);
+        if (s) {
+            g_spawned.push_back(s);
+            if (kind == "hate") {
+                static Hash grp = 0;
+                if (!grp) PED::ADD_RELATIONSHIP_GROUP("FD_TEST_HATE", &grp);
+                PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, grp, MISC::GET_HASH_KEY("PLAYER"));
+                PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, MISC::GET_HASH_KEY("PLAYER"), grp);
+                PED::SET_PED_RELATIONSHIP_GROUP_HASH(s, grp);
+            } else if (kind == "crim") {
+                PED::SET_PED_RELATIONSHIP_GROUP_HASH(s, MISC::GET_HASH_KEY("REL_CRIMINALS"));
+            }
+            TASK::TASK_KNOCKED_OUT_AND_HOGTIED(s, 0.0f, 0);
+        }
+        FD_INFO("test: hogtied %s -> %d, relationship to Arthur %d", kind.c_str(), s, s ? PED::GET_RELATIONSHIP_BETWEEN_PEDS(s, pl) : -1);
+    } else if (cmd == "loot") {
+        // loot: Arthur loots the nearest hogtied man (the game's own looting task)
+        Ped best = 0;
+        float bd = 10.0f;
+        for (Ped s : g_spawned)
+            if (exists(s) && PED::IS_PED_HOGTIED(s) && dist(s, pl) < bd) { bd = dist(s, pl); best = s; }
+        if (best) TASK::TASK_LOOT_ENTITY(pl, best);
+        FD_INFO("test: loot %d (%.1f m), hogtied %d", best, bd, best ? int(PED::IS_PED_HOGTIED(best)) : -1);
     } else if (cmd == "walker") {
         // walker [metres]: a stranger walking past (shy of strangers, guard L1)
         Ped s = spawnPed("a_m_m_rancher_01", add(p, scale(fwd, float(num(1, 8)))), 0);
