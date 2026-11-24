@@ -1,7 +1,9 @@
 #include "ui/card.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <string>
+#include <vector>
 
 #include "dog/companion.h"
 #include "dog/home.h"
@@ -26,7 +28,7 @@ void cardShow(const DogRecord& d, Ped ped) {
 }
 
 void cardPage(int page) {
-    if (g_page) g_page = page == 2 ? 2 : 1;
+    if (g_page) g_page = std::clamp(page, 1, 3);
 }
 
 void cardHide() {
@@ -51,11 +53,50 @@ static void pagerHint(float x, float y, const std::string& label) {
     text(label, x, y, 0.32f, 190, 182, 165, 255);
 }
 
+// Page 2 can run off the card (Nexus 22.11, tzverg: «интерфейс с кириллицей на второй странице порой выходит за
+// рамки» on dogs with many traits): its height is measured first, the card grows to it, long trait descriptions wrap
+// onto a second line, and when traits and skills together do not fit the screen the skills move to a page 3.
+static bool g_split = false;
+static int lastPage() { return g_split ? 3 : 2; }
+
+static std::vector<std::string> wrapWords(const std::string& s, size_t maxChars) {
+    std::vector<std::string> out;
+    std::string line, word;
+    auto len = [](const std::string& t) { size_t n = 0; for (unsigned char ch : t) if ((ch & 0xC0) != 0x80) ++n; return n; };
+    auto flush = [&]() {
+        if (word.empty()) return;
+        if (!line.empty() && len(line) + 1 + len(word) > maxChars) { out.push_back(line); line = word; }
+        else line = line.empty() ? word : line + " " + word;
+        word.clear();
+    };
+    for (char ch : s) { if (ch == ' ') flush(); else word += ch; }
+    flush();
+    if (!line.empty()) out.push_back(line);
+    return out;
+}
+
 static void draw() {
     auto& c = ctx();
     const DogRecord& d = g_dog;
     const BreedDef* b = c.breeds.find(d.breed);
-    float x = 0.70f, y = 0.12f, w = 0.27f, h = g_page == 1 ? 0.71f : 0.66f, pad = 0.016f;
+    const size_t descChars = size_t(c.tune("card.desc_chars", 52));
+    std::vector<std::pair<std::string, bool>> traits;
+    for (const auto& id : d.traits) traits.push_back({id, true});
+    if (b && d.grade == Grade::Pedigree)
+        for (const auto& id : b->bond3Traits) traits.push_back({id, d.bondLevel >= 3});
+    bool hardening = b && b->mutt && d.grade == Grade::Ordinary;
+    // the heights of page 2's parts (the same steps as the drawing below)
+    float traitsH = 0.040f + (traits.empty() ? 0.031f : 0.0f) + (hardening ? 0.031f : 0.0f);
+    for (const auto& [id, on] : traits) {
+        size_t lines = on ? std::max<size_t>(1, wrapWords(c.t("trait." + id + ".desc", d.female), descChars).size()) : 1;
+        traitsH += 0.054f + 0.022f * float(std::min<size_t>(lines, 3) - 1);
+    }
+    float skillsH = 0.004f + 0.040f + 0.028f * float(c.breeds.skills().size()) + 0.008f;
+    float head = 0.016f + 0.058f + 0.032f + 0.016f, foot = 0.040f;
+    g_split = 0.12f + head + traitsH + skillsH + foot > 0.95f;
+    if (g_page == 3 && !g_split) g_page = 2;
+    float x = 0.70f, y = 0.12f, w = 0.27f, pad = 0.016f;
+    float h = g_page == 1 ? 0.71f : head + foot + (g_page == 3 ? skillsH : traitsH + (g_split ? 0.0f : skillsH));
     float ix = x + pad, iw = w - 2 * pad;
     sprite("generic_textures", "inkroller_1a", x - 0.02f, y - 0.02f, w + 0.04f, h + 0.04f, 0, 0, 0, 235);
     rect(x, y, w, h, 0, 0, 0, 120);
@@ -63,7 +104,7 @@ static void draw() {
     text(d.name.empty() ? c.t("dog.default_name") : d.name, ix, cy, 0.85f, 233, 228, 216, 255, "$title");
     cy += 0.058f;
     std::string sub = c.gradeText(d) + " · " + c.breedText(d) + " · " + c.t(d.female ? "card.female" : "card.male");
-    text(g_page == 1 ? sub : c.t("card.sub2"), ix, cy, 0.38f, 190, 182, 165, 255);
+    text(g_page == 1 ? sub : c.t(g_page == 3 ? "card.sub3" : (g_split ? "card.sub2_traits" : "card.sub2")), ix, cy, 0.38f, 190, 182, 165, 255);
     cy += 0.032f;
     sprite("generic_textures", "title_divider", ix, cy, iw, 0.006f, 233, 228, 216, 200);
     cy += 0.016f;
@@ -103,15 +144,15 @@ static void draw() {
                                             : c.f("card.bond_progress", {{"level", std::to_string(d.bondLevel)}, {"pct", std::to_string(std::max(0, pct))}});
         text(bond, ix + 0.050f, cy, label, 190, 182, 165, 255);
         cy += row + 0.012f;
-        pagerHint(ix, cy, c.t("card.page1"));
+        pagerHint(ix, cy, c.f("card.page_of", {{"n", "1"}, {"of", std::to_string(lastPage())}}));
         return;
+    }
+    if (g_page == 3) {
+        cy -= 0.004f;
+        goto skills;
     }
     header(c.t("card.traits"), ix, cy, iw);
     cy += 0.040f;
-    std::vector<std::pair<std::string, bool>> traits;
-    for (const auto& id : d.traits) traits.push_back({id, true});
-    if (b && d.grade == Grade::Pedigree)
-        for (const auto& id : b->bond3Traits) traits.push_back({id, d.bondLevel >= 3});
     if (traits.empty()) {
         text(c.t("card.no_traits"), ix, cy, label, 190, 182, 165, 255);
         cy += row;
@@ -121,13 +162,24 @@ static void draw() {
         int a = on ? 255 : 110;
         text(std::to_string(td ? td->price : 1), ix, cy, label, 201, 164, 90, a, "$title");
         text(c.t("trait." + id + ".name", d.female), ix + 0.016f, cy, label, 233, 228, 216, a);
-        text(on ? c.t("trait." + id + ".desc", d.female) : c.t("card.locked"), ix + 0.016f, cy + 0.024f, 0.30f, 190, 182, 165, a);
-        cy += 0.054f;
+        std::vector<std::string> lines = on ? wrapWords(c.t("trait." + id + ".desc", d.female), descChars)
+                                            : std::vector<std::string>{c.t("card.locked")};
+        if (lines.empty()) lines.push_back("");
+        if (lines.size() > 3) { lines.resize(3); lines[2] += "…"; }
+        for (size_t k = 0; k < lines.size(); ++k)
+            text(lines[k], ix + 0.016f, cy + 0.024f + 0.022f * float(k), 0.30f, 190, 182, 165, a);
+        cy += 0.054f + 0.022f * float(lines.size() - 1);
     }
-    if (b && b->mutt && d.grade == Grade::Ordinary) {
+    if (hardening) {
         text(c.f("card.hardening", {{"n", std::to_string(d.hardenStats + d.hardenTraits)}}), ix, cy, label, 201, 164, 90, 255);
         cy += row;
     }
+    if (g_split) {
+        cy += 0.008f;
+        pagerHint(ix, cy, c.f("card.page_of", {{"n", "2"}, {"of", "3"}}));
+        return;
+    }
+skills:
     cy += 0.004f;
     header(c.t("card.skills"), ix, cy, iw);
     cy += 0.040f;
@@ -137,7 +189,7 @@ static void draw() {
         cy += 0.028f;
     }
     cy += 0.008f;
-    pagerHint(ix, cy, c.t("card.page2"));
+    pagerHint(ix, cy, c.f("card.page_of", {{"n", std::to_string(lastPage())}, {"of", std::to_string(lastPage())}}));
 }
 
 // The card a focused dog of ours gets: the companion, a stray (known before taming, D102), a dog for sale, a dog at home.
@@ -178,7 +230,10 @@ void cardTick() {
     DogRecord rec;
     bool ours = cardFor(focus, rec);
     if (ours) g_info.setTarget(focus);
-    const char* next = !(g_page && g_ped == focus) ? "prompt.show_info" : (g_page == 1 ? "prompt.next_page" : "prompt.hide_info");
+    const char* next = !(g_page && g_ped == focus) ? "prompt.show_info"
+                       : g_page == 1                     ? "prompt.next_page"
+                       : (g_page == 2 && g_split)        ? "prompt.next_page3"
+                                                         : "prompt.hide_info";
     g_info.setText(ctx().t(next));
     g_info.show(ours);
     if (ours) {
@@ -186,6 +241,7 @@ void cardTick() {
         static const Hash kPrompt = MISC::GET_HASH_KEY(ctx().ini.get("InfoPromptControl", "INPUT_INTERACT_LOCKON_STUDY_BINOCULARS").c_str());
         if (PAD::IS_DISABLED_CONTROL_JUST_PRESSED(0, kShow) || PAD::IS_CONTROL_JUST_PRESSED(0, kPrompt)) {
             if (g_page == 1 && g_ped == focus) g_page = 2;
+            else if (g_page == 2 && g_split && g_ped == focus) g_page = 3;
             else if (g_page && g_ped == focus) cardHide();
             else {
                 g_page = 0;

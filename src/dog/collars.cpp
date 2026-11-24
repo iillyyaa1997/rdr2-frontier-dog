@@ -64,7 +64,7 @@ void dress(Ped ped, const DogRecord& d) {
     if (!ped) return;
     if (d.preset >= 0) PED::_EQUIP_META_PED_OUTFIT_PRESET(ped, d.preset, false);
     std::string id = worn(d);
-    if (id.empty()) return;
+    if (id.empty() || !ctx().ini.getBool("Collar", true)) return;  // Collar=0: no collar (Nexus 22.11, big on some coats)
     const Collar& c = g_collars[id];
     PED::_SET_META_PED_TAG(ped, c.drawable, c.albedo, c.normal, c.material, c.palette, c.tint0, c.tint1, c.tint2);
     PED::_UPDATE_PED_VARIATION(ped, false, true, true, true, false);

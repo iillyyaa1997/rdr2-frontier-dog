@@ -22,6 +22,7 @@
 #include "ui/card.h"
 #include "ui/core.h"
 #include "ui/draw.h"
+#include "ui/talk.h"
 
 namespace fd::testhooks {
 
@@ -33,6 +34,7 @@ static int g_ctlUntil = 0;  // see probeControls
 static int g_aimUntil = 0, g_aimNext = 0;  // see aimlog
 static int g_watchUntil = 0;  // see watchHud
 static int g_spritesUntil = 0;  // see drawSprites
+static int g_fontsUntil = 0;    // see ui::talkFontSurvey
 static std::vector<std::pair<std::string, std::string>> g_sprites;
 static void run(const std::vector<std::string>& a) {
     auto& c = ctx();
@@ -42,7 +44,15 @@ static void run(const std::vector<std::string>& a) {
     Ped pl = player();
     Vector3 p = pos(pl);
     Vector3 fwd = ENTITY::GET_ENTITY_FORWARD_VECTOR(pl);
-    if (cmd == "stray" && a.size() >= 2) {
+    if (cmd == "talk" && a.size() >= 2) {  // talk open|up|down|accept|back|<digit>|close
+        stables::testTalk(a[1]);
+        FD_INFO("test: talk %s (open %d)", a[1].c_str(), int(stables::talking()));
+    } else if (cmd == "tune" && a.size() >= 3) {  // tune <Companion.dat key> <value>: live, not saved
+        c.tuning.set(a[1], a[2]);
+        FD_INFO("test: tune %s = %s", a[1].c_str(), a[2].c_str());
+    } else if (cmd == "fonts") {  // fonts <seconds>: sample lines in the game's font faces
+        g_fontsUntil = now() + int(num(1, 20) * 1000);
+    } else if (cmd == "stray" && a.size() >= 2) {
         const BreedDef* b = c.breeds.find(a[1]);
         if (!b) { FD_INFO("test: no breed %s", a[1].c_str()); return; }
         Ped s = spawnPed(b->models[0], add(p, scale(fwd, 5)), 0);
@@ -168,6 +178,11 @@ static void run(const std::vector<std::string>& a) {
             if (a.size() > 2) PED::_EQUIP_META_PED_OUTFIT_PRESET(s, int(num(2, 0)), false);
             TASK::TASK_STAND_STILL(s, -1);
         }
+    } else if (cmd == "god") {  // god 1: Arthur cannot be hurt and nobody minds him (towns where he is wanted)
+        bool on = num(1, 1) != 0;
+        PLAYER::SET_PLAYER_INVINCIBLE(PLAYER::PLAYER_ID(), on);
+        PLAYER::SET_EVERYONE_IGNORE_PLAYER(PLAYER::PLAYER_ID(), on);
+        if (on) PLAYER::SET_PLAYER_WANTED_LEVEL(PLAYER::PLAYER_ID(), 0, false);
     } else if (cmd == "wanted") {
         PLAYER::SET_PLAYER_WANTED_LEVEL(PLAYER::PLAYER_ID(), int(num(1, 1)), false);
     } else if (cmd == "woundexpire" && comp.record()) {
@@ -752,6 +767,7 @@ void tick() {
         aimLog();
     }
     if (now() < g_spritesUntil) drawSprites();
+    if (now() < g_fontsUntil) ui::talkFontSurvey();
     if (now() < g_ctlUntil) probeControls();
     if (now() < g_watchUntil) watchHud();
     static int next = 0;

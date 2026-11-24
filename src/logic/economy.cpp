@@ -42,9 +42,9 @@ void Economy::load(const KvFile& k) {
 static int roundTo5(double v) { return std::max(1, int(std::lround(v / 5.0)) * 5); }
 
 int shopPrice(const BreedDef& b, Grade g, const Economy& e) {
-    if (b.mutt) return e.muttOrdinaryPrice;
-    if (g == Grade::Pedigree) return roundTo5(b.price * e.pedigreeShare);
-    return roundTo5(b.price * e.ordinaryShare);
+    if (b.mutt) return std::max(1, int(std::lround(e.muttOrdinaryPrice * e.dogPriceScale)));
+    if (g == Grade::Pedigree) return roundTo5(b.price * e.pedigreeShare * e.dogPriceScale);
+    return roundTo5(b.price * e.ordinaryShare * e.dogPriceScale);
 }
 
 int dogValue(const DogRecord& d, const BreedTable& t, const Economy& e) {

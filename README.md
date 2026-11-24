@@ -28,6 +28,16 @@ packs them into the texture dictionary `frontier_dog_hud.ytd` (textures `paw_cor
 add-on .ytd that works in the game — no Windows tool needed); `tools/gen_lml_items.py` puts it into the LML folder as
 `textures/` with `<StreamingFiles isAddon="true">`. Without it the core falls back to the game's paw blip.
 
+## The trader's talk
+
+`data/ui/` — the paper of the dog's papers (the blank back of the game's own folded map, `animal_map` in the texture
+dictionary femga's dump calls `l_0055de9eni`, 1016×1376), the seal ring (the compass rose's ring from the front of that
+map, its ink turned into alpha) and the trader's signature (the game's `$handwritten` font captured from the screen: it
+has no Cyrillic, and Telegraph would translate the name if it were drawn as text). `tools/gen_lml_items.py` packs them
+into `textures/frontier_dog_ui.ytd`; `tools/gen_ytd.py` writes textures bigger than one 128 KB page as one block (the
+physical size in the header, as in other mods' add-on dictionaries). Without the dictionary the sheet is drawn as a
+plain paper-coloured page.
+
 ## License
 
 MIT, see LICENSE.

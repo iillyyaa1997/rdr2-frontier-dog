@@ -1,4 +1,5 @@
 // Entry point: loads settings and data, waits for the game, then runs every module once per frame.
+#include <algorithm>
 #include <string>
 
 #include "core/fs.h"
@@ -70,6 +71,7 @@ static void loadData() {
     KvFile breeds, econ;
     if (!breeds.load(fs::join(c.dataDir, "Breeds.dat")) || !c.breeds.load(breeds)) FD_ERROR("Breeds.dat missing or empty");
     if (econ.load(fs::join(c.dataDir, "Economy.dat"))) c.econ.load(econ);
+    c.econ.dogPriceScale = std::clamp(c.ini.getFloat("DogPricePercent", 100) / 100.0, 0.01, 100.0);
     c.chances.pedigree = breeds.getFloat("roll.pedigree", c.chances.pedigree);
     c.chances.ailing = breeds.getFloat("roll.ailing", c.chances.ailing);
     c.chances.ownBreedTrait = breeds.getFloat("roll.own_breed_trait", c.chances.ownBreedTrait);

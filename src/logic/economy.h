@@ -12,6 +12,7 @@ struct Economy {
     double ordinaryShare = 0.40;     // ordinary dog = 40 % of the breed price
     double pedigreeShare = 1.25;     // pedigree = breed price × 1.25
     int muttOrdinaryPrice = 15;
+    double dogPriceScale = 1.0;      // DogPricePercent in FrontierDog.ini / 100 (Nexus 22.11: economy mods)
     int hardenedValue = 150;         // street-hardened mutt (never sold in shops)
     int ailingValue = 10;
     double sellWithPapers = 0.60;

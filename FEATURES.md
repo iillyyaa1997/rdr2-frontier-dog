@@ -17,7 +17,7 @@ better, and has a character of its own. Every system below can be switched off i
   dog's health over a grey track that grows with your bond the way Arthur's grows with his level. It shows, hides and
   moves exactly with the game's cores (regular or expanded radar, the HUD reveal, compass or no radar).
 - Its name on the focus title, and its own inspect card on Show info: stats (each with a line on what it does), bond,
-  traits and skills on two pages —
+  traits and skills on two pages (a dog with many traits gets a page 3 for its skills, 0.1.2) —
   also for strays you have not tamed yet, dogs for sale and dogs at home (the game's card would only name the model's
   species).
 
@@ -71,13 +71,19 @@ better, and has a character of its own. Every system below can be switched off i
 ## Collars
 - Every dog of yours wears a collar - the studded leather one by default (the bloodhound's, the only collar the game
   draws as a part of its own; it fits any dog). Strays and dogs for sale go without until they are yours; a bought or
-  tamed dog puts it on at once.
+  tamed dog puts it on at once. Collar=0 in the ini: no collar on your dogs.
 
 ## Stables
 - Dogs for sale in the yard of all eight stables, by the door: three of the region's breeds, standard or pedigree,
   re-stocked every three in-game days. They live there: walk about the yard, sit, lie down, come up to Arthur. A dog
   trader stands beside them; walk up to him and his offers show under «Торговец собаками», like the game's shops. The game opens its own stable menu as soon as Arthur steps inside, so the dog
-  services are offered out in the yard, next to the dogs for sale.
+  services are offered out in the yard, next to the dogs for sale. A yard spot inside a building or under a roof
+  (Blackwater's, reported on Nexus 22.11) moves out into the open.
+- Dog prices: DogPricePercent in the ini (100 = as is) scales the dogs for sale and what the trader pays.
+- Talk to the dog trader (0.1.2): your dog's papers on a sheet of the game's map paper (the game's drawing of the
+  breed, stats, traits, skills, bond, health, his price and signature, the society's seal when it has papers) and his
+  talk on the right — answers with up/down + Enter, the number keys or the pad; each dog for sale shows its own
+  papers. TraderTalk=0 in the ini keeps the old prompt list below.
 - The dog trader («Другое» leafs through his list, each item fires once per press) sells the dogs you see
   («Купить: Стандартная Дворняга — $15»; the game's own Pet prompt takes the key on a dog for sale, so buying is in this
   list), trains skills, cures an Ailing dog ($40, one day), makes a breed dog Pedigree ($150, seven days), issues

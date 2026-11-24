@@ -14,7 +14,8 @@ Rebuild this folder whenever the source mod's catalog changes (update/removal of
 of CONSUMABLE_HORSE_REVIVER's entry (a horse item: Arthur cannot eat it himself; the mod uses it through its prompts),
 with our keys, prices and texts. Texts go to an LML text gxt2 ("0xHASH = text" lines, the format red_dead_offline uses).
 Plain text processing, line by line: the catalog is a 57 MB XML file with CRLF line ends. The folder also carries the
-dog's core icon, textures/frontier_dog_hud.ytd built by gen_ytd.py from data/hud (needs Pillow).
+dog's core icon, textures/frontier_dog_hud.ytd built by gen_ytd.py from data/hud, and the trader talk's paper, seal and
+signature, textures/frontier_dog_ui.ytd from data/ui (needs Pillow).
 """
 import os
 import re
@@ -225,6 +226,11 @@ def main():
     with open(os.path.join(mod, "textures", "frontier_dog_hud.ytd"), "wb") as f:
         f.write(gen_ytd.build([(f"paw_core_{i}", Image.open(os.path.join(hud, f"paw_core_{i}.png")).convert("RGBA"))
                                for i in range(16)]))
+    # the trader's talk (24.11): the paper cut from the game's map, the seal ring cut from its compass rose, the
+    # trader's hand in the game's handwriting font -> textures/frontier_dog_ui.ytd
+    ui = os.path.join(here, "..", "data", "ui")
+    with open(os.path.join(mod, "textures", "frontier_dog_ui.ytd"), "wb") as f:
+        f.write(gen_ytd.build([(n, Image.open(os.path.join(ui, n + ".png")).convert("RGBA")) for n in ("fd_sheet", "fd_seal", "fd_sign")]))
     print(f"items {len(ITEMS)}, stable rows {rows_added['ST_HORSE_SHOP']}, butcher rows {rows_added['ST_BUTCHER']}, "
           f"stock {sorted(stocked)}, lines {len(lines)}")
 

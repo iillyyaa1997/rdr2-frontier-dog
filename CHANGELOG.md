@@ -1,6 +1,19 @@
 # Changelog
 
-## 0.1.2 (22.11.2026)
+## 0.1.2 (24.11.2026)
+- Talk to the dog trader: walk up to him and press «Talk». Your dog's papers lie on the left — a sheet of the
+  game's own map paper with its breed drawn from the game's satchel, its stats, traits, skills, bond and health, the
+  trader's price, his signature and the society's seal when the dog has papers — and the trader talks on the right:
+  train, show the dogs for sale (each with its own papers), papers, the vet, a name tag, his price for your dog,
+  bring a dog from home. Up/down and Enter or the number keys, Backspace/«So long» to leave; on a pad the game's
+  Select/Back. `TraderTalk=0` in the ini brings back the old prompt list.
+- The Blackwater dog trader stood inside the stable, where walking up to him started the game's own stable menu
+  (reported on Nexus): a yard spot under a roof now moves out into the open, as one inside a building already did.
+- The inspect card no longer runs off its frame when a dog has many traits (reported on Nexus): page 2 measures
+  itself, long descriptions wrap, and when traits and skills do not fit the skills go to a page 3.
+- `Collar=0` in FrontierDog.ini: your dogs go without a collar (asked for on Nexus: it is big on some coats).
+- `DogPricePercent=100` in FrontierDog.ini: the price of the dogs for sale in percent, for economy mods (asked for on
+  Nexus); what the trader pays for your dog follows it.
 - Twice the health: 800 / 960 / 1120 by bond level (was 400 / 480 / 560). In play one shot was enough to put the dog
   down wounded (his logs: 3 of 3 times it went down, none killed outright). Headshots and explosions still kill unless
   ProtectFromInstantDeath=1.

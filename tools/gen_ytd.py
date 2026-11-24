@@ -17,6 +17,11 @@ in the game (PDO Reloaded's PDOR_ICONS.ytd, read 16.11; tested build 1.0.1491.50
   data     BC3 blocks, linear, the whole mip chain down to 1x1 (one mip draws as garbage in game)
 
 Images must be RGBA with sides a multiple of 4; up to 0x10000 bytes of BC3 per 0x20000 page is plenty for HUD icons.
+Bigger textures (the trader's paper, 24.11): the physical part is one block whose size is in the header - physical
+flags = (size >> 16) << 16 | 2, read from add-on .ytd files of other mods on his PC (0x00ab0002 decompresses to
+0x10000 + 0xab0000 bytes, a 1024x1024 texture starts at 0x60000000 and runs across the old 0x20000 pages). So when a
+texture does not fit a page, the textures are laid out back to back (each at a 0x1000 boundary) and the block is
+sized to fit; every mip is padded to whole 4x4 blocks (a 127-wide mip is stored as 32 blocks, as the GPU reads it).
 Needs Pillow (to read the images).
 """
 import struct
@@ -99,8 +104,9 @@ def mip_chain(im, levels):
     for lv in range(levels):
         mw, mh = max(1, w >> lv), max(1, h >> lv)
         m = im if lv == 0 else im.resize((mw, mh), Image.LANCZOS)
-        if mw < 4 or mh < 4:  # a block is 4x4: the rest of it is never sampled
-            pad = Image.new('RGBA', (max(4, mw), max(4, mh)), (0, 0, 0, 0))
+        pw, ph = (mw + 3) // 4 * 4, (mh + 3) // 4 * 4
+        if (pw, ph) != (mw, mh):  # a block is 4x4: the rest of it is never sampled
+            pad = Image.new('RGBA', (pw, ph), (0, 0, 0, 0))
             pad.paste(m, (0, 0))
             m = pad
         out += bc3(m)
@@ -112,8 +118,18 @@ def build(entries, levels=0):
     16.11, one-mip textures draw as red garbage while the full chain at 64 and at 128 draws right). Returns bytes."""
     entries = sorted(entries, key=lambda e: joaat(e[0]))
     n = len(entries)
+    chains = [mip_chain(im, levels) for _, im in entries]
+    big = any(len(data) > PAGE for data, _ in chains)
+    if big:  # one block, textures back to back at 0x1000 boundaries
+        need = 0
+        for data, _ in chains:
+            need = (need + 0xFFF) & ~0xFFF
+            need += len(data)
+        psize = max(PSIZE, (need + 0xFFFF) & ~0xFFFF)
+    else:
+        psize = PSIZE
     v = bytearray(b'\xcf' * VSIZE)
-    phys = bytearray(b'\xcf' * PSIZE)
+    phys = bytearray(b'\xcf' * psize)
     TEX, VIEW = 0xC60, 0xC60 + n * 0x80
     PTRS = VIEW + n * 0x50
     HASHES = PTRS + n * 8
@@ -129,10 +145,12 @@ def build(entries, levels=0):
     for i, (name, im) in enumerate(entries):
         w, h = im.size
         assert w % 4 == 0 and h % 4 == 0, name
-        data, nmips = mip_chain(im, levels)
-        if off // PAGE != (off + len(data) - 1) // PAGE:
+        data, nmips = chains[i]
+        if big:
+            off = (off + 0xFFF) & ~0xFFF
+        elif off // PAGE != (off + len(data) - 1) // PAGE:
             off = (off // PAGE + 1) * PAGE
-        assert off + len(data) <= PSIZE, 'physical part full'
+        assert off + len(data) <= psize, 'physical part full'
         phys[off:off + len(data)] = data
         t = bytearray(0x80)
         struct.pack_into('<QII', t, 0, 0, sum(1 << (2 * k) for k in range(nmips)), 1)  # vtable, 01 per mip, 1
@@ -155,7 +173,7 @@ def build(entries, levels=0):
     v[HASHES + n * 4:NAMES] = b'\xcd' * (NAMES - HASHES - n * 4)
     body = zlib.compressobj(9, zlib.DEFLATED, -15)
     packed = body.compress(bytes(v) + bytes(phys)) + body.flush()
-    return struct.pack('<4sIII', b'RSC8', 0x01000002, 0x00010000, 0x00040002) + packed
+    return struct.pack('<4sIII', b'RSC8', 0x01000002, 0x00010000, (psize >> 16) << 16 | 2) + packed
 
 
 def main():
