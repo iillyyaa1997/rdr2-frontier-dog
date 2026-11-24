@@ -97,6 +97,48 @@ static void updateAttack(Ped dog, DogRecord& d) {
     }
 }
 
+// Stands up for Arthur on its own (24.11, his pick «1»: «хочется чтобы она могла сама нападать»): goes for the nearest
+// man or animal in a fight with Arthur within 30 m. Never lawmen (no bounty for a bite) or the gang; a timid dog
+// (Courage 1-2, not Fearless) only barks at them. Not on missions, in camp, under «Leave it», told to stay, while
+// busy with game or indoors. AutoAttack=0 in the ini turns it off.
+static int g_nextDefend = 0, g_barkAt = 0;
+
+static void updateDefend(Ped dog, DogRecord& d) {
+    auto& c = ctx();
+    if (!c.feature("AutoAttack") || now() < g_nextDefend) return;
+    g_nextDefend = now() + 1000;
+    if (g_attackTarget && alive(g_attackTarget)) return;  // already on someone (sent, or defending)
+    if (!autonomyAllowed() || companion().staying() || hunting::busy() || abilities::busy()) return;
+    if (INTERIOR::GET_INTERIOR_FROM_ENTITY(player()) && !c.ini.getBool("AllowEnteringInteriors", false)) return;
+    float range = float(c.tune("defend.range", 30));
+    Hash cop = MISC::GET_HASH_KEY("REL_COP");
+    Ped best = 0;
+    float bd = 1e9f;
+    int peds[128];
+    int n = worldGetAllPeds(peds, 128);
+    for (int i = 0; i < n; ++i) {
+        Ped p = peds[i];
+        if (!attackable(p, dog) || !PED::IS_PED_IN_COMBAT(p, player())) continue;
+        if (PED::GET_PED_RELATIONSHIP_GROUP_HASH(p) == cop) continue;
+        float dp = dist(p, player());
+        if (dp <= range && dp < bd) { bd = dp; best = p; }
+    }
+    if (!best) return;
+    if (d.stats[Courage] < c.tune("defend.min_courage", 3) && !c.hasTrait(d, "fearless")) {
+        if (now() >= g_barkAt) {  // too timid to go in: it barks at them from Arthur's side
+            g_barkAt = now() + 8000;
+            g_warnUntil = now() + 4000;
+            TASK::TASK_START_SCENARIO_IN_PLACE_HASH(dog, MISC::GET_HASH_KEY("WORLD_ANIMAL_DOG_BARK_GROWL"), 4000, true, 0, -1.0f, false);
+            FD_INFO("defend: too timid, barks at a foe %.0f m from Arthur", bd);
+        }
+        return;
+    }
+    g_attackTarget = best;
+    g_attackUntil = now() + 20000;
+    TASK::TASK_COMBAT_PED(dog, best, 0, 16);
+    FD_INFO("defend: goes for the %s fighting Arthur, %.0f m from him", PED::IS_PED_HUMAN(best) ? "man" : "animal", bd);
+}
+
 static void updateTrack(Ped dog) {
     if (g_trackable && (!alive(g_trackable) || dist(g_trackable, player()) > 150.0f)) g_trackable = 0;
     bool close = dist(dog, player()) < 4.0f;
@@ -217,6 +259,7 @@ void tick() {
     Ped dog = comp.ped();
     updateCutscene(dog);
     updateAttack(dog, *d);
+    updateDefend(dog, *d);
     updateTrack(dog);
     updateFeed(dog, *d);
     updatePredators(dog, *d);

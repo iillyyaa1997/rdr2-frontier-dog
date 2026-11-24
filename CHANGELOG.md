@@ -11,6 +11,8 @@
   (reported on Nexus): a yard spot under a roof now moves out into the open, as one inside a building already did.
 - The inspect card no longer runs off its frame when a dog has many traits (reported on Nexus): page 2 measures
   itself, long descriptions wrap, and when traits and skills do not fit the skills go to a page 3.
+- The dog stands up for you on its own (asked for on Nexus): it goes for the nearest man or animal fighting you within
+  30 m, never lawmen, and a timid dog (Courage 1-2) only barks at them. `AutoAttack=0` in the ini turns it off.
 - Collars are gone: the only collar the game draws sat too big on some coats (asked about on Nexus).
 - Brush shows much sooner: once the coat is a little dirty (about 10 minutes outdoors) instead of after 40 minutes,
   and a dirty dog's Brush is no longer pushed out of a full prompt list. A quick brush gives a little bond, a dirty

@@ -103,3 +103,6 @@ courier.step_m=60
 courier.road_factor=1.25
 # a night out in the wild together (clock jumps 4+ game hours outside camp/towns): road-deed units (a km = 1, step 10)
 hardening.night_units=5
+# AutoAttack: whoever fights Arthur within this range; a dog below this Courage (and not Fearless) only barks
+defend.range=30
+defend.min_courage=3
