@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <map>
 
 #include "core/log.h"
 #include "game/game.h"
@@ -412,6 +413,44 @@ int peltsOnHorse(Ped horse) {
     return n;
 }
 
+// The trapper and the butcher sell the pelts out of the horse's INVENTORY (shop_trapper.c 1491.50 func_2394/2395: the
+// count comes from _INVENTORY_GET_INVENTORY_ID_FROM_PED(horse), and only after the sale is the stack cleared); the stack
+// is only what is drawn. When Arthur stows a pelt the game writes both, the dog wrote only the stack: «у охотника в
+// лошади пусто» (24.11). The item goes in the way player_horse.c restores a horse's pelts (func_627): the inventory's
+// CHARACTER guid, the item's guid under it in SLOTID_SATCHEL, ADD_REASON_DEFAULT.
+bool addPeltToHorseInventory(Ped horse, Hash item) {
+    if (!alive(horse) || !item || !INVENTORY::_INVENTORY_GET_INVENTORY_ITEM_IS_ANIMAL_PELT(item)) return false;
+    int inv = INVENTORY::_INVENTORY_GET_INVENTORY_ID_FROM_PED(horse);
+    alignas(8) uint64_t root[4] = {}, character[4] = {}, guid[4] = {};
+    BOOL gotChar = INVENTORY::INVENTORY_GET_GUID_FROM_ITEMID(inv, reinterpret_cast<Any*>(root), MISC::GET_HASH_KEY("CHARACTER"),
+                                                             MISC::GET_HASH_KEY("SLOTID_NONE"), reinterpret_cast<Any*>(character));
+    Hash slot = MISC::GET_HASH_KEY("SLOTID_SATCHEL");
+    INVENTORY::INVENTORY_GET_GUID_FROM_ITEMID(inv, reinterpret_cast<Any*>(character), item, slot, reinterpret_cast<Any*>(guid));
+    int before = INVENTORY::_INVENTORY_GET_INVENTORY_ITEM_COUNT_WITH_ITEMID(inv, item, false);
+    BOOL ok = INVENTORY::_INVENTORY_ADD_ITEM_WITH_GUID(inv, reinterpret_cast<Any*>(guid), reinterpret_cast<Any*>(character), item, slot, 1,
+                                                       MISC::GET_HASH_KEY("ADD_REASON_DEFAULT"));
+    int after = INVENTORY::_INVENTORY_GET_INVENTORY_ITEM_COUNT_WITH_ITEMID(inv, item, false);
+    FD_INFO("carry: horse inventory %d: pelt item 0x%08X %d -> %d (character guid %d, add %d)", inv, item, before, after, int(gotChar), int(ok));
+    return after > before;
+}
+
+int syncHorsePelts(Ped horse) {
+    if (!alive(horse)) return 0;
+    int inv = INVENTORY::_INVENTORY_GET_INVENTORY_ID_FROM_PED(horse);
+    std::map<Hash, int> stack;
+    for (int i = 0; i < kPeltPlaces; ++i)
+        if (Hash id = Hash(PED::_GET_PELT_FROM_HORSE(horse, i))) ++stack[id];
+    int added = 0;
+    for (const auto& [item, n] : stack) {
+        if (!INVENTORY::_INVENTORY_GET_INVENTORY_ITEM_IS_ANIMAL_PELT(item)) continue;
+        int have = INVENTORY::_INVENTORY_GET_INVENTORY_ITEM_COUNT_WITH_ITEMID(inv, item, false);
+        for (int k = have; k < n; ++k)
+            if (addPeltToHorseInventory(horse, item)) ++added;
+    }
+    if (added) FD_INFO("carry: %d pelt(s) on the horse were drawn only - added to its inventory", added);
+    return added;
+}
+
 // _SET_PELT_FOR_HORSE takes the game's own pelt id (what _GET_PELT_FROM_HORSE returns - the game's MP stable script
 // copies those between horses), not a pelt object: given the object it did nothing and the pelt stayed by the horse
 // (his play, 18.11). The pelt goes in by its inventory item instead (_SET_PELT_FOR_HORSE_BY_INVENTORY_ITEM, what RedM
@@ -472,6 +511,7 @@ void CarryTask::checkStow() {
             ENTITY::SET_ENTITY_AS_MISSION_ENTITY(e, true, true);
             ENTITY::DELETE_ENTITY(&e);
             FD_INFO("carry: the pelt is on the horse");
+            addPeltToHorseInventory(stowHorse_, stowItem_);
         } else {
             FD_INFO("carry: the horse did not take the pelt, it stays by the horse");
         }

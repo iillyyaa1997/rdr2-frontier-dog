@@ -8,6 +8,10 @@ namespace fd {
 
 // pelts in the horse's pelt stack (the game's 3 places)
 int peltsOnHorse(Ped horse);
+// the pelt also into the horse's inventory - what the trapper and the butcher sell from (the stack is only the look)
+bool addPeltToHorseInventory(Ped horse, Hash item);
+// pelts in the stack missing from the horse's inventory (stowed by an older version) are added; returns how many
+int syncHorsePelts(Ped horse);
 
 enum class CarrySize { Small, Medium, Large };
 

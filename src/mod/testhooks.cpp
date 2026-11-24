@@ -12,6 +12,7 @@
 #include "core/strutil.h"
 #include "dog/coat.h"
 #include "dog/stables.h"
+#include "dog/carry.h"
 #include "dog/companion.h"
 #include "dog/delivery.h"
 #include "dog/hunting.h"
@@ -125,6 +126,18 @@ static void run(const std::vector<std::string>& a) {
         // foe [model] [metres]: a hostile man who attacks Arthur (guard, grip, honor shield)
         Ped s = spawnPed(a.size() > 1 ? a[1] : "a_m_m_huntertravelers_cool_01", add(p, scale(fwd, float(num(2, 15)))), 0);
         if (s) { g_spawned.push_back(s); TASK::TASK_COMBAT_PED(s, pl, 0, 16); }
+    } else if (cmd == "horseinv") {
+        // horseinv [sync]: the horse's pelt stack and how many of each are in its inventory (what the trapper sells)
+        Ped horse = PLAYER::_GET_SADDLE_HORSE_FOR_PLAYER(PLAYER::PLAYER_ID());
+        if (!alive(horse)) { FD_INFO("test: no horse"); return; }
+        int inv = INVENTORY::_INVENTORY_GET_INVENTORY_ID_FROM_PED(horse);
+        for (int i = 0; i < 3; ++i) {
+            Hash id = Hash(PED::_GET_PELT_FROM_HORSE(horse, i));
+            FD_INFO("test: horse %d inv %d place %d item 0x%08X pelt %d count %d", horse, inv, i, id,
+                    id ? int(INVENTORY::_INVENTORY_GET_INVENTORY_ITEM_IS_ANIMAL_PELT(id)) : 0,
+                    id ? INVENTORY::_INVENTORY_GET_INVENTORY_ITEM_COUNT_WITH_ITEMID(inv, id, false) : 0);
+        }
+        if (a.size() > 1 && a[1] == "sync") FD_INFO("test: sync added %d", syncHorsePelts(horse));
     } else if (cmd == "hogtied") {
         // hogtied [hate|town|crim] [metres]: a man lying hogtied in front of Arthur who never fought him (Honor Shield
         // 1.4.0: robbing a hogtied O'Driscoll cost -5 on 24.11). hate = a group that hates the player, crim = REL_CRIMINALS

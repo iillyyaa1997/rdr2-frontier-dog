@@ -546,6 +546,15 @@ static void bodiesAndPelts(Ped dog, DogRecord& d) {
     // may be up to pelt.give_range m away; not when the horse is far or its three pelt places are taken
     Entity carried = PED::_GET_FIRST_ENTITY_PED_IS_CARRYING(player());
     Ped horse = PLAYER::_GET_SADDLE_HORSE_FOR_PLAYER(PLAYER::PLAYER_ID());
+    // pelts an older version put on the horse only as a picture: into its inventory too, once per horse (and again
+    // after a minute, in case the horse was not streamed in yet)
+    static Ped s_synced = 0;
+    static int s_syncAt = 0;
+    if (alive(horse) && (horse != s_synced || now() >= s_syncAt)) {
+        if (horse != s_synced) s_syncAt = now() + 60000; else s_syncAt = 0x7FFFFFFF;
+        s_synced = horse;
+        syncHorsePelts(horse);
+    }
     bool carriesPelt = carried && !ENTITY::IS_ENTITY_A_PED(carried) && ENTITY::_GET_IS_CARRIABLE_PELT(carried);
     float giveRange = float(ctx().tune("pelt.give_range", 30));
     bool room = alive(horse) && peltsOnHorse(horse) < 3;
