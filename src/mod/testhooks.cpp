@@ -303,6 +303,8 @@ static void run(const std::vector<std::string>& a) {
         PLAYER::SET_PLAYER_WANTED_LEVEL(PLAYER::PLAYER_ID(), int(num(1, 1)), false);
     } else if (cmd == "woundexpire" && comp.record()) {
         comp.record()->woundedUntil = unixNow();  // not saved in time, now
+    } else if (cmd == "dismount") {
+        TASK::TASK_DISMOUNT_ANIMAL(pl, 0, 0, 0, 0, 0);
     } else if (cmd == "revive" && comp.present()) {
         PED::_INCAPACITATED_REVIVE(comp.ped(), comp.ped());
         comp.record()->woundedUntil = 0;

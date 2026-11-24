@@ -112,18 +112,28 @@ static void protect(Ped dog) {
     ENTITY::SET_ENTITY_CAN_BE_DAMAGED(dog, false);
 }
 
-// A wounded dog waiting for a reviver is untouchable the same way (24.11: Мики went down in a shoot-out with lawmen and
-// was dead 38 s later with SET_ENTITY_INVINCIBLE alone - the hole found on 22.11 above), its health kept at the floor.
+static int dogMaxHealth(const DogRecord& d);
+
+// A wounded dog waiting for a reviver is untouchable (24.11: Мики went down in a shoot-out with lawmen and was dead 38 s
+// later). Undamageable stops bullets (window 24.11: a wounded dog shot for 300 and 1000 kept 92 hp), but damage a
+// script applies (APPLY_DAMAGE_TO_PED, what a damage/bleeding mod uses) still went through and 1000 killed it at once, so
+// while it is down its health sits on a big buffer, topped up every frame; the real maximum comes back when it gets up.
 static void guardWounded(Ped dog) {
     ENTITY::SET_ENTITY_INVINCIBLE(dog, true);
     ENTITY::SET_ENTITY_CAN_BE_DAMAGED(dog, false);
-    int floorHp = std::max(1, int(ENTITY::GET_ENTITY_MAX_HEALTH(dog, false) * ctx().tunef("wounded.health_floor_pct", 10) / 100.0));
-    if (ENTITY::GET_ENTITY_HEALTH(dog) < floorHp) ENTITY::SET_ENTITY_HEALTH(dog, floorHp, 0);
+    int buffer = int(ctx().tunef("wounded.health_buffer", 20000));
+    if (ENTITY::GET_ENTITY_MAX_HEALTH(dog, false) < buffer) ENTITY::SET_ENTITY_MAX_HEALTH(dog, buffer);
+    if (ENTITY::GET_ENTITY_HEALTH(dog) < buffer) ENTITY::SET_ENTITY_HEALTH(dog, buffer, 0);
 }
 
-static void unguardWounded(Ped dog) {
+static void unguardWounded(Ped dog, const DogRecord* d) {
     ENTITY::SET_ENTITY_INVINCIBLE(dog, false);
     ENTITY::SET_ENTITY_CAN_BE_DAMAGED(dog, true);
+    if (d) {
+        int maxHp = dogMaxHealth(*d);
+        ENTITY::SET_ENTITY_MAX_HEALTH(dog, maxHp);
+        if (ENTITY::GET_ENTITY_HEALTH(dog) > maxHp) ENTITY::SET_ENTITY_HEALTH(dog, maxHp, 0);
+    }
     protect(dog);
 }
 
@@ -612,7 +622,7 @@ void Companion::startWounded() {
 
 void Companion::endWounded(bool revived) {
     DogRecord* d = record();
-    if (exists(ped_)) unguardWounded(ped_);
+    if (exists(ped_)) unguardWounded(ped_, d);
     woundedGraceUntil_ = now() + 8000;  // the writhe flag lingers a few seconds after a revive
     if (d) {
         d->woundedUntil = 0;
@@ -649,8 +659,8 @@ bool Companion::updateWounded() {
         if (item && revivePrompt_.fired() && takeItem(item)) {
             PED::_INCAPACITATED_REVIVE(ped_, ped_);
             TASK::CLEAR_PED_TASKS(ped_, true, true);
+            endWounded(true);  // the real maximum first, then half of it
             ENTITY::SET_ENTITY_HEALTH(ped_, ENTITY::GET_ENTITY_MAX_HEALTH(ped_, false) / 2, 0);
-            endWounded(true);
             helpText(ctx().f("help.revived", {{"name", d->name}}, d->female));
             follow();
             return false;

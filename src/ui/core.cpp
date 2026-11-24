@@ -83,8 +83,11 @@ void coreTick() {
     int a = int(alpha * 255);
     float w = curW, h = curW * 16 / 9;
     Ped dog = comp.ped();
-    int maxHp = std::max(1, ENTITY::GET_ENTITY_MAX_HEALTH(dog, true));
+    int maxHp = d->woundedUntil > 0  // its real maximum, not the wounded buffer
+                    ? maxHealth(*d, c.tuning.getFloats("health.max"), c.tuning.getFloats("health.strength"), c.tunef("ailing.health_cut", 0.25))
+                    : std::max(1, ENTITY::GET_ENTITY_MAX_HEALTH(dog, true));
     float health = std::clamp(float(ENTITY::GET_ENTITY_HEALTH(dog)) / maxHp, 0.0f, 1.0f);
+    if (d->woundedUntil > 0) health = 0.1f;  // while down its health sits on a buffer (guardWounded): show it nearly empty
     float coreFill = float(std::clamp(1.0 - d->hunger / 100.0, 0.0, 1.0));
     // D148, like Arthur's cores: the grey track is the most health the dog can have (it grows with bond: health.max
     // 800/960/1120, less when Ailing), the white meter what it has, both on one scale; the game's tracks are 10 arcs

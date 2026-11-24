@@ -26,8 +26,10 @@
   not be taken): no longer on people a script made — strangers with jobs, bounties, other mods' NPCs, anyone with a
   map marker.
 - A wounded dog waiting for a reviver can no longer be finished off (his play 24.11: down in a shoot-out with lawmen,
-  dead 38 s later instead of waiting its 15 minutes): it is now undamageable while down, as with `Invincible=1`,
-  and its health is held at the floor every frame. A dog's death writes its cause to the log.
+  dead 38 s later instead of waiting its 15 minutes): while down it is undamageable (bullets no longer hurt it) and
+  its health sits on a big buffer topped up every frame, so damage applied by other scripts (bleeding, damage mods) can
+  no longer finish it either; a reviver brings its real health back (half of it). A dog's death writes its cause to
+  the log. Checked in game 24.11: down, hit for 1000 and 5000 by script and shot for 300 — alive; revived at 460/920.
 - «Find herbs» no longer leads to a plain bush: of the 39 plant models found near the herbs on 17.11 only the 21 whose
   hash is a herb's own name stay (ginseng, burdock, thyme, oregano, wild mint, berries, mushrooms, …), and the online
   map's spots (in single player often nothing there) are off unless `herbs.map_spots=1` in Companion.dat.
