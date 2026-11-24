@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -138,6 +139,81 @@ static void run(const std::vector<std::string>& a) {
                     id ? INVENTORY::_INVENTORY_GET_INVENTORY_ITEM_COUNT_WITH_ITEMID(inv, id, false) : 0);
         }
         if (a.size() > 1 && a[1] == "sync") FD_INFO("test: sync added %d", syncHorsePelts(horse));
+    } else if (cmd == "hunt" && a.size() >= 2) {
+        // hunt <model> [metres]: a live animal that Arthur shoots himself, as in play (24.11: an animal created dead
+        // with 'prey' crashed HuntingGrounds.asi)
+        Ped s = spawnPed(a[1], add(p, scale(fwd, float(num(2, 12)))), 0);
+        if (s) {
+            g_spawned.push_back(s);
+            PED::_SET_PED_QUALITY(s, 2);
+            TASK::TASK_SHOOT_AT_ENTITY(pl, s, 3000, MISC::GET_HASH_KEY("FIRING_PATTERN_FULL_AUTO"), true);
+            int until = now() + 5000;
+            while (now() < until && !ENTITY::IS_ENTITY_DEAD(s)) scriptWait(100);
+            if (!ENTITY::IS_ENTITY_DEAD(s)) PED::APPLY_DAMAGE_TO_PED(s, 1000, false, 0, pl);
+        }
+        FD_INFO("test: hunt %s -> %d, dead %d", a[1].c_str(), s, s ? int(ENTITY::IS_ENTITY_DEAD(s)) : -1);
+    } else if (cmd == "selfstow") {
+        // selfstow: Arthur skins the nearest dead animal (or picks up the nearest pelt) and puts the pelt on his horse
+        // with the game's own place-on-mount task - the way he stows a pelt himself. Before and after: the stack, each
+        // pelt's count in the horse's inventory and what syncHorsePelts would add. Something to add after the game's
+        // own stow = the sync would double that pelt at the trapper (unverified on 24.11: keyboard input died)
+        Ped horse = PLAYER::_GET_SADDLE_HORSE_FOR_PLAYER(PLAYER::PLAYER_ID());
+        if (!alive(horse)) { FD_INFO("test: selfstow - no horse"); return; }
+        int inv = INVENTORY::_INVENTORY_GET_INVENTORY_ID_FROM_PED(horse);
+        auto snapshot = [&](const char* when) {
+            std::map<Hash, int> stack;
+            for (int i = 0; i < 3; ++i)
+                if (Hash id = Hash(PED::_GET_PELT_FROM_HORSE(horse, i))) ++stack[id];
+            int wouldAdd = 0;
+            for (const auto& [id, n] : stack) {
+                int have = INVENTORY::_INVENTORY_GET_INVENTORY_ITEM_COUNT_WITH_ITEMID(inv, id, false);
+                bool isPelt = INVENTORY::_INVENTORY_GET_INVENTORY_ITEM_IS_ANIMAL_PELT(id);
+                if (isPelt && have < n) wouldAdd += n - have;
+                FD_INFO("test: selfstow %s: item 0x%08X on the horse %d, in its inventory %d, pelt %d", when, id, n, have, int(isPelt));
+            }
+            FD_INFO("test: selfstow %s: %d on the horse, the sync would add %d", when, peltsOnHorse(horse), wouldAdd);
+        };
+        Entity pelt = PED::_GET_FIRST_ENTITY_PED_IS_CARRYING(pl);
+        if (pelt && !ENTITY::_GET_IS_CARRIABLE_PELT(pelt)) pelt = 0;
+        if (!pelt) {  // a pelt on the ground first
+            static int objs[1024];
+            int n = worldGetAllObjects(objs, 1024);
+            float best = 15.0f;
+            for (int i = 0; i < n; ++i)
+                if (ENTITY::_GET_IS_CARRIABLE_PELT(objs[i]) && dist(objs[i], pl) < best) { best = dist(objs[i], pl); pelt = objs[i]; }
+            if (pelt) TASK::TASK_PICKUP_CARRIABLE_ENTITY(pl, pelt);
+        }
+        if (!pelt) {  // else skin the nearest dead animal
+            Ped carcass = 0;
+            float best = 25.0f;
+            int peds[256];
+            int n = worldGetAllPeds(peds, 256);
+            for (int i = 0; i < n; ++i) {
+                Ped e = peds[i];
+                if (!exists(e) || !ENTITY::IS_ENTITY_DEAD(e) || !ENTITY::GET_IS_ANIMAL(e) || e == horse || PED::_GET_CARRIER_AS_MOUNT(e)) continue;
+                if (dist(e, pl) < best) { best = dist(e, pl); carcass = e; }
+            }
+            FD_INFO("test: selfstow - skinning carcass %d (%.1f m)", carcass, best);
+            if (carcass) TASK::TASK_LOOT_ENTITY(pl, carcass);
+        }
+        int until = now() + 25000;
+        Entity carried = 0;
+        while (now() < until) {
+            carried = PED::_GET_FIRST_ENTITY_PED_IS_CARRYING(pl);
+            if (carried && ENTITY::_GET_IS_CARRIABLE_PELT(carried)) break;
+            carried = 0;
+            scriptWait(200);
+        }
+        if (!carried) { FD_INFO("test: selfstow - Arthur is not carrying a pelt"); return; }
+        FD_INFO("test: selfstow - Arthur carries pelt %d, item 0x%08X, horse %.1f m", carried, ENTITY::_GET_CARRIABLE_FROM_ENTITY(carried),
+                dist(horse, pl));
+        snapshot("before");
+        int had = peltsOnHorse(horse);
+        TASK::TASK_PLACE_CARRIED_ENTITY_ON_MOUNT(pl, carried, horse, 1.0f);
+        until = now() + 20000;
+        while (now() < until && peltsOnHorse(horse) == had && PED::_GET_FIRST_ENTITY_PED_IS_CARRYING(pl) == carried) scriptWait(200);
+        scriptWait(1500);  // the game's inventory write may come a moment after the stack
+        snapshot("after");
     } else if (cmd == "hogtied") {
         // hogtied [hate|town|crim] [metres]: a man lying hogtied in front of Arthur who never fought him (Honor Shield
         // 1.4.0: robbing a hogtied O'Driscoll cost -5 on 24.11). hate = a group that hates the player, crim = REL_CRIMINALS
