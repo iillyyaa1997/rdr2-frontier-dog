@@ -401,9 +401,13 @@ void CarryTask::stowOnHorse() {
                        ctx().ini.getBool("CarryStowDeadConfig", true));
 }
 
+// the horse's pelt stack has 3 places: the game's own scripts (player_horse, shop_trapper 1491.50) read and clear
+// _GET_PELT_FROM_HORSE(horse, 0..2) only
+static constexpr int kPeltPlaces = 3;
+
 static int peltsOnHorse(Ped horse) {
     int n = 0;
-    for (int i = 0; i < 8; ++i)
+    for (int i = 0; i < kPeltPlaces; ++i)
         if (PED::_GET_PELT_FROM_HORSE(horse, i)) ++n;
     return n;
 }
@@ -413,15 +417,25 @@ static int peltsOnHorse(Ped horse) {
 // (his play, 18.11). The pelt goes in by its inventory item instead (_SET_PELT_FOR_HORSE_BY_INVENTORY_ITEM, what RedM
 // stables do), the item the game itself computes for the carcass it came from, the look from the pelt's albedo; the
 // object is removed only once the horse's stack has grown.
+// 24.11 («шкура на лошади есть визуально, а в лошади пусто»): the stack holds the pelt's own carriable item
+// (_GET_CARRIABLE_FROM_ENTITY - what player_horse.c records for a stowed pelt and what the trapper and the butcher
+// count); the satchel item computed from the carcass drew the pelt but the shops did not see it. Only when the pelt has
+// no carriable item does the old way stay.
 void CarryTask::stowPeltOnHorse(Entity pelt, Ped horse) {
     if (!exists(pelt) || !alive(horse)) return;
     Hash albedo = 0;
     ENTITY::_GET_ENTITY_ALBEDO(pelt, &albedo);
     Ped carcass = ENTITY::_GET_CARCASS_FROM_PELT(pelt);
-    Hash item = 0;
+    stowCount_ = peltsOnHorse(horse);
+    if (stowCount_ >= kPeltPlaces) {  // a fourth pelt took the place of one already there (24.11 «заменяет шкуру»)
+        FD_INFO("carry: the horse's pelt stack is full (%d), the pelt stays by the horse", stowCount_);
+        helpText(ctx().t("help.horse_pelts_full"), 6000);
+        return;
+    }
+    Hash item = ENTITY::_GET_CARRIABLE_FROM_ENTITY(pelt);
     int ret = -1;
     alignas(8) uint64_t items[32] = {};
-    if (carcass && exists(carcass)) {
+    if (!item && carcass && exists(carcass)) {
         items[0] = 8;
         ret = PED::_COMPUTE_SATCHEL_ITEM_FOR_PED_CARCASS(reinterpret_cast<Any*>(items), carcass,
                                                         PED::_GET_PED_DAMAGE_CLEANLINESS(carcass), PED::_GET_PED_QUALITY(carcass));
@@ -429,7 +443,6 @@ void CarryTask::stowPeltOnHorse(Entity pelt, Ped horse) {
             if (items[i] > 0xFFFF && items[i] <= 0xFFFFFFFFull) item = Hash(items[i]);
         if (!item && uint32_t(ret) > 0xFFFF) item = Hash(ret);
     }
-    stowCount_ = peltsOnHorse(horse);
     FD_INFO("carry: pelt %d (model 0x%08X, albedo 0x%08X), carcass %d -> item 0x%08X (ret %d: %llX %llX %llX %llX), %d pelts on the horse",
             pelt, ENTITY::GET_ENTITY_MODEL(pelt), albedo, carcass, item, ret, (unsigned long long)items[0],
             (unsigned long long)items[1], (unsigned long long)items[2], (unsigned long long)items[3], stowCount_);
@@ -438,6 +451,7 @@ void CarryTask::stowPeltOnHorse(Entity pelt, Ped horse) {
     stowHorse_ = horse;
     stowSlot_ = -1;
     stowPelt_ = true;
+    stowItem_ = item;
     stowCheckAt_ = now() + 1500;
 }
 
@@ -446,13 +460,13 @@ void CarryTask::checkStow() {
     if (stowPelt_) {
         stowPelt_ = false;
         int at = -1, count = 0;
-        for (int i = 0; i < 16; ++i) {
+        for (int i = 0; i < kPeltPlaces; ++i) {
             int id = PED::_GET_PELT_FROM_HORSE(stowHorse_, i);
             if (!id) continue;
             ++count;
-            if (id == stowCarcass_) at = i;
+            if (Hash(id) == stowItem_) at = i;
         }
-        FD_INFO("carry: pelt check - %d pelts on the horse (were %d), stack ids at %d", count, stowCount_, at);
+        FD_INFO("carry: pelt check - %d pelts on the horse (were %d), item 0x%08X at place %d", count, stowCount_, stowItem_, at);
         if (count > stowCount_ && exists(stowCarcass_)) {  // the horse has it: the object on the ground goes
             Entity e = stowCarcass_;
             ENTITY::SET_ENTITY_AS_MISSION_ENTITY(e, true, true);

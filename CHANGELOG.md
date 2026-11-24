@@ -14,6 +14,9 @@
 - The dog stands up for you on its own (asked for on Nexus): it goes for the nearest man or animal fighting you within
   30 m, never lawmen, and a timid dog (Courage 1-2) only barks at them — the Shiba goes in from Courage 2 (`habit.defend_min_courage` in Breeds.dat). `AutoAttack=0` in the ini turns it off.
 - Collars are gone: the only collar the game draws sat too big on some coats (asked about on Nexus).
+- A pelt the dog puts on the horse is a real one now (his play 24.11: drawn on the horse, but the horse had none): it
+  goes into the horse's pelt stack as the pelt's own item, the way the game records a stowed pelt and the trapper and
+  the butcher count them; the stack holds three, a fourth stays beside the horse with a note instead of replacing one.
 - «Find herbs» no longer leads to a plain bush: of the 39 plant models found near the herbs on 17.11 only the 21 whose
   hash is a herb's own name stay (ginseng, burdock, thyme, oregano, wild mint, berries, mushrooms, …), and the online
   map's spots (in single player often nothing there) are off unless `herbs.map_spots=1` in Companion.dat.
