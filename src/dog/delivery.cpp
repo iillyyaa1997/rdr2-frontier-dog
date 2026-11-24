@@ -512,9 +512,13 @@ void tick() {
     // (d) a passer-by takes the message to camp for $2
     Entity focus = 0;
     PLAYER::GET_PLAYER_INTERACTION_TARGET_ENTITY(PLAYER::PLAYER_ID(), &focus, false, false);
-    // passers-by outdoors only: indoors it sat in the bartender's menu and hid Care Overhaul's canteen refill (22.11)
+    // passers-by outdoors only: indoors it sat in the bartender's menu and hid Care Overhaul's canteen refill (22.11).
+    // Only the game's ambient people: a man a script made (a stranger with a job, the sawmill foreman asking about the
+    // wolves on 24.11, a bounty, another mod's NPC) is a mission entity or carries a blip, and our «Другое» took the place
+    // of the game's «Принять» there
     bool canAsk = focus && alive(focus) && PED::IS_PED_HUMAN(focus) && !slots.empty() && dist(focus, player()) < 4.0f &&
-                  !INTERIOR::GET_INTERIOR_FROM_ENTITY(player()) &&
+                  !INTERIOR::GET_INTERIOR_FROM_ENTITY(player()) && !ENTITY::IS_ENTITY_A_MISSION_ENTITY(focus) &&
+                  !MAP::GET_BLIP_FROM_ENTITY(focus) &&
                   PED::GET_PED_RELATIONSHIP_GROUP_HASH(focus) != MISC::GET_HASH_KEY("REL_COP") &&
                   PED::GET_PED_RELATIONSHIP_GROUP_HASH(focus) != MISC::GET_HASH_KEY("REL_GANG_DUTCHS") &&
                   !PED::IS_PED_IN_COMBAT(focus, 0);
