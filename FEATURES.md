@@ -13,7 +13,7 @@ better, and has a character of its own. Every system below can be switched off i
   Stay / Follow and Send home from any distance it can hear your whistle.
 - Praise is words, from afar and from the saddle (Arthur says it, the dog answers with a happy bark); up close on foot
   the game's own Pet does the patting — never both buttons in one place (0.1.3). A praise within 30 s of a deed (a
-  fetch, herbs found, a fight) is worth more.
+  fetch, herbs found, a fight) is worth more. ✅ in game 25.11: Arthur speaks (GREET_DOG)
 - Waits outside buildings; on story missions it stays out of the way and hides during cutscenes.
 - A paw blip on the radar and the map, and the dog's own core next to Arthur's and the horse's, drawn like them: a worn
   paw that drains from the top as the dog gets hungry (red when starving, blinking red when wounded), its ring the
@@ -109,7 +109,7 @@ better, and has a character of its own. Every system below can be switched off i
 - A courier really rides out of camp: his blip moves along the roads at a horse's pace (0.1.3: it waits for the road
   network to load instead of cutting across country), near you he becomes a rider with your dog running beside his
   horse who keeps to the road until the last 40 m, hands it over and rides off. His marker stays on the map and the
-  minimap the whole way, also on the passer-by carrying the message. $5–15 by distance; the trip survives a reload.
+  minimap the whole way, also on the passer-by carrying the message. $5–15 by distance; the trip survives a reload. ✅ in game 25.11: ordered from 856 m, the rider with the dog came within ~2 min and handed it over
 
 ## Strays
 - Mutts along roads, packs of two or three near towns, never more than three around.

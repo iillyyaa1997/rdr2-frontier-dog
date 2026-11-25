@@ -6,9 +6,9 @@
 - The bond grows the dog: +1 to its weakest stat below 4 at bond level 2 and +1 at level 3 (below 3 for an Ailing dog) -
   a raised pedigree or street-hardened dog has 18 points, a standard one 14. The level-up notice says what grew; dogs
   already bonded get their points when the game loads.
-- Praise is Arthur's words now, from afar and from the saddle, with a happy bark back; up close on foot only the game's
-  own Pet (Praise used to play the same patting, so the two did one thing twice - Nexus 23.11). A praise right after a
-  deed (fetch, herbs, a fight) gives more bond.
+- Praise is Arthur's words now (the game's own line for greeting a dog), from afar and from the saddle, with a happy
+  bark back; up close on foot only the game's own Pet (Praise used to play the same patting, so the two did one thing
+  twice - Nexus 23.11). A praise right after a deed (fetch, herbs, a fight) gives more bond.
 - Telegram for a dog only through the post office clerk (not anywhere within 12 m of the office), and only when the
   game shows nothing on our buttons there; the campfire and telegram prompts show the price ($5–15 by distance).
 - «Other» on the delivery prompts is «Another dog»; the passer-by message is offered only on foot (from the saddle a
