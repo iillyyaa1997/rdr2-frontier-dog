@@ -113,12 +113,15 @@ static void updateAttack(Ped dog, DogRecord& d) {
         g_attackRetaskAt = now() + 3000;
         if (!PED::IS_PED_IN_COMBAT(dog, g_attackTarget)) {
             TASK::TASK_COMBAT_PED(dog, g_attackTarget, 0, 16);
-            FD_INFO("attack: the dog had stopped fighting ped %d - sent again", g_attackTarget);
+            FD_INFO("attack: the dog had stopped fighting ped %d - sent again (it is %.0f m from Arthur, the dog %.0f m from it)",
+                    g_attackTarget, dist(g_attackTarget, player()), dist(dog, g_attackTarget));
         }
     }
     bool farOff = g_attackTarget && alive(g_attackTarget) && dist(g_attackTarget, player()) > float(ctx().tune("attack.leash_m", 80));
     if (g_attackTarget && (!alive(g_attackTarget) || now() > g_attackUntil || farOff)) {
-        FD_INFO("attack: over - %s", !alive(g_attackTarget) ? "the target is down" : (farOff ? "the target ran too far from Arthur" : "time up"));
+        FD_INFO("attack: over - %s (%.0f m from Arthur, the dog %.0f m from it)",
+                !alive(g_attackTarget) ? "the target is down" : (farOff ? "the target ran too far from Arthur" : "time up"),
+                dist(g_attackTarget, player()), dist(dog, g_attackTarget));
         if (!alive(g_attackTarget)) {
             for (const auto& st : addDeed(d, ctx().breeds, "fight", 1, ctx().rng)) FD_INFO("hardening: %s", st.c_str());
             companion().noteDeed("fight");

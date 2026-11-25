@@ -780,6 +780,19 @@ static void run(const std::vector<std::string>& a) {
                 }
             }
         }
+    } else if (cmd == "popscan") {
+        // popscan [R]: humans within R m - model, population type, mission entity, blip, scenario (message.population_types
+        // 4,5 were a guess; 25.11 window measures who in a town is what)
+        float r = float(num(1, 40));
+        static int peds[512];
+        int n = worldGetAllPeds(peds, 512);
+        for (int i = 0; i < n; ++i) {
+            Ped q = peds[i];
+            if (q == pl || !exists(q) || !PED::IS_PED_HUMAN(q) || dist(q, pl) > r) continue;
+            FD_INFO("test: popscan ped %d model 0x%08X pop %d mission %d blip %d scenario %d mounted %d %.0f m", q,
+                    ENTITY::GET_ENTITY_MODEL(q), ENTITY::GET_ENTITY_POPULATION_TYPE(q), int(ENTITY::IS_ENTITY_A_MISSION_ENTITY(q)),
+                    int(MAP::GET_BLIP_FROM_ENTITY(q) != 0), int(PED::IS_PED_USING_ANY_SCENARIO(q)), int(PED::IS_PED_ON_MOUNT(q)), dist(q, pl));
+        }
     } else if (cmd == "deliver") {
         FD_INFO("test: delivery order -> %d", int(delivery::order(int(num(1, 2)) - 1, a.size() > 2 ? a[2].c_str() : "telegraph")));
     } else {
