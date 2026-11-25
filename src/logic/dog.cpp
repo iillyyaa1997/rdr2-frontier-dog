@@ -57,6 +57,7 @@ void DogRecord::fromKv(const KvFile& kv) {
     fiveStat = int(kv.getInt("five", -1));
     traits = kv.getList("traits");
     bondLevel = int(std::clamp<long long>(kv.getInt("bond.level", 1), 1, 3));
+    bondStats = int(std::clamp<long long>(kv.getInt("bond.stats", 0), 0, 2));
     bondPoints = kv.getFloat("bond.points", 0);
     readMap(kv, "skill.", skillLevel);
     readMap(kv, "skilluse.", skillUses);
@@ -97,6 +98,7 @@ KvFile DogRecord::toKv() const {
     kv.setInt("five", fiveStat);
     kv.setList("traits", traits);
     kv.setInt("bond.level", bondLevel);
+    kv.setInt("bond.stats", bondStats);
     kv.setFloat("bond.points", bondPoints, 1);
     writeMap(kv, "skill.", skillLevel);
     writeMap(kv, "skilluse.", skillUses);
@@ -331,10 +333,41 @@ void cure(DogRecord& d, const BreedTable& t, Rng& rng, const RollChances& c) {
     d.grade = Grade::Ordinary;
 }
 
+static int growWeakest(Stats& s, int cap) {
+    int best = -1;
+    for (int i = 0; i < StatCount; ++i)
+        if (s[i] < cap && (best < 0 || s[i] < s[best])) best = i;
+    if (best >= 0) ++s[best];
+    return best;
+}
+
+std::vector<int> applyBondGrowth(DogRecord& d) {
+    std::vector<int> grown;
+    int due = std::clamp(d.bondLevel - 1, 0, 2);
+    while (d.bondStats < due) {
+        int i = growWeakest(d.stats, d.grade == Grade::Ailing ? 3 : 4);
+        ++d.bondStats;  // counted even when every stat is at the cap: nothing to give, nothing owed
+        if (i >= 0) grown.push_back(i);
+    }
+    return grown;
+}
+
+bool refreshPedigreeCard(DogRecord& d, const BreedTable& t) {
+    const BreedDef* b = t.find(d.breed);
+    if (d.grade != Grade::Pedigree || !b || b->mutt) return false;
+    Stats want = b->stats;
+    for (int k = 0; k < d.bondStats; ++k) growWeakest(want, 4);
+    if (want == d.stats) return false;
+    d.stats = want;
+    d.fiveStat = b->fiveStat();
+    return true;
+}
+
 bool makePedigree(DogRecord& d, const BreedTable& t) {
     const BreedDef* b = t.find(d.breed);
     if (!b || b->mutt || d.grade != Grade::Ordinary) return false;
     d.stats = b->stats;
+    for (int k = 0; k < d.bondStats; ++k) growWeakest(d.stats, 4);  // the bond's points stay
     d.fiveStat = b->fiveStat();
     d.traits = b->traits;
     d.grade = Grade::Pedigree;

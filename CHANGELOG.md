@@ -1,6 +1,11 @@
 # Changelog
 
 ## 0.1.3 (unreleased)
+- Every breed has its strong side now: the Australian Shepherd gets Stamina 5, the Bluetick Nose 5, the Chesapeake
+  Strength 5 and the Labrador Trainability 5 (still 16 points in all). Dogs you own catch up when the game loads.
+- The bond grows the dog: +1 to its weakest stat below 4 at bond level 2 and +1 at level 3 (below 3 for an Ailing dog) -
+  a raised pedigree or street-hardened dog has 18 points, a standard one 14. The level-up notice says what grew; dogs
+  already bonded get their points when the game loads.
 - Praise is Arthur's words now, from afar and from the saddle, with a happy bark back; up close on foot only the game's
   own Pet (Praise used to play the same patting, so the two did one thing twice - Nexus 23.11). A praise right after a
   deed (fetch, herbs, a fight) gives more bond.

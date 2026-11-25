@@ -210,3 +210,34 @@ TEST(max_health_by_bond_strength_and_grade) {
     CHECK_EQ(fd::maxHealth(shiba, bond, str, 0.25), 612);
     CHECK_EQ(fd::maxHealth(husky, bond, {}, 0.25), 1120);  // no strength row: by bond only, as before
 }
+
+TEST(bond_growth_and_pedigree_cards) {
+    const auto& t = table();
+    fd::Rng rng(7);
+    fd::RollChances c;
+    for (const char* b : {"australian", "bluetick", "chesapeake", "labrador"}) {
+        auto d = fd::makeDog(*t.find(b), t, fd::Grade::Pedigree, rng, c, {});
+        int fives = 0;
+        for (int v : d.stats) fives += v == 5;
+        CHECK_EQ(fives, 1);  // every breed has its 5 (25.11)
+        CHECK_EQ(d.statSum(), 16);
+    }
+    auto d = fd::makeDog(*t.find("shiba"), t, fd::Grade::Pedigree, rng, c, {});
+    CHECK(fd::applyBondGrowth(d).empty());  // bond 1: nothing
+    d.bondLevel = 3;
+    auto g = fd::applyBondGrowth(d);
+    CHECK_EQ(int(g.size()), 2);
+    CHECK_EQ(d.statSum(), 18);
+    CHECK_EQ(d.bondStats, 2);
+    CHECK(fd::applyBondGrowth(d).empty());  // given once only
+    CHECK(!fd::refreshPedigreeCard(d, t));  // card + bond points: already right
+    d.stats[0] = 1;
+    CHECK(fd::refreshPedigreeCard(d, t));
+    CHECK_EQ(d.statSum(), 18);
+    CHECK(fd::gradeDown(d, t, rng));  // pedigree -> ordinary keeps the bond's points: 18 - 4
+    CHECK_EQ(d.statSum(), 14);
+    auto a = fd::makeDog(*t.find("mutt"), t, fd::Grade::Ailing, rng, c, {});
+    a.bondLevel = 2;
+    fd::applyBondGrowth(a);
+    for (int v : a.stats) CHECK(v <= 3);  // ailing: below 3 only
+}

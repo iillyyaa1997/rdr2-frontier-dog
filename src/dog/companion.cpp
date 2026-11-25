@@ -591,8 +591,15 @@ void Companion::addBond(double points, const std::string& reason, int cooldownMs
     if (lvl > d->bondLevel) {
         d->bondLevel = lvl;
         FD_INFO("bonding level %d for %s", lvl, d->name.c_str());
+        std::string grew;
+        for (int i : applyBondGrowth(*d)) {
+            grew += (grew.empty() ? "" : ", ") + ctx().t("stat." + std::to_string(i + 1)) + " +1";
+            FD_INFO("bond: stat %d +1 (now %d)", i + 1, d->stats[i]);
+        }
         if (alive(ped_)) ENTITY::SET_ENTITY_MAX_HEALTH(ped_, dogMaxHealth(*d));
-        helpText(ctx().f("help.bond_level", {{"name", d->name}, {"level", std::to_string(lvl)}}, d->female));
+        std::string note = ctx().f("help.bond_level", {{"name", d->name}, {"level", std::to_string(lvl)}}, d->female);
+        if (!grew.empty()) note += " · " + grew;
+        helpText(note);
         save();
     }
 }

@@ -95,6 +95,18 @@ static void scriptMain() {
         while (true) scriptWait(1000);
     }
     c.store.open(fs::join(c.dataDir, "Dogs"));
+    // 25.11: breed cards changed (every breed has its 5) and the bond gives stat points - dogs saved before catch up
+    for (int i = 0; i < DogStore::kSlots; ++i) {
+        if (!c.store.used(i)) continue;
+        DogRecord& d = c.store.at(i);
+        bool card = refreshPedigreeCard(d, c.breeds);
+        auto grown = applyBondGrowth(d);
+        if (card || !grown.empty()) {
+            FD_INFO("dog %d: stats brought up to date (%s%s) -> %d,%d,%d,%d,%d", i + 1, card ? "breed card" : "",
+                    grown.empty() ? "" : (card ? ", bond points" : "bond points"), d.stats[0], d.stats[1], d.stats[2], d.stats[3], d.stats[4]);
+            c.store.save(i);
+        }
+    }
     companion().start();
     behaviour::start();
     care::start();

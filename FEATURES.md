@@ -26,6 +26,9 @@ better, and has a character of its own. Every system below can be switched off i
 
 ## Bond, skills, breeds
 - Bond levels 1–3, earned by praise, petting, feeding, brushing, treats, fetching and time together.
+- The bond grows the dog: +1 to its weakest stat at bond 2 and +1 at bond 3 (a raised pedigree dog: 18 points, a
+  standard one 14). Every breed card has one 5 (0.1.3: Australian Stamina, Bluetick Nose, Chesapeake Strength, Labrador
+  Trainability).
 - Eight skills that grow by doing (levels 1–3): Retrieve, Soft mouth, Trail, Hold, Point, Flush, Guard, Ambush sense — or
   pay a stable hand to train one overnight.
 - Twelve breeds: Australian Shepherd, Bloodhound, Bluetick Coonhound, Border Collie, Catahoula, Chesapeake Bay Retriever,

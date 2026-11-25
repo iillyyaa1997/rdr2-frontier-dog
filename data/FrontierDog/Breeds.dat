@@ -2,7 +2,8 @@
 # in FrontierDog\Dogs\ and are never touched by an update.
 #
 # stats = strength, nose, stamina, courage, trainability. A pedigree card sums to 16; only a breed's natural 5 goes
-# above 4. Ordinary dogs: 12 (no 5), ailing 8 (each 1-3), see plan D99-D111.
+# above 4 - every breed has one (25.11). Ordinary dogs: 12 (no 5), ailing 8 (each 1-3), see plan D99-D111. The bond adds
+# a point at level 2 and one at 3 to the weakest stat below 4 (below 3 when ailing): a raised pedigree dog has 18.
 # traits = the pedigree trait mix (5 points). Trait prices: 1-3 points, 3 = signature.
 
 breeds=australian,bloodhound,bluetick,collie,catahoula,chesapeake,foxhound,husky,labrador,mutt,poodle,shiba
@@ -52,7 +53,7 @@ deed.command.step=40
 [Breeds]
 australian.model=a_c_dogaustraliansheperd_01
 australian.animal_type=0x373AD87A
-australian.stats=3,3,4,3,3
+australian.stats=3,3,5,2,3
 australian.traits=horse_herder,flusher,obedient
 australian.price=180
 
@@ -64,7 +65,7 @@ bloodhound.price=200
 
 bluetick.model=a_c_dogbluetickcoonhound_01
 bluetick.animal_type=0xB126EFB8
-bluetick.stats=3,4,4,3,2
+bluetick.stats=3,5,4,2,2
 bluetick.traits=bay_holder,quick,tough
 bluetick.price=170
 
@@ -82,7 +83,7 @@ catahoula.price=190
 
 chesapeake.model=a_c_dogchesbayretriever_01
 chesapeake.animal_type=0x714FAE8F
-chesapeake.stats=4,3,4,3,2
+chesapeake.stats=5,3,4,2,2
 chesapeake.traits=diver,long_retrieve,hauler,tough,tidy
 chesapeake.price=170
 
@@ -100,7 +101,7 @@ husky.price=170
 
 labrador.model=a_c_doglab_01
 labrador.animal_type=0x738F36B2
-labrador.stats=3,4,3,2,4
+labrador.stats=3,3,3,2,5
 labrador.traits=soft_mouth,diver,affectionate,long_retrieve
 labrador.price=160
 

@@ -32,6 +32,7 @@ struct DogRecord {
 
     int bondLevel = 1;
     double bondPoints = 0;
+    int bondStats = 0;      // stat points the bond has given: +1 at level 2, +1 at 3 (25.11)
     std::map<std::string, int> skillLevel;
     std::map<std::string, int> skillUses;
 
@@ -99,6 +100,13 @@ bool addSkillUse(DogRecord& d, const std::string& skill, int usesL2, int usesL3)
 // Max health (24.11, his pick): by bonding level (health.max) times by the dog's own Strength 1..5 (health.strength:
 // a Shiba with Strength 2 has less than a Husky with 5), a quarter less when Ailing (D111)
 int maxHealth(const DogRecord& d, const std::vector<double>& byBond, const std::vector<double>& byStrength, double ailingCut);
+
+// The bond's stat points (25.11): +1 at bond 2 and +1 at 3 onto the weakest stat below 4 (3 for an Ailing dog), first
+// in stat order on a tie. Returns the stats grown now (indices), empty when nothing was due.
+std::vector<int> applyBondGrowth(DogRecord& d);
+// A pedigree (not a hardened mutt) whose stats are not its breed's card plus the bond's points: set to that (a breed
+// card changed in an update, 25.11). True when it changed.
+bool refreshPedigreeCard(DogRecord& d, const BreedTable& t);
 
 const char* gradeKey(Grade g, bool mutt);  // Lang key: grade.pedigree / grade.hardened / grade.ordinary / grade.ailing
 
