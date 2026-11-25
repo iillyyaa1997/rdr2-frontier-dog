@@ -53,6 +53,10 @@ better, and has a character of its own. Every system below can be switched off i
 ## Hunting
 - Fetches what Arthur shoots: small game in its jaws, medium game dragged, large game hauled backwards on its own
   strength — and loads the carcass onto Arthur's horse when the horse is near.
+- «Шкуру на лошадь» / Pelt onto the horse: carrying a pelt, Arthur's own prompt sends the dog to stow it (up to 3);
+  hidden within 6 m of the horse and whenever the game shows its own stow, so it never covers it (0.1.3). The pelts
+  go into the horse's inventory as well, so the trapper and the butcher buy them. ✅ in game 25.11: a pelt Arthur
+  stows himself the game's way is counted once (on the horse 1, in its inventory 1, nothing added twice)
 - Shots taken during a carry wait their turn; pelt quality depends on Soft mouth; tired dogs rest.
 - Huntress catches three-star game by herself; Point, Flush on command, trail and hold a wounded animal, bring bodies
   and pelts, retrieve from water (Diver from deep water).
