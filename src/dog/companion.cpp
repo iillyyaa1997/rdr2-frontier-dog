@@ -424,20 +424,23 @@ void Companion::noteDeed(const char* what) {
 
 void Companion::praise() {
     if (!present()) return;
-    static int s_line = -1;  // the speech line that worked
+    static int s_line = -1;  // the speech line that worked (index * 2 + 1 when it plays without the sex suffix)
     auto lines = ctx().tuning.getList("praise.speech");
     const char* sex = PED::IS_PED_MALE(ped_) ? "_MALE" : "_FEMALE";
+    // a line with the dog's sex (HORSE_FOLLOW_ME_MALE) or a plain one (GREET_DOG - window 25.11: the game has GREET_DOG,
+    // PET_HORSE, CALM_HORSE for Arthur; PRAISE_DOG, PET_DOG, GOOD_DOG, HORSE_PRAISE and the like it does not)
+    auto name = [&](int k) { return lines[k / 2] + (k % 2 ? "" : sex); };
     bool said = false;
-    if (s_line >= 0 && s_line < int(lines.size())) said = speech(player(), (lines[s_line] + sex).c_str());
-    for (int i = 0; !said && i < int(lines.size()); ++i) {
-        if (speech(player(), (lines[i] + sex).c_str())) {
-            s_line = i;
+    if (s_line >= 0 && s_line < int(lines.size()) * 2) said = speech(player(), name(s_line).c_str());
+    for (int k = 0; !said && s_line < 0 && k < int(lines.size()) * 2; ++k) {
+        if (speech(player(), name(k).c_str())) {
+            s_line = k;
             said = true;
-            FD_INFO("praise: Arthur says %s%s", lines[i].c_str(), sex);
+            FD_INFO("praise: Arthur says %s", name(k).c_str());
         }
     }
     if (!said && s_line < 0) {
-        s_line = int(lines.size());  // none of them: quiet from now on, no retries every time
+        s_line = int(lines.size()) * 2;  // none of them: quiet from now on, no retries every time
         FD_INFO("praise: none of the %d speech lines played - a quiet praise", int(lines.size()));
     }
     AUDIO::PLAY_ANIMAL_VOCALIZATION(ped_, "BARK_HAPPY", true);

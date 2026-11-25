@@ -19,9 +19,10 @@ bond.pat=4
 bond.pat_cooldown_ms=120000
 bond.praise=3
 bond.praise_cooldown_ms=120000
-# Praise (24.11): Arthur's words - the first of these lines (+ _MALE/_FEMALE by the dog) the game plays; a praise within
-# praise.deed_window_ms after a deed (fetch, herbs, a fight) adds bond.praise_deed
-praise.speech=HORSE_PRAISE,PRAISE_HORSE,HORSE_GOOD,HORSE_CALM,HORSE_REASSURE,HORSE_PAT
+# Praise (24.11): Arthur's words - the first of these lines (with _MALE/_FEMALE by the dog, then plain) the game plays;
+# GREET_DOG is Arthur's own line to a dog (window 25.11; PRAISE_DOG, PET_DOG, GOOD_DOG, HORSE_PRAISE do not exist).
+# A praise within praise.deed_window_ms after a deed (fetch, herbs, a fight) adds bond.praise_deed
+praise.speech=GREET_DOG
 praise.deed_window_ms=30000
 bond.praise_deed=2
 bond.fetch=2
