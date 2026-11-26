@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.4 (unreleased)
+## 0.1.4
 - Strays stay outdoors: they no longer appear inside buildings, a begging or tagging-along mutt waits at the door when
   Arthur goes in, and one that still ends up indoors is sent back out and is gone once out of view (a dog cannot open a
   closed door) - Nexus 26.11. A mutt sent back to its spot walks there on the paths and only then wanders about it.
