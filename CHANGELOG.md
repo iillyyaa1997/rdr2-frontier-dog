@@ -1,6 +1,11 @@
 # Changelog
 
-## 0.1.3 (unreleased)
+## 0.1.4 (unreleased)
+- Strays stay outdoors: they no longer appear inside buildings, a begging or tagging-along mutt waits at the door when
+  Arthur goes in, and one that wanders indoors walks back out (or is gone, out of view) - Nexus 26.11. Strays=0 in
+  FrontierDog.ini turns them off (the line is in the shipped ini now).
+
+## 0.1.3
 - Every breed has its strong side now: the Australian Shepherd gets Stamina 5, the Bluetick Nose 5, the Chesapeake
   Strength 5 and the Labrador Trainability 5 (still 16 points in all). Dogs you own catch up when the game loads.
 - The bond grows the dog: +1 to its weakest stat below 4 at bond level 2 and +1 at level 3 (below 3 for an Ailing dog) -

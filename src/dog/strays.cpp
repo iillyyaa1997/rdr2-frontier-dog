@@ -29,6 +29,7 @@ struct Known {
     int bornAt = 0;
     std::string model;    // the model it was made from (a remembered stray comes back the same)
     int memId = -1;       // in the remembered list (fed once, 18.11 his pick)
+    int sentOutAt = 0;    // when it was found indoors and sent back out to `home`
 };
 
 // what Arthur can feed a stray from his satchel
@@ -208,6 +209,15 @@ static void memTick(int t) {
         if (m.pending || t - m.goneAt < 60000) continue;
         float d = std::hypot(pp.x - m.where.x, pp.y - m.where.y);
         if (d < 50.0f || d > 120.0f) continue;
+        // fed indoors (a beggar that followed Arthur in, before 0.1.4): it comes back outside, not in the room
+        // (Nexus 26.11, Crystle110: «They even spawn inside hotel rented rooms and buildings»)
+        if (INTERIOR::GET_INTERIOR_AT_COORDS(m.where.x, m.where.y, m.where.z)) {
+            Vector3 out;
+            if (!hiddenSpotNear(m.where, 4, 30, out, true)) continue;
+            FD_INFO("remembered stray %d: its place %.0f %.0f is indoors, moved out %.0f m", m.id, m.where.x, m.where.y, dist(out, m.where));
+            m.where = out;
+            memSave();
+        }
         PendingStray ps;
         ps.card = m.card;
         ps.req.model = m.model;
@@ -233,6 +243,7 @@ static int oursAround() {
 
 static Ped g_beggar = 0;
 static bool g_begging = false;
+static bool g_beggarAway = false;  // it left its door for Arthur (trotting up or sitting by him)
 
 // a fed stray that turns up by the gang camp later (D106 idea 5: it follows Arthur for a while, or waits near camp)
 struct CampVisitor {
@@ -265,6 +276,7 @@ static void setupStray(Ped p, DogRecord card, const Vector3& at, bool beggar, bo
     if (beggar) {
         g_beggar = p;
         g_begging = false;
+        g_beggarAway = false;
     }
     k.bornAt = now();
     g_known[p] = k;
@@ -310,7 +322,8 @@ static void spawnMutts() {
     int pack = nearTown && c.rng.chance(c.tunef("strays.pack_chance", 0.35)) ? c.rng.range(2, 3) : 1;
     pack = std::min(pack, cap - oursAround());
     Vector3 at;
-    if (!hiddenSpotNear(pp, 60, 95, at)) return;
+    // outdoors only: a point on the navmesh 60-95 m off was often a room of a building in town (Nexus 26.11, Crystle110)
+    if (!hiddenSpotNear(pp, 60, 95, at, true)) return;
     TraitBias bias = biasAt(at);
     for (int i = 0; i < pack; ++i) {
         DogRecord card = rollStray(*mutt, c.breeds, c.rng, c.chances, bias);
@@ -367,7 +380,10 @@ static void tickBeggar(int t) {
         float d = dist(g_beggar, pl);
         float notice = float(c.tunef("strays.beggar_notice", 25));
         bool food = foodInSatchel() != nullptr && it->second.lastFedDay != gameDay();
-        if (food && d < notice && !onMission()) {
+        // it never follows Arthur indoors: it trotted after him into the saloon and the hotel (Nexus 26.11, Crystle110)
+        bool indoors = INTERIOR::GET_INTERIOR_FROM_ENTITY(pl) != 0;
+        if (food && d < notice && !onMission() && !indoors) {
+            g_beggarAway = true;
             if (d > 2.5f) {
                 TASK::TASK_GO_TO_ENTITY(g_beggar, pl, -1, 1.8f, 1.2f, 0, 0);
             } else if (!g_begging) {
@@ -378,11 +394,13 @@ static void tickBeggar(int t) {
                 helpText(c.t("help.stray_begs"));
                 FD_INFO("beggar sits by Arthur");
             }
-        } else if (g_begging && (d > notice + 5.0f || !food)) {
-            g_begging = false;  // he walked off or fed it: back to the door
+        } else if (g_beggarAway && (d > notice + 5.0f || !food || indoors || onMission())) {
+            g_begging = false;  // he walked off, went indoors or fed it: back to the door
+            g_beggarAway = false;
             TASK::CLEAR_PED_TASKS(g_beggar, true, true);
             const Vector3& home = it->second.home;
             TASK::TASK_WANDER_IN_AREA(g_beggar, home.x, home.y, home.z, 4.0f, 2.0f, 4.0f, 0);
+            if (indoors) FD_INFO("beggar stays outside: Arthur went indoors");
         }
         return;
     }
@@ -496,7 +514,23 @@ void tick() {
             Ped p = it->first;
             bool gone = !exists(p) || ENTITY::IS_ENTITY_DEAD(p);
             bool distant = exists(p) && dist(p, player()) > 220.0f && !ENTITY::IS_ENTITY_ON_SCREEN(p);
-            if (gone || (distant && it->second.ours)) {
+            // a stray of ours that wandered into a building: out of view it is gone (it comes again later, outdoors),
+            // in view it walks back out to its spot (Nexus 26.11, Crystle110: strays in hotel rooms, pooping indoors)
+            bool indoors = !gone && it->second.ours && INTERIOR::GET_INTERIOR_FROM_ENTITY(p) != 0;
+            if (indoors && ENTITY::IS_ENTITY_ON_SCREEN(p)) {
+                if (t - it->second.sentOutAt > 30000) {
+                    it->second.sentOutAt = t;
+                    if (p == g_beggar) g_begging = g_beggarAway = false;
+                    if (p == g_follower) g_follower = 0;
+                    const Vector3& h = it->second.home;
+                    TASK::CLEAR_PED_TASKS(p, true, true);
+                    TASK::TASK_WANDER_IN_AREA(p, h.x, h.y, h.z, it->second.beggar ? 4.0f : 25.0f, 2.0f, 4.0f, 0);
+                    FD_INFO("stray indoors in view: back out to its spot %.0f m off", dist(pos(p), h));
+                }
+                indoors = false;
+            }
+            if (indoors) FD_INFO("stray indoors out of view: removed");
+            if (gone || (distant && it->second.ours) || indoors) {
                 for (auto& m : g_mem)
                     if (m.id == it->second.memId) {
                         m.ped = 0;
@@ -533,7 +567,7 @@ void tick() {
         if (gameDay() > g_visitor.untilDay) {
             g_visitor = CampVisitor{};
         } else if (!g_visitor.spawned && home::inCamp() && g_pending.empty() && home::campKnown(camp) &&
-                   hiddenSpotNear(camp, 25, 45, at)) {
+                   hiddenSpotNear(camp, 25, 45, at, true)) {  // outdoors: Shady Belle and Lakay camps have houses
             PendingStray ps;
             ps.card = g_visitor.card;
             ps.req.model = ps.card.model.empty() ? "a_c_doghobo_01" : ps.card.model;
@@ -591,8 +625,21 @@ void tick() {
     }
     if (!offered) g_feed.show(false);
     if (g_follower) {
-        if (!alive(g_follower) || t > g_followUntil) {
-            if (alive(g_follower)) TASK::TASK_WANDER_STANDARD(g_follower, 10.0f, 10);
+        // a stray tagging along stays at the door when Arthur goes indoors, and then keeps to that spot outdoors
+        // (TASK_WANDER_STANDARD let it roam into houses; Nexus 26.11, Crystle110)
+        bool inside = INTERIOR::GET_INTERIOR_FROM_ENTITY(pl) != 0;
+        if (!alive(g_follower) || t > g_followUntil || inside) {
+            if (alive(g_follower)) {
+                auto it = g_known.find(g_follower);
+                Vector3 at = pos(g_follower);
+                if (it != g_known.end()) {
+                    if (!INTERIOR::GET_INTERIOR_FROM_ENTITY(g_follower)) it->second.home = at;
+                    at = it->second.home;
+                }
+                TASK::CLEAR_PED_TASKS(g_follower, true, true);
+                TASK::TASK_WANDER_IN_AREA(g_follower, at.x, at.y, at.z, 25.0f, 2.0f, 4.0f, 0);
+                FD_INFO("the stray stops following Arthur%s", inside ? ": he went indoors" : "");
+            }
             g_follower = 0;
         } else if (dist(g_follower, pl) > 8.0f && t >= g_nextFollow) {
             g_nextFollow = t + 4000;

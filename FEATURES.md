@@ -116,7 +116,8 @@ better, and has a character of its own. Every system below can be switched off i
   minimap the whole way, also on the passer-by carrying the message. $5–15 by distance; the trip survives a reload. ✅ in game 25.11: ordered from 856 m, the rider with the dog came within ~2 min and handed it over
 
 ## Strays
-- Mutts along roads, packs of two or three near towns, never more than three around.
+- Mutts along roads, packs of two or three near towns, never more than three around; always outdoors (never in a
+  building, and one that wanders in walks back out). Strays=0 in FrontierDog.ini turns them off. ⏳ not checked in game
 - Tame one with food or a pat; a Street-hardened mutt keeps its distance until fed on two or three different days and
   runs off when you fire near it.
 - Now and then a lone mutt begs by the door of a butcher or a saloon (all six butchers and nine saloons): when you come
