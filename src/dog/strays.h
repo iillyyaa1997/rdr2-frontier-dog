@@ -16,4 +16,5 @@ void spawnNow();                  // test hook: a stray encounter now (ignores t
 void beggarNow();                 // test hook: a beggar by the nearest butcher/saloon within reach, no roll
 void hardNow();                   // test hook: a wary street-hardened mutt 20-35 m away, unseen
 void visitorNow();                // test hook: a fed stray that waits near camp (as after feeding, no roll)
+void hereNow();                   // test hook: the nearest stray of ours next to Arthur (indoors too), its spot kept
 }

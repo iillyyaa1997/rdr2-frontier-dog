@@ -703,6 +703,8 @@ static void run(const std::vector<std::string>& a) {
                 HUD::_GET_HUD_VISIBILITY_SLOT_STATE(3), int(HUD::IS_HUD_HIDDEN()), int(HUD::IS_RADAR_HIDDEN()));
     } else if (cmd == "strays") {
         strays::spawnNow();
+    } else if (cmd == "strayhere") {
+        strays::hereNow();
     } else if (cmd == "item" && a.size() >= 2) {
         // item <KEY>: is the key in the item database, how many in the satchel
         FD_INFO("test: item %s known %d, count %d", a[1].c_str(), int(itemKnown(a[1].c_str())), itemCount(a[1].c_str()));

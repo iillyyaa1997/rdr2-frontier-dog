@@ -280,6 +280,7 @@ static void setupStray(Ped p, DogRecord card, const Vector3& at, bool beggar, bo
     }
     k.bornAt = now();
     g_known[p] = k;
+    FD_INFO("stray %s out at %.0f %.0f, %.0f m from Arthur", beggar ? "beggar" : "mutt", at.x, at.y, dist(at, pos(player())));
 }
 
 static void stepStrays() {
@@ -474,6 +475,24 @@ void visitorNow() {
                             gameDay() + c.tune("strays.camp_visit_days", 3), false};
     g_nextVisitor = 0;
     FD_INFO("test: stray will wait near camp until day %lld", g_visitor.untilDay);
+}
+
+void hereNow() {
+    Ped pl = player(), best = 0;
+    float bestD = 1e9f;
+    for (auto& [p, k] : g_known)
+        if (k.ours && alive(p) && dist(p, pl) < bestD) {
+            best = p;
+            bestD = dist(p, pl);
+        }
+    if (!best) {
+        FD_INFO("test: no stray of ours around");
+        return;
+    }
+    Vector3 at = add(pos(pl), Vector3(1.5f, 0, 0));
+    ENTITY::SET_ENTITY_COORDS(best, at.x, at.y, at.z, false, false, false, false);
+    FD_INFO("test: stray %d moved %.0f m to Arthur (Arthur indoors %d), its spot %.0f m off", best, bestD,
+            int(INTERIOR::GET_INTERIOR_FROM_ENTITY(pl) != 0), dist(at, g_known[best].home));
 }
 
 void beggarNow() {
