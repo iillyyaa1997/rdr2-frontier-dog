@@ -2,8 +2,9 @@
 
 ## 0.1.4 (unreleased)
 - Strays stay outdoors: they no longer appear inside buildings, a begging or tagging-along mutt waits at the door when
-  Arthur goes in, and one that wanders indoors walks back out (or is gone, out of view) - Nexus 26.11. Strays=0 in
-  FrontierDog.ini turns them off (the line is in the shipped ini now).
+  Arthur goes in, and one that still ends up indoors is sent back out and is gone once out of view (a dog cannot open a
+  closed door) - Nexus 26.11. A mutt sent back to its spot walks there on the paths and only then wanders about it.
+  Strays=0 in FrontierDog.ini turns them off (the line is in the shipped ini now).
 
 ## 0.1.3
 - Every breed has its strong side now: the Australian Shepherd gets Stamina 5, the Bluetick Nose 5, the Chesapeake

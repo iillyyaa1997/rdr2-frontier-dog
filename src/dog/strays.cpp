@@ -30,6 +30,7 @@ struct Known {
     std::string model;    // the model it was made from (a remembered stray comes back the same)
     int memId = -1;       // in the remembered list (fed once, 18.11 his pick)
     int sentOutAt = 0;    // when it was found indoors and sent back out to `home`
+    bool goingHome = false;  // walking back to `home` on the navmesh; it wanders about it once there
 };
 
 // what Arthur can feed a stray from his satchel
@@ -42,6 +43,17 @@ static const char* foodInSatchel() {
 }
 
 static std::map<int, Known> g_known;
+
+// A wander task alone does not bring a ped back into its area: one 50 m off its spot stood still (window 26.11). So it
+// walks back on the navmesh first, and the cleaning tick sets it wandering about its spot once the walk is over.
+static void wanderAtHome(Ped p, const Known& k) {
+    TASK::TASK_WANDER_IN_AREA(p, k.home.x, k.home.y, k.home.z, k.beggar ? 4.0f : 25.0f, 2.0f, 4.0f, 0);
+}
+static void sendHome(Ped p, Known& k) {
+    TASK::CLEAR_PED_TASKS(p, true, true);
+    TASK::TASK_FOLLOW_NAV_MESH_TO_COORD(p, k.home.x, k.home.y, k.home.z, 2.0f, -1, 2.0f, 0, 0.0f);
+    k.goingHome = true;
+}
 static int g_nextSpawn = 0, g_nextClean = 0, g_followUntil = 0;
 static Ped g_follower = 0;
 static int g_nextFollow = 0;
@@ -398,9 +410,7 @@ static void tickBeggar(int t) {
         } else if (g_beggarAway && (d > notice + 5.0f || !food || indoors || onMission())) {
             g_begging = false;  // he walked off, went indoors or fed it: back to the door
             g_beggarAway = false;
-            TASK::CLEAR_PED_TASKS(g_beggar, true, true);
-            const Vector3& home = it->second.home;
-            TASK::TASK_WANDER_IN_AREA(g_beggar, home.x, home.y, home.z, 4.0f, 2.0f, 4.0f, 0);
+            sendHome(g_beggar, it->second);
             if (indoors) FD_INFO("beggar stays outside: Arthur went indoors");
         }
         return;
@@ -477,7 +487,7 @@ void visitorNow() {
     FD_INFO("test: stray will wait near camp until day %lld", g_visitor.untilDay);
 }
 
-void hereNow() {
+static Ped nearestOurs() {
     Ped pl = player(), best = 0;
     float bestD = 1e9f;
     for (auto& [p, k] : g_known)
@@ -485,14 +495,61 @@ void hereNow() {
             best = p;
             bestD = dist(p, pl);
         }
+    return best;
+}
+
+void hereNow(const Vector3* exact) {
+    Ped pl = player(), best = nearestOurs();
     if (!best) {
         FD_INFO("test: no stray of ours around");
         return;
     }
-    Vector3 at = add(pos(pl), Vector3(1.5f, 0, 0));
+    float was = dist(best, pl);
+    Vector3 want = add(pos(pl), scale(ENTITY::GET_ENTITY_FORWARD_VECTOR(pl), 2.5f)), at;
+    if (exact) at = *exact;
+    else if (!safeCoord(want, at)) at = want;  // on the navmesh in front of Arthur, not inside a counter or a wall
     ENTITY::SET_ENTITY_COORDS(best, at.x, at.y, at.z, false, false, false, false);
-    FD_INFO("test: stray %d moved %.0f m to Arthur (Arthur indoors %d), its spot %.0f m off", best, bestD,
-            int(INTERIOR::GET_INTERIOR_FROM_ENTITY(pl) != 0), dist(at, g_known[best].home));
+    FD_INFO("test: stray %d moved %.0f m to %.1f %.1f %.1f in front of Arthur (Arthur indoors %d), its spot %.0f m off", best, was,
+            at.x, at.y, at.z, int(INTERIOR::GET_INTERIOR_FROM_ENTITY(pl) != 0), dist(at, g_known[best].home));
+}
+
+void followNow() {
+    Ped best = nearestOurs();
+    if (!best) {
+        FD_INFO("test: no stray of ours around");
+        return;
+    }
+    g_follower = best;
+    g_followUntil = now() + 120000;
+    g_nextFollow = 0;
+    FD_INFO("test: stray %d follows Arthur for 2 min (%.0f m away)", best, dist(best, player()));
+}
+
+void goNow(const Vector3& to) {
+    Ped best = nearestOurs();
+    if (!best) {
+        FD_INFO("test: no stray of ours around");
+        return;
+    }
+    TASK::CLEAR_PED_TASKS(best, true, true);
+    TASK::TASK_FOLLOW_NAV_MESH_TO_COORD(best, to.x, to.y, to.z, 2.0f, -1, 1.0f, 0, 0.0f);
+    FD_INFO("test: stray %d walks to %.1f %.1f %.1f (%.0f m)", best, to.x, to.y, to.z, dist(pos(best), to));
+}
+
+void infoNow() {
+    Ped pl = player();
+    int n = 0;
+    for (auto& [p, k] : g_known) {
+        if (!k.ours || !exists(p)) continue;
+        ++n;
+        Vector3 q = pos(p);
+        static const Hash kNavTask = MISC::GET_HASH_KEY("SCRIPT_TASK_FOLLOW_NAV_MESH_TO_COORD");
+        FD_INFO("test: stray %d at %.1f %.1f %.1f, %.0f m from Arthur, indoors %d, on screen %d, spot %.0f m off, nav task %d%s%s%s", p,
+                q.x, q.y, q.z, dist(p, pl), int(INTERIOR::GET_INTERIOR_FROM_ENTITY(p) != 0), int(ENTITY::IS_ENTITY_ON_SCREEN(p)),
+                dist(q, k.home), TASK::GET_SCRIPT_TASK_STATUS(p, kNavTask, false), k.goingHome ? ", going home" : "",
+                p == g_beggar ? ", the beggar" : "", p == g_follower ? ", following" : "");
+    }
+    FD_INFO("test: %d strays of ours, Arthur indoors %d", n, int(INTERIOR::GET_INTERIOR_FROM_ENTITY(pl) != 0));
 }
 
 void beggarNow() {
@@ -541,14 +598,23 @@ void tick() {
                     it->second.sentOutAt = t;
                     if (p == g_beggar) g_begging = g_beggarAway = false;
                     if (p == g_follower) g_follower = 0;
-                    const Vector3& h = it->second.home;
-                    TASK::CLEAR_PED_TASKS(p, true, true);
-                    TASK::TASK_WANDER_IN_AREA(p, h.x, h.y, h.z, it->second.beggar ? 4.0f : 25.0f, 2.0f, 4.0f, 0);
-                    FD_INFO("stray indoors in view: back out to its spot %.0f m off", dist(pos(p), h));
+                    sendHome(p, it->second);
+                    FD_INFO("stray indoors in view: back out to its spot %.0f m off", dist(pos(p), it->second.home));
                 }
                 indoors = false;
             }
             if (indoors) FD_INFO("stray indoors out of view: removed");
+            if (!gone && it->second.goingHome) {
+                static const Hash kNavTask = MISC::GET_HASH_KEY("SCRIPT_TASK_FOLLOW_NAV_MESH_TO_COORD");
+                int st = TASK::GET_SCRIPT_TASK_STATUS(p, kNavTask, false);
+                if (st != 0 && st != 1) {  // the walk is over (0 = about to start, 1 = running)
+                    it->second.goingHome = false;
+                    float off = dist(pos(p), it->second.home);
+                    if (off > 6.0f && !INTERIOR::GET_INTERIOR_FROM_ENTITY(p)) it->second.home = pos(p);  // could not get there
+                    wanderAtHome(p, it->second);
+                    FD_INFO("stray back %s (%.0f m off its spot)", off > 6.0f ? "short of its spot" : "at its spot", off);
+                }
+            }
             if (gone || (distant && it->second.ours) || indoors) {
                 for (auto& m : g_mem)
                     if (m.id == it->second.memId) {

@@ -116,8 +116,11 @@ better, and has a character of its own. Every system below can be switched off i
   minimap the whole way, also on the passer-by carrying the message. $5–15 by distance; the trip survives a reload. ✅ in game 25.11: ordered from 856 m, the rider with the dog came within ~2 min and handed it over
 
 ## Strays
-- Mutts along roads, packs of two or three near towns, never more than three around; always outdoors (never in a
-  building, and one that wanders in walks back out). Strays=0 in FrontierDog.ini turns them off. ⏳ not checked in game
+- Mutts along roads, packs of two or three near towns, never more than three around; always outdoors: they appear
+  outside only, a beggar or a tagging-along mutt stays at the door when Arthur goes in, one that still ends up indoors is
+  sent out and is gone once out of view. Strays=0 in FrontierDog.ini turns them off. ✅ in game 26.11 (test build, Valentine
+  general store): spawns outdoors, the beggar stays outside and walks back to its door, the follower stops at the door,
+  a stray indoors out of view is removed. ⏳ a stray indoors in view walking out: not seen (in the test it stood still)
 - Tame one with food or a pat; a Street-hardened mutt keeps its distance until fed on two or three different days and
   runs off when you fire near it.
 - Now and then a lone mutt begs by the door of a butcher or a saloon (all six butchers and nine saloons): when you come

@@ -16,5 +16,8 @@ void spawnNow();                  // test hook: a stray encounter now (ignores t
 void beggarNow();                 // test hook: a beggar by the nearest butcher/saloon within reach, no roll
 void hardNow();                   // test hook: a wary street-hardened mutt 20-35 m away, unseen
 void visitorNow();                // test hook: a fed stray that waits near camp (as after feeding, no roll)
-void hereNow();                   // test hook: the nearest stray of ours next to Arthur (indoors too), its spot kept
+void hereNow(const Vector3* exact = nullptr);  // test hook: the nearest stray of ours 2.5 m in front of Arthur or at `exact`
+void followNow();                 // test hook: the nearest stray of ours follows Arthur for 2 minutes (as after feeding)
+void goNow(const Vector3& to);     // test hook: the nearest stray of ours walks to a point on the navmesh
+void infoNow();                   // test hook: where our strays are (indoors, on screen, how far from their spot)
 }
