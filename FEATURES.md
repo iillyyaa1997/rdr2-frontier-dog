@@ -15,7 +15,9 @@ better, and has a character of its own. Every system below can be switched off i
   the game's own Pet does the patting — never both buttons in one place (0.1.3). A praise within 30 s of a deed (a
   fetch, herbs found, a fight) is worth more. Arthur's line goes by the dog's sex ("good girl" / "good boy": his lines
   for patting a horse, PET_HORSE_FEMALE/_MALE) and the game picks a different one each time (0.1.5). ✅ in game 27.11:
-  the praise plays PET_HORSE_{sex} with variation 0; variation 0 gave 4 different lines in 4 tries
+  the praise plays PET_HORSE_{sex} with variation 0; variation 0 gave 4 different lines in 4 tries; the English
+  voice 27.11: 17 of 20 lines made out, all "good girl" / "good boy" kind, no "horse", and no line of the other sex
+  in 12 random picks
 - Waits outside buildings; on story missions it stays out of the way and hides during cutscenes.
 - A paw blip on the radar and the map, and the dog's own core next to Arthur's and the horse's, drawn like them: a worn
   paw that drains from the top as the dog gets hungry (red when starving, blinking red when wounded), its ring the

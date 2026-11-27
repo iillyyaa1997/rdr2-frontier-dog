@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.5 (not released)
+## 0.1.5
 - "Sic 'em" no longer stops showing after a minute or two of aiming at new people and animals (Nexus 27.11 RsLeon). The
   game only ever added our button to the prompt group of each new target and never took it out of the old ones; after
   enough targets it showed on none of the new ones (window 27.11: after 46 targets the game showed it on 0 of 13 locks on
