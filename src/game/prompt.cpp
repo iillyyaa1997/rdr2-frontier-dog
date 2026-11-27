@@ -35,6 +35,8 @@ UiPrompt::~UiPrompt() {
 #endif
 }
 
+int UiPrompt::s_regroup = 1;
+
 void UiPrompt::create(const std::string& control, const std::string& text, int holdMs, int priority) {
     destroy();
 #ifdef FD_TEST
@@ -45,22 +47,28 @@ void UiPrompt::create(const std::string& control, const std::string& text, int h
         order_ = g_nextOrder++;
     }
     holdMs_ = holdMs;
-    handle_ = HUD::_UI_PROMPT_REGISTER_BEGIN();
+    priority_ = priority;
     control_ = MISC::GET_HASH_KEY(control.c_str());
+    text_ = text;
+    registerHandle();
+    target_ = 0;
+    group_ = tab_ = 0;
+}
+
+// a new game prompt with this one's control, text, mode and priority, hidden and in no group
+void UiPrompt::registerHandle() {
+    handle_ = HUD::_UI_PROMPT_REGISTER_BEGIN();
     latched_ = false;
     HUD::_UI_PROMPT_SET_CONTROL_ACTION(handle_, control_);
-    text_ = text;
-    HUD::_UI_PROMPT_SET_TEXT(handle_, literal(text));
-    if (holdMs > 0) HUD::_UI_PROMPT_SET_HOLD_MODE(handle_, holdMs);
+    HUD::_UI_PROMPT_SET_TEXT(handle_, literal(text_));
+    if (holdMs_ > 0) HUD::_UI_PROMPT_SET_HOLD_MODE(handle_, holdMs_);
     else HUD::_UI_PROMPT_SET_STANDARD_MODE(handle_, false);
-    HUD::_UI_PROMPT_SET_PRIORITY(handle_, priority);
+    HUD::_UI_PROMPT_SET_PRIORITY(handle_, priority_);
     HUD::_UI_PROMPT_SET_ATTRIBUTE(handle_, 18, true);  // as the game's own entity prompts
     HUD::_UI_PROMPT_REGISTER_END(handle_);
     HUD::_UI_PROMPT_SET_VISIBLE(handle_, false);
     HUD::_UI_PROMPT_SET_ENABLED(handle_, false);
     visible_ = enabled_ = want_ = wantEnabled_ = false;
-    target_ = 0;
-    group_ = tab_ = 0;
 }
 
 void UiPrompt::destroy() {
@@ -83,6 +91,17 @@ void UiPrompt::setTarget(Entity target) {
 
 void UiPrompt::setGroup(int group, int tab) {
     if (!handle_ || (group == group_ && tab == tab_)) return;
+    if (group_ != 0 && group != group_) {
+        if (s_regroup == 1) {
+            HUD::_UI_PROMPT_REMOVE_GROUP(handle_, group_);
+        } else if (s_regroup == 2) {
+            bool want = want_, wantEnabled = wantEnabled_;
+            HUD::_UI_PROMPT_DELETE(handle_);
+            registerHandle();
+            want_ = want;
+            wantEnabled_ = wantEnabled;
+        }
+    }
     group_ = group;
     tab_ = tab;
     HUD::_UI_PROMPT_SET_GROUP(handle_, group, tab);

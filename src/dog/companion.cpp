@@ -375,10 +375,10 @@ void Companion::updatePrompts() {
         if (d) addDeed(*d, ctx().breeds, "command", 1, ctx().rng);
         if (stay_) {
             follow();
-            speech(player(), PED::IS_PED_MALE(ped_) ? "HORSE_FOLLOW_ME_MALE" : "HORSE_FOLLOW_ME_FEMALE");
+            sayToDog("HORSE_FOLLOW_ME_{sex}", 0);
         } else {
             stay();
-            speech(player(), PED::IS_PED_MALE(ped_) ? "HORSE_STAY_HERE_MALE" : "HORSE_STAY_HERE_FEMALE");
+            sayToDog("HORSE_STAY_HERE_{sex}", 0);
         }
     }
     if (praisePrompt_.fired()) praise();
@@ -414,35 +414,41 @@ void Companion::stay() {
 }
 
 // Praise (24.11): it used to play the game's own patting, so it was the game's Pet twice over (+7 at once, Nexus 23.11
-// «no difference between petting and praise»). Now Arthur says it - the first of praise.speech the game has for him
-// (each line tried once, the one that plays is kept) - and the dog answers with a happy bark, turned to him. Worth more
-// right after a deed.
+// «no difference between petting and praise»). Now Arthur says it and the dog answers with a happy bark, turned to him.
+// Worth more right after a deed.
+// Nexus 26.11 StupidWorm: always «Hello, boy», to her female dog too. Window 27.11: a fixed variation (we asked for 1)
+// is the same line every time, variation 0 lets the game pick one; Arthur's lines for patting a horse come by its sex
+// (PET_HORSE_FEMALE / PET_HORSE_MALE). So: praise.speech in order ({sex} = the dog's sex from its record - a husky
+// ped is male whatever the record says), said to the dog, variation praise.variation (0 = the game picks).
 void Companion::noteDeed(const char* what) {
     lastDeedAt_ = now();
     FD_DEBUG("deed: %s", what);
 }
 
+// a line of Arthur's to the dog: {sex} in it becomes MALE or FEMALE by the dog's record
+bool Companion::sayToDog(const std::string& line, int variation) {
+    const DogRecord* d = record();
+    bool female = d ? d->female : !PED::IS_PED_MALE(ped_);
+    std::string name = line;
+    size_t at = name.find("{sex}");
+    if (at != std::string::npos) name.replace(at, 5, female ? "FEMALE" : "MALE");
+    return speechWith(player(), name.c_str(), variation, ped_);
+}
+
 void Companion::praise() {
     if (!present()) return;
-    static int s_line = -1;  // the speech line that worked (index * 2 + 1 when it plays without the sex suffix)
     auto lines = ctx().tuning.getList("praise.speech");
-    const char* sex = PED::IS_PED_MALE(ped_) ? "_MALE" : "_FEMALE";
-    // a line with the dog's sex (HORSE_FOLLOW_ME_MALE) or a plain one (GREET_DOG - window 25.11: the game has GREET_DOG,
-    // PET_HORSE, CALM_HORSE for Arthur; PRAISE_DOG, PET_DOG, GOOD_DOG, HORSE_PRAISE and the like it does not)
-    auto name = [&](int k) { return lines[k / 2] + (k % 2 ? "" : sex); };
+    int variation = ctx().tune("praise.variation", 0);
+    static bool s_logged = false;
     bool said = false;
-    if (s_line >= 0 && s_line < int(lines.size()) * 2) said = speech(player(), name(s_line).c_str());
-    for (int k = 0; !said && s_line < 0 && k < int(lines.size()) * 2; ++k) {
-        if (speech(player(), name(k).c_str())) {
-            s_line = k;
-            said = true;
-            FD_INFO("praise: Arthur says %s", name(k).c_str());
+    for (size_t k = 0; k < lines.size() && !said; ++k) {
+        said = sayToDog(lines[k], variation);
+        if (said && !s_logged) {
+            s_logged = true;
+            FD_INFO("praise: Arthur says %s (variation %d)", lines[k].c_str(), variation);
         }
     }
-    if (!said && s_line < 0) {
-        s_line = int(lines.size()) * 2;  // none of them: quiet from now on, no retries every time
-        FD_INFO("praise: none of the %d speech lines played - a quiet praise", int(lines.size()));
-    }
+    if (!said) FD_DEBUG("praise: no line played (Arthur already speaking, or none of the %d lines)", int(lines.size()));
     AUDIO::PLAY_ANIMAL_VOCALIZATION(ped_, "BARK_HAPPY", true);
     if (!stay_ && !PED::IS_PED_ON_MOUNT(player())) TASK::TASK_TURN_PED_TO_FACE_ENTITY(ped_, player(), 1500, 0, 0, 0);
     addBond(ctx().tunef("bond.praise", 3), "praise", ctx().tune("bond.praise_cooldown_ms", 120000));

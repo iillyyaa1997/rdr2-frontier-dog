@@ -13,7 +13,9 @@ better, and has a character of its own. Every system below can be switched off i
   Stay / Follow and Send home from any distance it can hear your whistle.
 - Praise is words, from afar and from the saddle (Arthur says it, the dog answers with a happy bark); up close on foot
   the game's own Pet does the patting — never both buttons in one place (0.1.3). A praise within 30 s of a deed (a
-  fetch, herbs found, a fight) is worth more. ✅ in game 25.11: Arthur speaks (GREET_DOG)
+  fetch, herbs found, a fight) is worth more. Arthur's line goes by the dog's sex ("good girl" / "good boy": his lines
+  for patting a horse, PET_HORSE_FEMALE/_MALE) and the game picks a different one each time (0.1.5). ✅ in game 27.11:
+  the praise plays PET_HORSE_{sex} with variation 0; variation 0 gave 4 different lines in 4 tries
 - Waits outside buildings; on story missions it stays out of the way and hides during cutscenes.
 - A paw blip on the radar and the map, and the dog's own core next to Arthur's and the horse's, drawn like them: a worn
   paw that drains from the top as the dog gets hungry (red when starving, blinking red when wounded), its ring the
@@ -64,7 +66,8 @@ better, and has a character of its own. Every system below can be switched off i
   none it whines and says so. Herbalist shows them within 50 m by itself.
 
 ## Guarding
-- «Get him!» while aiming at a man or an animal; warns about predators once each; senses ambushes.
+- «Get him!» while aiming at a man or an animal; warns about predators once each; senses ambushes. The button keeps
+  showing on new targets however many you aimed at before (0.1.5; ✅ window 27.11 with emulated aiming: 13 of 13).
 - Stands up for you on its own (0.1.2): goes for the nearest man or animal fighting you within 30 m; never lawmen,
   never the gang; a timid dog (Courage 1-2, not Fearless) only barks at them, the Shiba goes in from Courage 2. Not on missions, in camp, when told to
   stay or «Leave it». AutoAttack=0 in the ini turns it off.

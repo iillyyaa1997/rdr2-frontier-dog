@@ -28,14 +28,24 @@ public:
     // dog's 6th prompt - Follow - silently dropped), so the best ranked wanted ones are shown, the rest hidden
     static void applyFrame();
     static constexpr int kGroupMax = 5;
+    // what happens to the group a prompt leaves when its target changes: 0 = nothing (up to 0.1.4), 1 = the prompt is
+    // taken out of it, 2 = the prompt is made anew. The game only ever adds a prompt to groups (_UI_PROMPT_SET_GROUP), so
+    // a prompt that followed many targets stopped showing on new ones (Nexus 27.11 RsLeon: Sic 'em gone after a minute
+    // or two of aiming at new people and game)
+    static void setRegroupMode(int mode) { s_regroup = mode; }
 #ifdef FD_TEST
     bool visibleForTest() const { return handle_ && visible_; }
+    bool wantedForTest() const { return handle_ && want_; }
     const std::string& textForTest() const { return text_; }
+    Prompt handleForTest() const { return handle_; }
+    int groupForTest() const { return group_; }
 #endif
 
 private:
+    void registerHandle();
+    static int s_regroup;
     Prompt handle_ = 0;
-    int holdMs_ = 0;
+    int holdMs_ = 0, priority_ = 1;
     Hash control_ = 0;
     bool latched_ = false;  // fired; the key must be let go before it can fire again
     std::string text_;

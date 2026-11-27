@@ -13,3 +13,9 @@ bool busy();                     // a task of its own is running (attack, track,
 bool feedOffered();              // the feed prompt takes the praise button this frame
 bool trackOffered();             // the track prompt takes the send-home button this frame
 }
+#ifdef FD_TEST
+#include "game/prompt.h"
+namespace fd::behaviour {
+game::UiPrompt& attackPromptForTest();
+}
+#endif

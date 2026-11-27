@@ -102,7 +102,7 @@ static void updateAttack(Ped dog, DogRecord& d) {
             g_attackUntil = now() + ctx().tune("attack.max_ms", 60000);
             g_attackRetaskAt = now() + 3000;
             TASK::TASK_COMBAT_PED(dog, target, 0, 16);
-            speech(player(), PED::IS_PED_MALE(dog) ? "HORSE_RUN_AWAY_MALE" : "HORSE_RUN_AWAY_FEMALE");
+            companion().sayToDog("HORSE_RUN_AWAY_{sex}", 0);
             FD_INFO("command: attack ped %d (model 0x%08X) %.0f m from the dog", target, ENTITY::GET_ENTITY_MODEL(target), dist(target, dog));
         }
     } else {
@@ -326,5 +326,9 @@ void onScriptEvent(int index) {
         TASK::TASK_COMBAT_PED(companion().ped(), target, 0, 16);
     }
 }
+
+#ifdef FD_TEST
+game::UiPrompt& attackPromptForTest() { return g_attack; }
+#endif
 
 }  // namespace fd::behaviour

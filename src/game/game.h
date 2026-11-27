@@ -47,6 +47,8 @@ bool safeCoord(const Vector3& around, Vector3& out);
 const char* literal(const std::string& text);  // VAR_STRING(10, "LITERAL_STRING", text)
 void helpText(const std::string& text, int ms = 5000);
 bool speech(Ped ped, const char* line);        // ambient speech, e.g. HORSE_FOLLOW_ME_MALE; false: the game had no such line
+// the same with a variation of the line (1 = the first) and the ped it is said to (0 = nobody)
+bool speechWith(Ped speaker, const char* line, int variation, Ped listener);
 
 bool onMission();
 bool inCutscene();

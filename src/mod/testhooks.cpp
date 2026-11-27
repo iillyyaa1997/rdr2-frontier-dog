@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstring>
 #include <map>
 #include <string>
 #include <vector>
@@ -11,6 +12,7 @@
 #include "core/fs.h"
 #include "core/log.h"
 #include "core/strutil.h"
+#include "dog/behaviour.h"
 #include "dog/coat.h"
 #include "dog/stables.h"
 #include "dog/carry.h"
@@ -38,6 +40,176 @@ static int g_watchUntil = 0;  // see watchHud
 static int g_spritesUntil = 0;  // see drawSprites
 static int g_fontsUntil = 0;    // see ui::talkFontSurvey
 static std::vector<std::pair<std::string, std::string>> g_sprites;
+// ---------------------------------------------------------------- test pad
+// The game's XInputGetState (its XInput DLL export) patched as Trail Guide's pad steer does: the real pad is read through
+// our own xinput1_4, then the left trigger / right stick / buttons are replaced while 'pad' holds them. With no pad
+// connected, pad 0 reads as connected while held. Used to aim (LT) at a ped: GET_PLAYER_TARGET_ENTITY needs a real lock-on.
+struct XGamepad {
+    WORD buttons;
+    BYTE lt, rt;
+    SHORT lx, ly, rx, ry;
+};
+struct XState {
+    DWORD packet;
+    XGamepad pad;
+};
+using XGetStateFn = DWORD(WINAPI*)(DWORD, XState*);
+static XGetStateFn g_realGetState = nullptr;
+static HMODULE g_ownXInput = nullptr;
+static volatile LONG g_padOn = 0, g_padSeq = 0, g_padFake = 0;  // g_padFake: no real pad - pad 0 stays connected once used
+static volatile BYTE g_padLT = 0;
+static volatile WORD g_padButtons = 0;
+static DWORD g_fakePacket = 0;
+static int g_padUntil = 0;
+static bool g_padTried = false, g_padOk = false;
+
+static DWORD WINAPI padGetState(DWORD index, XState* s) {
+    DWORD r = g_realGetState ? g_realGetState(index, s) : 1167;  // ERROR_DEVICE_NOT_CONNECTED
+    if (index != 0 || !s) return r;
+    // a fake pad that came and went made the game stop at «ВНИМАНИЕ - press any key» (controller lost): once used it
+    // stays connected, neutral between holds
+    if (r != 0 && (g_padOn || g_padFake)) {
+        std::memset(s, 0, sizeof(*s));
+        s->packet = g_fakePacket;
+        r = 0;
+        InterlockedExchange(&g_padFake, 1);
+    }
+    if (!g_padOn) return r;
+    s->pad.lt = g_padLT;
+    s->pad.buttons |= g_padButtons;
+    s->packet += 0x40000000u + DWORD(g_padSeq);
+    return r;
+}
+
+static bool padInstall() {
+    if (g_padTried) return g_padOk;
+    g_padTried = true;
+    g_ownXInput = LoadLibraryW(L"xinput1_4.dll");
+    if (g_ownXInput) g_realGetState = (XGetStateFn)GetProcAddress(g_ownXInput, "XInputGetState");
+    std::string which;
+    for (const wchar_t* dll : {L"xinput9_1_0.dll", L"xinput1_3.dll", L"xinput1_2.dll", L"xinput1_1.dll"}) {
+        HMODULE m = GetModuleHandleW(dll);
+        if (!m || m == g_ownXInput) continue;
+        BYTE* f = (BYTE*)GetProcAddress(m, "XInputGetState");
+        if (!f) continue;
+        BYTE code[12] = {0x48, 0xB8, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xE0};  // mov rax, imm64 ; jmp rax
+        void* target = (void*)&padGetState;
+        std::memcpy(code + 2, &target, 8);
+        DWORD old = 0;
+        if (!VirtualProtect(f, sizeof code, PAGE_EXECUTE_READWRITE, &old)) continue;
+        std::memcpy(f, code, sizeof code);
+        VirtualProtect(f, sizeof code, old, &old);
+        FlushInstructionCache(GetCurrentProcess(), f, sizeof code);
+        char name[32];
+        std::snprintf(name, sizeof name, "%ls", dll);
+        which += std::string(which.empty() ? "" : ", ") + name;
+    }
+    g_padOk = !which.empty();
+    FD_INFO("test: pad hook %s (real pad reader %s)", g_padOk ? which.c_str() : "NOT installed", g_realGetState ? "yes" : "no");
+    return g_padOk;
+}
+
+static void padHold(BYTE lt, WORD buttons, int ms) {
+    if (!padInstall()) return;
+    if (!g_padOn || lt != g_padLT || buttons != g_padButtons) InterlockedIncrement(&g_padSeq);
+    g_padLT = lt;
+    g_padButtons = buttons;
+    InterlockedExchange(&g_padOn, 1);
+    g_padUntil = now() + ms;
+}
+
+static void padRelease() {
+    if (g_padOn) InterlockedIncrement(&g_padSeq);
+    InterlockedExchange(&g_padOn, 0);
+    g_padUntil = 0;
+}
+
+// ---------------------------------------------------------------- sictest
+// sictest <n> [model] [metres]: n new peds one after another in front of Arthur; for each the camera is put on it and
+// LT held 2 s; logs whether the game locked on, whether our Sic 'em prompt was wanted / given to the game / active in
+// the game, and its group. Nexus 27.11 RsLeon: after a minute or two the prompt never shows on new targets.
+struct SicTest {
+    int left = 0, index = 0, phase = 0, at = 0;
+    Ped ped = 0;
+    std::string model;
+    float metres = 7;
+    int holdMs = 2400;
+    bool locked = false, focused = false, wanted = false, shown = false, active = false;
+    int group = 0, seenOk = 0;
+    Entity lockedPed = 0;
+};
+static SicTest g_sic;
+
+static void sicTick() {
+    if (g_sic.left <= 0) return;
+    Ped pl = player();
+    int t = now();
+    if (g_sic.phase == 0) {
+        Vector3 fwd = ENTITY::GET_ENTITY_FORWARD_VECTOR(pl);
+        Vector3 side{fwd.y, -fwd.x, 0};
+        float off = (g_sic.index % 3 - 1) * 1.5f;
+        Vector3 at = add(add(pos(pl), scale(fwd, g_sic.metres)), scale(side, off));
+        float heading = ENTITY::GET_ENTITY_HEADING(pl) + 180.0f;
+        g_sic.ped = spawnPed(g_sic.model, at, heading);
+        if (!g_sic.ped) {
+            FD_INFO("test: sic - no ped from %s", g_sic.model.c_str());
+            g_sic.left = 0;
+            return;
+        }
+        PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(g_sic.ped, true);
+        TASK::TASK_STAND_STILL(g_sic.ped, -1);
+        g_sic.locked = g_sic.focused = g_sic.wanted = g_sic.shown = g_sic.active = false;
+        g_sic.lockedPed = 0;
+        g_sic.phase = 1;
+        g_sic.at = t;
+        return;
+    }
+    if (g_sic.phase == 1) {
+        int since = t - g_sic.at;
+        // Arthur and the camera turned to the ped before LT only: turning him while he focuses dropped the focus
+        if (since < 300) {
+            Vector3 me = pos(pl), d = pos(g_sic.ped);
+            ENTITY::SET_ENTITY_HEADING(pl, std::atan2(-(d.x - me.x), d.y - me.y) * 57.2958f);
+            Vector3 cam = CAMERA::GET_GAMEPLAY_CAM_COORD();
+            float dx = d.x - cam.x, dy = d.y - cam.y, dz = d.z + 0.3f - cam.z;
+            CAMERA::SET_GAMEPLAY_CAM_RELATIVE_HEADING(0.0f, 1.0f);
+            CAMERA::SET_GAMEPLAY_CAM_RELATIVE_PITCH(std::atan2(dz, std::sqrt(dx * dx + dy * dy)) * 57.2958f, 1.0f);
+        }
+        // LT from 0.3 s; let go for 0.2 s every 1.5 s while nothing is locked (a fresh press locks the ped in the middle)
+        bool regrip = !g_sic.locked && since > 1800 && (since - 1800) % 1500 < 200;
+        if (since > 300 && !regrip) padHold(255, 0, 300);
+        else if (regrip) padHold(0, 0, 300);
+        Entity target = 0, focus = 0;
+        if (PLAYER::GET_PLAYER_TARGET_ENTITY(PLAYER::PLAYER_ID(), &target) && target && ENTITY::IS_ENTITY_A_PED(target)) {
+            g_sic.locked = true;
+            g_sic.lockedPed = target;
+        }
+        PLAYER::GET_PLAYER_INTERACTION_TARGET_ENTITY(PLAYER::PLAYER_ID(), &focus, false, false);
+        if (focus == g_sic.ped) g_sic.focused = true;
+        auto& ap = behaviour::attackPromptForTest();
+        if (target && target == g_sic.lockedPed) {
+            g_sic.wanted |= ap.wantedForTest();
+            g_sic.shown |= ap.visibleForTest();
+            g_sic.active |= ap.handleForTest() && HUD::_UI_PROMPT_IS_ACTIVE(ap.handleForTest());
+            g_sic.group = ap.groupForTest();
+        }
+        if (t - g_sic.at < g_sic.holdMs) return;
+        padRelease();
+        if (g_sic.active) ++g_sic.seenOk;
+        FD_INFO("test: sic %d ped %d (locked ped %d): locked %d, focus %d, wanted %d, given %d, game active %d, group %d (handle valid %d)",
+                g_sic.index + 1, g_sic.ped, g_sic.lockedPed, int(g_sic.locked), int(g_sic.focused), int(g_sic.wanted), int(g_sic.shown),
+                int(g_sic.active), g_sic.group, int(ap.handleForTest() && HUD::_UI_PROMPT_IS_VALID(ap.handleForTest())));
+        deletePed(g_sic.ped);
+        g_sic.phase = 2;
+        g_sic.at = t;
+        return;
+    }
+    if (t - g_sic.at < 700) return;
+    ++g_sic.index;
+    if (--g_sic.left <= 0) FD_INFO("test: sic done - the game showed Sic 'em on %d of %d", g_sic.seenOk, g_sic.index);
+    g_sic.phase = 0;
+}
+
 static void run(const std::vector<std::string>& a) {
     auto& c = ctx();
     auto& comp = companion();
@@ -306,10 +478,14 @@ static void run(const std::vector<std::string>& a) {
     } else if (cmd == "praise" && comp.present()) {
         comp.praise();
     } else if (cmd == "say" && a.size() >= 2) {
-        // say <speech line>: does the game have this line for Arthur (praise.speech candidates)
-        bool ok = speech(pl, a[1].c_str());
+        // say <speech line> [variation] [listener: me|dog|none]: does the game have this line for Arthur
+        int variation = int(num(2, 1));
+        std::string who = a.size() > 3 ? a[3] : "me";
+        Ped listener = who == "dog" && comp.present() ? comp.ped() : (who == "none" ? 0 : pl);
+        bool ok = speechWith(pl, a[1].c_str(), variation, listener);
         scriptWait(300);
-        FD_INFO("test: say %s -> %d, speaking %d", a[1].c_str(), int(ok), int(AUDIO::IS_ANY_SPEECH_PLAYING(pl)));
+        FD_INFO("test: say %s v%d to %s -> %d, speaking %d", a[1].c_str(), variation, who.c_str(), int(ok),
+                int(AUDIO::IS_ANY_SPEECH_PLAYING(pl)));
     } else if (cmd == "dismount") {
         TASK::TASK_DISMOUNT_ANIMAL(pl, 0, 0, 0, 0, 0);
     } else if (cmd == "revive" && comp.present()) {
@@ -598,6 +774,59 @@ static void run(const std::vector<std::string>& a) {
         CAMERA::SET_GAMEPLAY_CAM_RELATIVE_HEADING(head, 1.0f);
         CAMERA::SET_GAMEPLAY_CAM_RELATIVE_PITCH(pitch, 1.0f);
         FD_INFO("test: camera at the dog: heading %.1f, pitch %.1f", head, pitch);
+    } else if (cmd == "sictest") {
+        g_sic = SicTest{};
+        g_sic.left = int(num(1, 10));
+        g_sic.model = a.size() > 2 ? a[2] : "a_m_m_valfarmer_01";
+        g_sic.metres = float(num(3, 7));
+        g_sic.holdMs = int(num(4, 2400));
+    } else if (cmd == "wait") {
+        scriptWait(DWORD(num(1, 1000)));
+    } else if (cmd == "sayscan" && a.size() >= 2) {
+        // sayscan <line> <from> <to> [listener me|dog|none] [repeat]: each variation in turn, the next once the speech
+        // has ended + 1.5 s of quiet (one burst per line in a recording); 'repeat' plays variation <from> that many times
+        int from = int(num(2, 1)), to = int(num(3, from));
+        std::string who = a.size() > 4 ? a[4] : "dog";
+        int repeat = int(num(5, 0));
+        Ped listener = who == "dog" && comp.present() ? comp.ped() : (who == "none" ? 0 : pl);
+        int total = repeat > 0 ? repeat : to - from + 1;
+        for (int k = 0; k < total; ++k) {
+            int v = repeat > 0 ? from : from + k;
+            int t0 = now();
+            bool ok = speechWith(pl, a[1].c_str(), v, listener);
+            int spoke = 0;
+            scriptWait(150);
+            while (AUDIO::IS_ANY_SPEECH_PLAYING(pl) && now() - t0 < 6000) { spoke = now() - t0; scriptWait(50); }
+            FD_INFO("test: sayscan %s v%d to %s -> %d, %d ms, at %d", a[1].c_str(), v, who.c_str(), int(ok), spoke, t0);
+            scriptWait(1500);
+        }
+    } else if (cmd == "promptstate") {
+        auto& ap = behaviour::attackPromptForTest();
+        Entity target = 0;
+        PLAYER::GET_PLAYER_TARGET_ENTITY(PLAYER::PLAYER_ID(), &target);
+        FD_INFO("test: Sic 'em prompt: locked %d, wanted %d, given %d, game active %d, group %d (target's group %d)", target,
+                int(ap.wantedForTest()), int(ap.visibleForTest()), int(ap.handleForTest() && HUD::_UI_PROMPT_IS_ACTIVE(ap.handleForTest())),
+                ap.groupForTest(), target ? HUD::_UI_PROMPT_GET_GROUP_ID_FOR_TARGET_ENTITY(target) : 0);
+    } else if (cmd == "fillgroups") {
+        // fillgroups <n> [model]: the Sic 'em prompt goes through the target groups of n new peds (spawned 25 m behind
+        // Arthur, removed at once), as if he had aimed at n people one after another (RsLeon 27.11)
+        auto& ap = behaviour::attackPromptForTest();
+        int n = int(num(1, 30)), made = 0;
+        std::string model = a.size() > 2 ? a[2] : "a_m_m_valfarmer_01";
+        for (int i = 0; i < n; ++i) {
+            Vector3 at = add(p, scale(fwd, -25.0f - float(i % 5)));
+            Ped x = spawnPed(model, at, 0);
+            if (!x) break;
+            ap.setTarget(x);
+            ++made;
+            deletePed(x);
+        }
+        FD_INFO("test: fillgroups - the prompt went through %d groups (regroup mode as set)", made);
+    } else if (cmd == "regroup") {  // regroup <0|1|2>: see UiPrompt::setRegroupMode
+        UiPrompt::setRegroupMode(int(num(1, 1)));
+        FD_INFO("test: regroup mode %d", int(num(1, 1)));
+    } else if (cmd == "pad") {  // pad <ms> [lt 0-255]: hold the left trigger (aim) on the test pad
+        padHold(BYTE(num(2, 255)), 0, int(num(1, 1000)));
     } else if (cmd == "aimlog") {
         g_aimUntil = now() + int(num(1, 10) * 1000);
     } else if (cmd == "lockon") {
@@ -894,6 +1123,8 @@ static void aimLog() {
 }
 
 void tick() {
+    if (g_padUntil && now() >= g_padUntil) padRelease();
+    sicTick();
     if (now() < g_aimUntil && now() >= g_aimNext) {
         g_aimNext = now() + 300;
         aimLog();

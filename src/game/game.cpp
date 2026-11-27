@@ -138,20 +138,23 @@ void helpText(const std::string& text, int ms) {
     UIFEED::_UI_FEED_POST_HELP_TEXT(reinterpret_cast<Any*>(duration), reinterpret_cast<Any*>(data), true);
 }
 
+// line, voice (null: the speaker's own), variation, speech params (SPEECH_PARAMS_BEAT_SHOUTED_CLEAR), listener, two flags
 struct SpeechParams {
     alignas(8) const char* line;
     alignas(8) const char* voice;
-    alignas(8) int v1;
-    alignas(8) int v2;
-    alignas(8) int speaker;
+    alignas(8) int variation;
+    alignas(8) int params;
+    alignas(8) int listener;
     alignas(8) int v3;
     alignas(8) int v4;
 };
 
-bool speech(Ped ped, const char* line) {
-    SpeechParams p{line, nullptr, 1, 1744022339, ped, 1, 1};
-    return AUDIO::PLAY_PED_AMBIENT_SPEECH_NATIVE(ped, (Any*)&p) != 0;
+bool speechWith(Ped speaker, const char* line, int variation, Ped listener) {
+    SpeechParams p{line, nullptr, variation, 1744022339, listener, 1, 1};
+    return AUDIO::PLAY_PED_AMBIENT_SPEECH_NATIVE(speaker, (Any*)&p) != 0;
 }
+
+bool speech(Ped ped, const char* line) { return speechWith(ped, line, 1, ped); }
 
 bool onMission() { return MISC::GET_MISSION_FLAG() != 0; }
 

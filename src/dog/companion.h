@@ -28,6 +28,7 @@ public:
     void addBond(double points, const std::string& reason, int cooldownMs);
     void noteDeed(const char* what);    // it just did something worth praise (fetched, found herbs, fought): a praise soon after gives more
     void praise();                      // Arthur praises it in words (from afar or the saddle; patting is the game's own Pet)
+    bool sayToDog(const std::string& line, int variation);  // Arthur's line to the dog, {sex} = MALE/FEMALE by its record
     void save();
 
     void sendHome(bool runOff);         // the dog goes home to camp (ped removed out of view)

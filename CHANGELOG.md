@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.5 (not released)
+- "Sic 'em" no longer stops showing after a minute or two of aiming at new people and animals (Nexus 27.11 RsLeon). The
+  game only ever added our button to the prompt group of each new target and never took it out of the old ones; after
+  enough targets it showed on none of the new ones (window 27.11: after 46 targets the game showed it on 0 of 13 locks on
+  passers-by; with the fix, after 24 targets, on 13 of 13 - the same passer-by included). Every button of the mod that follows changing targets
+  (passers-by, strays, the card, the stable hand) now leaves the old target's group first.
+- Praise: Arthur says "good girl" lines to a female dog and "good boy" ones to a male (his lines for patting a horse,
+  by the dog's sex from its record - a husky looks male whatever it is), a different one each time (Nexus 26.11
+  StupidWorm: always "Hello, boy", the same line). Follow, Stay and "Sic 'em" lines vary the same way.
+
 ## 0.1.4
 - Strays stay outdoors: they no longer appear inside buildings, a begging or tagging-along mutt waits at the door when
   Arthur goes in, and one that still ends up indoors is sent back out and is gone once out of view (a dog cannot open a
