@@ -40,6 +40,12 @@ static int g_watchUntil = 0;  // see watchHud
 static int g_spritesUntil = 0;  // see drawSprites
 static int g_fontsUntil = 0;    // see ui::talkFontSurvey
 static std::vector<std::pair<std::string, std::string>> g_sprites;
+// camera checks (Nexus 27.11 StupidWorm: «companion camera zoom out ... the fov gets all screwed whenever my dog is near me»)
+static int g_camUntil = 0, g_camNext = 0, g_camEvery = 250;  // see camLog
+static int g_orbitUntil = 0;                                 // 'orbit': SET_THIRD_PERSON_CAM_ORBIT_DISTANCE_LIMITS_THIS_UPDATE
+static float g_orbitMin = 0, g_orbitMax = 0;
+static int g_camParamsUntil = 0;                             // 'camparams': _SET_GAMEPLAY_CAM_PARAMS_THIS_UPDATE
+static float g_cpSpeed = 1, g_cpDist = 0;
 // ---------------------------------------------------------------- test pad
 // The game's XInputGetState (its XInput DLL export) patched as Trail Guide's pad steer does: the real pad is read through
 // our own xinput1_4, then the left trigger / right stick / buttons are replaced while 'pad' holds them. With no pad
@@ -602,6 +608,51 @@ static void run(const std::vector<std::string>& a) {
             PED::GET_META_PED_ASSET_GUIDS(t, i, &d, &al, &nm, &mt);
             FD_INFO("test:  %d item 0x%08X cat 0x%08X drawable 0x%08X albedo 0x%08X", i, item, cat, d, al);
         }
+    } else if (cmd == "camlog") {  // camlog <seconds> [every ms]: the gameplay camera, the dog and the group, see camLog
+        g_camUntil = now() + int(num(1, 20) * 1000);
+        g_camEvery = int(num(2, 250));
+        g_camNext = 0;
+    } else if (cmd == "grp" && a.size() >= 2 && comp.present()) {
+        // grp 0: the dog out of Arthur's group, kept near by a follow task; grp 1: back in the group (tasks untouched)
+        Ped d = comp.ped();
+        if (a[1] == "0") {
+            PED::REMOVE_PED_FROM_GROUP(d);
+            TASK::TASK_FOLLOW_TO_OFFSET_OF_ENTITY(d, pl, 1.0f, -1.5f, 0, 3.0f, -1, 2.0f, true, false, false, false, false, false);
+        } else {
+            PED::SET_PED_AS_GROUP_MEMBER(d, PED::GET_PED_GROUP_INDEX(pl));
+        }
+        FD_INFO("test: grp %s - member %d", a[1].c_str(), int(PED::IS_PED_GROUP_MEMBER(d, PED::GET_PED_GROUP_INDEX(pl), false)));
+    } else if (cmd == "orbit") {  // orbit <min> <max> <seconds>: the third-person orbit distance held every frame
+        g_orbitMin = float(num(1, 0));
+        g_orbitMax = float(num(2, 0));
+        g_orbitUntil = now() + int(num(3, 20) * 1000);
+    } else if (cmd == "camparams") {  // camparams <distance> <seconds> [speed]: _SET_GAMEPLAY_CAM_PARAMS_THIS_UPDATE every frame
+        g_cpDist = float(num(1, 0));
+        g_cpSpeed = float(num(3, 1));
+        g_camParamsUntil = now() + int(num(2, 20) * 1000);
+    } else if (cmd == "dogcfg" && a.size() >= 2 && comp.present()) {  // dogcfg <flag> [0|1]: the dog's ped config flag
+        int f = int(num(1, 0));
+        if (a.size() >= 3) PED::SET_PED_CONFIG_FLAG(comp.ped(), f, num(2, 0) != 0);
+        FD_INFO("test: dog config flag %d = %d", f, int(PED::GET_PED_CONFIG_FLAG(comp.ped(), f, true)));
+    } else if (cmd == "companal" && a.size() >= 2) {  // companal 0|1: companion analysis of Arthur's group off/on
+        int g = PED::GET_PED_GROUP_INDEX(pl);
+        if (a[1] == "0") COMPANION::_DEACTIVATE_COMPANION_ANALYSIS(g);
+        else COMPANION::_ACTIVATE_COMPANION_ANALYSIS(g);
+        FD_INFO("test: companion analysis %s for group %d", a[1].c_str(), g);
+    } else if (cmd == "mount") {  // mount: Arthur onto his saddle horse at once
+        Ped horse = PLAYER::_GET_SADDLE_HORSE_FOR_PLAYER(PLAYER::PLAYER_ID());
+        if (alive(horse) && !PED::IS_PED_ON_MOUNT(pl)) PED::SET_PED_ONTO_MOUNT(pl, horse, -1, true);
+        FD_INFO("test: mount %d on horse %d", int(PED::IS_PED_ON_MOUNT(pl)), horse);
+    } else if (cmd == "dogside" && comp.present()) {
+        // dogside [right m] [forward m]: the dog put at that offset from Arthur (or his mount), facing his way
+        Entity base = PED::IS_PED_ON_MOUNT(pl) ? Entity(PED::GET_MOUNT(pl)) : Entity(pl);
+        Vector3 to = ENTITY::GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(base, float(num(1, 2)), float(num(2, 0)), 0.0f);
+        ENTITY::SET_ENTITY_COORDS(comp.ped(), to.x, to.y, to.z, false, false, false, true);
+        ENTITY::SET_ENTITY_HEADING(comp.ped(), ENTITY::GET_ENTITY_HEADING(base));
+        FD_INFO("test: dog put %.1f m right, %.1f m ahead: %.1f m from Arthur", num(1, 2), num(2, 0), dist(comp.ped(), pl));
+    } else if (cmd == "camreset") {  // camreset: the gameplay camera straight behind Arthur, level
+        CAMERA::SET_GAMEPLAY_CAM_RELATIVE_HEADING(0.0f, 1.0f);
+        CAMERA::SET_GAMEPLAY_CAM_RELATIVE_PITCH(float(num(1, -5)), 1.0f);
     } else if (cmd == "dogcam") {
         // dogcam [off|dist height side]: a script camera on the companion's head and neck (collar shots); off = back
         static Cam cam = 0;
@@ -1106,6 +1157,26 @@ static void drawSprites() {
     }
 }
 
+static void camLog() {
+    auto& comp = companion();
+    Ped pl = player();
+    Vector3 pp = pos(pl);
+    Vector3 cam = CAMERA::GET_GAMEPLAY_CAM_COORD(), fin = CAMERA::GET_FINAL_RENDERED_CAM_COORD();
+    int group = PED::GET_PED_GROUP_INDEX(pl);
+    BOOL leader = false;
+    int followers = -1;
+    if (PED::DOES_GROUP_EXIST(group)) PED::GET_GROUP_SIZE(group, &leader, &followers);
+    int member = comp.present() ? int(PED::IS_PED_GROUP_MEMBER(comp.ped(), group, false)) : -1;
+    float dd = comp.present() ? dist(comp.ped(), pl) : -1.0f;
+    FD_INFO("cam: fov %.1f final %.1f | dist %.2f final %.2f dz %.2f | pitch %.1f heading %.1f | dog %.1f m member %d, "
+            "group %d followers %d | mount %d speed %.1f | hint %d cine %d fp %d script cam %d",
+            CAMERA::GET_GAMEPLAY_CAM_FOV(), CAMERA::GET_FINAL_RENDERED_CAM_FOV(), dist(cam, pp), dist(fin, pp), cam.z - pp.z,
+            CAMERA::GET_GAMEPLAY_CAM_RELATIVE_PITCH(), CAMERA::GET_GAMEPLAY_CAM_RELATIVE_HEADING(), dd, member, group, followers,
+            int(PED::IS_PED_ON_MOUNT(pl)), ENTITY::GET_ENTITY_SPEED(PED::IS_PED_ON_MOUNT(pl) ? PED::GET_MOUNT(pl) : pl),
+            int(CAMERA::IS_GAMEPLAY_HINT_ACTIVE()), int(CAMERA::_IS_IN_CINEMATIC_MODE()), int(CAMERA::_IS_IN_FULL_FIRST_PERSON_MODE()),
+            int(!CAMERA::IS_GAMEPLAY_CAM_RENDERING()));
+}
+
 static void aimLog() {
     auto& comp = companion();
     if (!comp.present()) return;
@@ -1133,6 +1204,12 @@ void tick() {
     if (now() < g_fontsUntil) ui::talkFontSurvey();
     if (now() < g_ctlUntil) probeControls();
     if (now() < g_watchUntil) watchHud();
+    if (now() < g_orbitUntil) CAMERA::SET_THIRD_PERSON_CAM_ORBIT_DISTANCE_LIMITS_THIS_UPDATE(g_orbitMin, g_orbitMax);
+    if (now() < g_camParamsUntil) CAMERA::_SET_GAMEPLAY_CAM_PARAMS_THIS_UPDATE(g_cpSpeed, false, 0.0f, true, g_cpDist);
+    if (now() < g_camUntil && now() >= g_camNext) {
+        g_camNext = now() + g_camEvery;
+        camLog();
+    }
     static int next = 0;
     if (now() < next) return;
     next = now() + 1000;
